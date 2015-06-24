@@ -1,0 +1,154 @@
+//
+//  FMMessage.m
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMMessage.h"
+#import "NSAttributedString+Height.h"
+#import "AttributedStringHelper.h"
+#import "FMImageView.h"
+#import "CurrentUserInformation.h"
+
+#define kReceiveContentColor [UIColor colorWithRed:0.0f green:0.0f blue:0.0f alpha:1]
+#define kSendContentColor    [UIColor colorWithRed:1.0f green:1.0f blue:1.0f alpha:1]
+
+#define kAttachBegin                    @"{"
+#define kAttachEnd                      @"}"
+#define kVoiceTag                       @"<audio>"
+#define kImageTag                       @"<image>"
+#define kKeyTag                         @"key"
+#define kWidthTag                       @"w"
+#define kHeightTag                      @"h"
+#define kLengthTag                      @"len"
+#define kMsgTypeTag                     @"ic"
+
+
+@interface FMMessage()
+
+@property (nonatomic, assign) CGFloat contentHeight;        // 缓存问题高度
+
+@end
+
+@implementation FMMessage
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.contentHeight = -1;
+        self.content = [[NSString alloc] init];
+        _msgStatus = MessageStatusOk;
+        _flowno = 0;
+        _messageId = 0;
+        _msgNo = 0;
+        _isVoicePlaying = NO;
+    }
+    return self;
+}
+
++ (id)initMessageWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    FMMessage *message  = [[FMMessage alloc] init];
+    
+    message.messageId   = IntForKeyInUnserializedJSONDic(dic, @"messageId");
+    message.userId      = StringForKeyInUnserializedJSONDic(dic, @"userId");
+    message.chatUserId  = StringForKeyInUnserializedJSONDic(dic, @"chatUserId");
+    message.userName    = StringForKeyInUnserializedJSONDic(dic, @"userName");
+    message.userIconKey = StringForKeyInUnserializedJSONDic(dic, @"userIconKey");
+    message.content     = StringForKeyInUnserializedJSONDic(dic, @"content");
+    //message.lastContent = StringForKeyInUnserializedJSONDic(dic, @"lastContent");
+    message.imageKey    = StringForKeyInUnserializedJSONDic(dic, @"imageKey");
+    message.voiceKey    = StringForKeyInUnserializedJSONDic(dic, @"voiceKey");
+    message.voiceLen    = StringForKeyInUnserializedJSONDic(dic, @"voiceLen");
+    message.msgTime     = IntForKeyInUnserializedJSONDic(dic, @"msgTime");
+    message.messageType = IntForKeyInUnserializedJSONDic(dic, @"messageType");
+    message.sendOrReceive = IntForKeyInUnserializedJSONDic(dic, @"sendOrReceive");
+    
+    return message;
+}
+
+- (CGFloat)getContentHeight:(CGFloat)containerWidth
+{
+    if (self.contentHeight < 0) {
+        self.contentHeight = [self.attributedContent boundingHeightForWidth:containerWidth];
+    }
+    return self.contentHeight;
+}
+
+- (void)setContent:(NSString *)content
+{
+    _content = content;
+    if ([content hasPrefix:kAttachBegin] && [content hasSuffix:kAttachEnd]) {
+        NSDictionary* dic = [content objectFromJSONString];
+        if (dic == nil || ![dic isKindOfClass:[NSDictionary class]] ) {
+            self.messageType = MessageTypeText;
+        }else{
+            NSInteger msgType = IntForKeyInUnserializedJSONDic(dic, kMsgTypeTag);
+            switch (msgType) {
+                case MessageTypeImage:
+                    self.messageType = MessageTypeImage;
+                    [self getImageInfo:dic];
+                    break;
+                case MessageTypeVoice:
+                    self.messageType = MessageTypeVoice;
+                    [self getAudioInfo:dic];
+                    break;
+                default:
+                    self.messageType = MessageTypeText;
+                    break;
+            }
+        }
+        
+    }else{
+        self.messageType = MessageTypeText;
+    }
+
+}
+- (void)setMsgTime:(int)msgTime
+{
+    _msgTime = msgTime;
+    
+}
+#pragma mark -消息解析
+// 获取语音信息
+- (void)getAudioInfo:(NSDictionary *)dic
+{
+    self.voiceKey = StringForKeyInUnserializedJSONDic(dic, kKeyTag);
+    self.voiceLen = StringForKeyInUnserializedJSONDic(dic, kLengthTag);
+    
+}
+// 获取图片信息
+- (void)getImageInfo:(NSDictionary *)dic
+{
+    self.imageKey = StringForKeyInUnserializedJSONDic(dic, kKeyTag);
+    self.imageWidth = FloatForKeyInUnserializedJSONDic(dic, kWidthTag);
+    self.imageHeight = FloatForKeyInUnserializedJSONDic(dic, kHeightTag);
+}
+
+
+#pragma mark -消息构造
+
+//生成语音发送内容
+- (void)makeVoiceContent
+{
+    NSMutableDictionary* dic = [NSMutableDictionary dictionary];
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInteger:self.messageType], kMsgTypeTag, dic);
+    AddObjectForKeyIntoDictionary(self.voiceKey, kKeyTag,dic);
+    AddObjectForKeyIntoDictionary(self.voiceLen, kLengthTag,dic);
+    _content = [dic JSONString];
+    
+}
+//生成图片发送内容
+- (void)makeImageContent
+{
+    NSMutableDictionary* dic = [NSMutableDictionary dictionary];
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInteger:self.messageType], kMsgTypeTag, dic);
+    AddObjectForKeyIntoDictionary(self.imageKey, kKeyTag,dic);
+    AddObjectForKeyIntoDictionary([NSNumber numberWithFloat:self.imageWidth], kWidthTag,dic);
+    AddObjectForKeyIntoDictionary([NSNumber numberWithFloat:self.imageHeight], kHeightTag,dic);
+    _content = [dic JSONString];
+}
+@end

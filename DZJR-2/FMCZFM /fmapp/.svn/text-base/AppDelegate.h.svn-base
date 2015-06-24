@@ -1,0 +1,24 @@
+//
+//  AppDelegate.h
+//  fmapp
+//
+//  Created by lyh on 14-5-5.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+#define  ShareAppDelegate ((AppDelegate* )[[UIApplication sharedApplication] delegate])
+
+
+
+@interface AppDelegate : UIResponder <UIApplicationDelegate>
+
+@property (strong, nonatomic) UIWindow *window;
+
+//开始定位
+- (void)startLocationUpdate;
+////重新装在tabbar item
+//- (void)setTabRootControlItem;
+
+@end

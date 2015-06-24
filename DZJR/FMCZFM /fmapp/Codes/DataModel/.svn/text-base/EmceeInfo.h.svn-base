@@ -1,0 +1,28 @@
+//
+//  EmceeInfo.h
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-13.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface EmceeInfo : NSObject
+
+@property (nonatomic,copy) NSString *idetity;       //ID
+@property (nonatomic,copy) NSString *name;          //姓名
+@property (nonatomic,copy) NSString *nation;        //民族
+@property (nonatomic,copy) NSString *pic;           //照片（未加前缀 
+@property (nonatomic,copy) NSString *college;       //毕业院校
+@property (nonatomic,copy) NSString *constellation; //星座
+@property (nonatomic,copy) NSString *program;       //主持的节目
+@property (nonatomic,assign) NSInteger praisedTime; //被赞次数
+@property (nonatomic,copy) NSString *hobby;         //爱好
+@property (nonatomic,copy) NSString *birthday;      //生日
+@property (nonatomic,copy) NSString *sendWord;      //寄语
+
+//JSON反序列化主持人信息
++ (id)emceeWithUnserializedJSONDic:(NSDictionary *)dic;
+
+@end

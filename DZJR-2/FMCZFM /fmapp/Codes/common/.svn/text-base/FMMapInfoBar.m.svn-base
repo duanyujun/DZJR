@@ -1,0 +1,166 @@
+//
+//  FMMapInfoBar.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-23.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMMapInfoBar.h"
+#import "CurrentUserInformation.h"
+
+#define kUserIconWidthAndHeight     46.5
+
+@interface FMMapInfoBar()
+@property (nonatomic,weak)UILabel*              titleLabel;             //主标题
+@property (nonatomic,weak)UILabel*              subTitleLabel;          //副标题
+@property (nonatomic,weak)UILabel*              subTitleLabel2;         //副标题2
+@property (nonatomic,weak)UIImageView*          iconImage;              //图标图像
+@property (nonatomic,weak)UILabel*              iconTitle;              //图标文字
+@property (nonatomic,weak)UIImageView *         divisionImgView;        ///分割线
+@end
+
+@implementation FMMapInfoBar
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+      
+        self.backgroundColor =KDefaultOrNightBackGroundColor;
+        self.layer.shadowColor = [[UIColor blackColor] CGColor];
+        self.layer.shadowOffset = CGSizeMake(0, 0);
+        
+        
+        //主标题
+        UILabel *titleLabel = [[UILabel alloc] init];
+        titleLabel.textColor=KDefaultOrNightTextColor;
+        titleLabel.backgroundColor=[UIColor clearColor];
+        titleLabel.font = [UIFont systemFontOfSize:17.0f];
+        titleLabel.numberOfLines = 0;
+        self.titleLabel = titleLabel;
+        [self addSubview:titleLabel];
+        
+        //副标题
+        UILabel *subTitleLabel = [[UILabel alloc] init];
+        subTitleLabel.font = [UIFont systemFontOfSize:12.0f];
+        subTitleLabel.backgroundColor=[UIColor clearColor];
+        subTitleLabel.textColor=KDefaultOrNightTextColor;
+        self.subTitleLabel = subTitleLabel;
+        [self addSubview:subTitleLabel];
+        
+        //副标题2
+        UILabel *subTitleLabel2 = [[UILabel alloc] init];
+        subTitleLabel2.font = [UIFont systemFontOfSize:12.0f];
+        subTitleLabel2.backgroundColor=[UIColor clearColor];
+        subTitleLabel2.textColor=KDefaultOrNightTextColor;
+        self.subTitleLabel2 = subTitleLabel2;
+        [self addSubview:subTitleLabel2];
+        
+        //分割视图
+        UIImageView *divisionImageView = [[UIImageView alloc] initWithFrame:CGRectMake(KProjectScreenWidth-92, 1.5f, 1, 77)];
+        [divisionImageView setImage:[UIImage imageNamed:@"RoadCondition_Division.png"]];
+        if (ThemeCategory==5) {
+            divisionImageView.alpha=0.6;
+        }
+        self.divisionImgView = divisionImageView;
+        [self addSubview:divisionImageView];
+        
+        
+        //icon图片
+        UIImageView *iconView = [[UIImageView alloc] initWithFrame:CGRectMake(divisionImageView.frame.origin.x+35, 20,23, 23)];
+        if (ThemeCategory==5) {
+            iconView.alpha=0.6;
+        }
+        self.iconImage = iconView;
+        [self addSubview:iconView];
+        //icon标题
+        UILabel *iconLabel = [[UILabel alloc] init];
+        iconLabel.font = [UIFont systemFontOfSize:12.0f];
+        iconLabel.textAlignment = UITextAlignmentCenter;
+        iconLabel.textColor = [[ThemeManager sharedThemeManager].skin baseTintColor];
+        iconLabel.backgroundColor=[UIColor clearColor];
+        self.iconTitle = iconLabel;
+        [self addSubview:iconLabel];
+    }
+    return self;
+}
+-(void)displayRoadCondition:(RoadConditionInfo* )roadConditionInfo
+{
+
+    [self.divisionImgView setHidden:NO];
+    //设置路况内容Label
+    self.titleLabel.text = roadConditionInfo.roadConditionContent;
+    self.titleLabel.numberOfLines = 0;
+    CGSize roadConditionLabelSize = [self.titleLabel.text sizeWithFont:self.titleLabel.font
+                                                        constrainedToSize:CGSizeMake(KProjectScreenWidth-110, 50)
+                                                            lineBreakMode:NSLineBreakByWordWrapping];
+    [self.titleLabel setFrame:CGRectMake(10, 12, roadConditionLabelSize.width, roadConditionLabelSize.height)];
+    
+    //设置路况上报者Label
+    _subTitleLabel.text = [NSString stringWithFormat:@"上报者：%@",roadConditionInfo.reportUserInfo.userName];
+    CGSize subTitleLabelSize = [_subTitleLabel.text sizeWithFont:_subTitleLabel.font];
+    if (subTitleLabelSize.width > KProjectScreenWidth-110) {
+        [_subTitleLabel setFrame:CGRectMake(10, 64, KProjectScreenWidth-110, subTitleLabelSize.height)];
+    }else{
+        [_subTitleLabel setFrame:CGRectMake(10, 64, subTitleLabelSize.width, subTitleLabelSize.height)];
+    }
+    
+    //指示图片
+    if ([roadConditionInfo.reportUserInfo.userID isEqualToString:@"0"] ||
+        [roadConditionInfo.reportUserInfo.userID isEqualToString:[[CurrentUserInformation sharedCurrentUserInfo] userID]]||(![roadConditionInfo.reportUserInfo.userRole isEqualToString:@"0"])) {
+        _iconImage.image = [UIImage imageNamed:@"RoadCondition_IndicatorCar.png"];
+    }else{
+        //sdfsdfsd
+        _iconImage.image = [UIImage imageNamed:@"RoadCondition_SayHi.png"];
+    }
+    
+    
+    //设置路况上报时间Label
+    self.iconTitle.text = roadConditionInfo.reportTime;
+    [self.iconTitle setFrame:CGRectMake(KProjectScreenWidth-92+2, 52, 90, 20)];
+    [self setNeedsDisplay];
+}
+
+-(void)displayUserInfo:(UserInfo* )userInfo
+{
+    //用户头像
+    self.iconImage.frame = CGRectMake(10,  8.5,kUserIconWidthAndHeight, kUserIconWidthAndHeight);
+    self.iconImage.contentMode = UIViewContentModeScaleAspectFit;
+    [self.iconImage setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,userInfo.userAvatar]] placeholderImage:kImgDefaultCar];
+    
+    //设置用户名Label
+    self.titleLabel.text = [NSString stringWithFormat:@"%@" ,userInfo.userName];
+    self.titleLabel.frame= CGRectMake(70,6.5,120,28);
+    self.titleLabel.textAlignment = NSTextAlignmentLeft;
+    self.titleLabel.textColor = KDefaultOrNightTextColor;
+    self.titleLabel.font = [UIFont systemFontOfSize:17.0f];
+    
+    ///隐藏横线
+    [self.divisionImgView setHidden:YES];
+    
+    //活跃时间
+    self.subTitleLabel2.text = [NSString stringWithFormat:@" %@",userInfo.userLoginTime];
+    self.subTitleLabel2.frame = CGRectMake(KProjectScreenWidth-70,3.5,70,28);
+    self.subTitleLabel2.textAlignment = NSTextAlignmentCenter;
+    self.subTitleLabel2.textColor = [UIColor grayColor];
+    self.subTitleLabel2.font = [UIFont systemFontOfSize:10.0f];
+    
+    ///显示个性签名
+    
+    if (IsStringEmptyOrNull(userInfo.userPersonalSignature)) {
+        [userInfo setUserPersonalSignature:@"未编辑签名"];
+    }
+    [self.iconTitle setText:userInfo.userPersonalSignature];
+    self.iconTitle.frame = CGRectMake(70,40,KProjectScreenWidth-80,20);
+    self.iconTitle.textColor=KSubTitleContentTextColor;
+    [self.iconTitle setTextAlignment:NSTextAlignmentLeft];
+    [self.iconTitle setFont:[UIFont systemFontOfSize:14.0f]];
+    self.iconTitle.backgroundColor = [UIColor clearColor];
+    self.iconTitle.numberOfLines = 2;
+
+    [self setNeedsDisplay];
+}
+
+@end

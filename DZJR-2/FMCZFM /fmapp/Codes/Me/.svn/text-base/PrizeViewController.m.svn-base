@@ -1,0 +1,322 @@
+//
+//  PrizeViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KMyPrizeInforBaseViewTag 100311
+
+#import "PrizeViewController.h"
+#import "HTTPClient.h"
+#import "AnnouncementCell.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient+MeModulesSetup.h"
+#import "ShareWebViewController.h"
+#import "MyPrizeOrAnnouncementDataInfor.h"
+
+@interface PrizeViewController ()
+
+@property (nonatomic, weak) UITableView                 *tableView;
+@property (readwrite, strong) DataPage                  *dataSource;            //列表的数据源
+@property (nonatomic, weak) AFHTTPRequestOperation      *requestDataOperation;
+
+///底层ScrollView视图
+@property (nonatomic , strong)    UIScrollView                    *tableScrollView;
+///头部导航操作视图
+@property (nonatomic , strong)    FMNavigationGestureRecognizer   *headerNavigationView;
+
+@property (nonatomic,assign) CGFloat        heightScale;
+
+
+/** 初始化用户个人奖品界面
+ 
+ *@return void
+ **/
+- (void)initWithUserPersonalPrizeViewControllerFrame;
+
+/** 刷新数据**/
+- (void)refreshListData;
+
+/** 请求我的奖品数据内容
+ 
+ *
+ *@return void
+ */
+- (void)initRequestUserPersonalPrizeDataInfor;
+@end
+
+@implementation PrizeViewController
+
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+        /*
+        self.dataSource = [DataPage page];
+         */
+    }
+    
+    return self;
+}
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+
+
+- (void)viewDidLoad
+{
+    
+    [super viewDidLoad];
+    
+    self.heightScale=(CGFloat)KProjectScreenHeight/568;
+    
+    if(self.heightScale<1)
+    {
+        self.heightScale=1;
+    }
+
+    [self settingNavTitle:@"我的奖品"];
+    
+    //初始化用户个人奖品界面
+    [self initWithUserPersonalPrizeViewControllerFrame];
+    
+}
+
+- (void)viewDidUnload{
+    if (HUISystemVersionBelow(kHUISystemVersion_6_0)){
+        [super viewDidUnload];
+    }
+    [self.dataSource cleanAllData];
+    [self.tableView setDelegate:nil];
+    [self.tableView setDataSource:nil];
+    [self.requestDataOperation cancel];
+}
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+#pragma mark -
+#pragma mark - 初始化用户个人奖品界面
+- (void)initWithUserPersonalPrizeViewControllerFrame{
+    
+
+    
+    
+    ///头部界面
+    self.headerNavigationView = [[FMNavigationGestureRecognizer alloc]initWithFrame:CGRectMake(0.0f,
+                                                                                               0.0f,
+                                                                                               self.view.frame.size.width,
+                                                                                               35.0f*self.heightScale)
+                                                                      withViewContr:self
+                                                                   withBtnNameArray:@[@"摇一摇",@"电台活动"]
+                                                                       withDelegate:self];
+    
+    [self.view addSubview:self.headerNavigationView];
+    
+    ///底层视图内容
+    self.tableScrollView  = [[UIScrollView alloc]initWithFrame:CGRectMake(0.0f, 35.0f*self.heightScale, KProjectScreenWidth, KProjectScreenHeight-64 - 35.0f*self.heightScale)];
+    self.tableScrollView.pagingEnabled = YES;
+    self.tableScrollView.showsHorizontalScrollIndicator = NO;
+    self.tableScrollView.contentSize = CGSizeMake(KProjectScreenWidth*2, self.tableScrollView.frame.size.height);
+    self.tableScrollView.delegate = self;
+    [self.view addSubview:self.tableScrollView];
+    
+    for (int viewIndex = 1; viewIndex < 3; viewIndex ++) {
+        InitTableView   *tableView = [[InitTableView alloc]initWithFrame:CGRectMake((viewIndex - 1)*KProjectScreenWidth, 0.0f, KProjectScreenWidth,
+                                                                                    KProjectScreenHeight-64 - 35.0f*self.heightScale)
+                                                           withDataStyle:viewIndex
+                                                         withModuleStyle:7];
+        [tableView setBackgroundColor:[UIColor clearColor]];
+        [tableView setTag:KMyPrizeInforBaseViewTag+1];
+        [self.tableScrollView addSubview:tableView];
+    }
+
+}
+
+#pragma mark -
+#pragma mark - 请求我的奖品数据内容
+- (void)initRequestUserPersonalPrizeDataInfor{
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation = [ [HTTPClient sharedHTTPClient] getUserPersonalPrizeDataInforWithUserID:[CurrentUserInformation sharedCurrentUserInfo].userID withIntPage:[self.dataSource nextPageIndex] withnumPerPage:[self.dataSource pageSize] completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            //关掉PullToRefreshView
+            if (weakSelf.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+            {
+                UpdateLastRefreshDataForPullToRefreshViewOnView([weakSelf tableView]);
+                [weakSelf.tableView.pullToRefreshView stopAnimating];
+            }
+//            Log(@"%@",response.responseObject);
+            if(response.code == WebAPIResponseCodeSuccess){
+                NSMutableArray *questionList = [NSMutableArray array];
+                
+                
+                for (NSDictionary *dic in [response.responseObject objectForKey:kDataKeyData])
+                {
+                    MyPrizeOrAnnouncementDataInfor *announcementItem = [MyPrizeOrAnnouncementDataInfor initWithMyPrizeInforithUnserializedJSONDic:dic];
+                    if (announcementItem) {
+                        [questionList addObject:announcementItem];
+                    }
+                }
+                //页数
+                NSNumber* pages = ObjForKeyInUnserializedJSONDic(response.responseObject,@"totalPage");
+                if (pages) {
+                    weakSelf.dataSource.pageCount = [pages unsignedIntegerValue];
+                }
+                
+                [weakSelf.dataSource appendPage:questionList];
+                [weakSelf.tableView reloadData];
+                
+            }else{
+                ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+            }
+
+        });
+    }];
+}
+
+- (void)refreshListData{
+    //停掉当前未完成的请求操作
+    [self.requestDataOperation cancel];
+    //清空当前数据源中所有数据
+    [self.dataSource cleanAllData];
+    [self.tableView reloadData];
+    [self loadMoreListData];
+}
+
+
+- (void)loadMoreListData
+{
+    [self initRequestUserPersonalPrizeDataInfor];
+}
+
+#pragma mark - UITableViewDataSource
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    if([self _isLoadMoreCellAtIndexPath:indexPath])
+        return kSizeLoadMoreCellHeight;
+    if (indexPath.row < [self.dataSource.data count]) {
+        return 80.0;
+    }
+    return 80.0;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count] + 1; //添加一行显示“正在加载”或“加载完毕”;
+}
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+        
+    }
+    return [[AnnouncementCell alloc] init];
+}
+
+- (void)_configureCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row >= [self.dataSource.data count]) {
+        return;
+    }
+    MyPrizeOrAnnouncementDataInfor *announcementItemInfor = [self.dataSource.data objectAtIndex:(indexPath.row)];
+    AnnouncementCell* announcementCell = (AnnouncementCell* )cell;
+    [announcementCell initWithDisplayMySelfPrizeItemCellWithInfor:announcementItemInfor];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    NSString *cellIdentifier = @"PrizeDataCell";
+    BOOL isLoadMoreCell = [self _isLoadMoreCellAtIndexPath:indexPath];
+    cellIdentifier = isLoadMoreCell? kHUILoadMoreCellIdentifier: cellIdentifier;
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (!cell) {
+        cell = [self createCellWithIdentifier:cellIdentifier];
+    }
+    
+    if (!isLoadMoreCell)
+        [self _configureCell:cell forRowAtIndexPath:indexPath];
+    else
+    {
+        if ([self.dataSource canLoadMore])
+        {
+            
+            __weak __typeof(&*self)weakSelf = self;
+            [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                [weakSelf loadMoreListData];
+            }];
+            [(HUILoadMoreCell*)cell startLoadMore];
+        }
+        else
+        {
+            
+            if (self.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+            }else{
+                cell.textLabel.text = LOADMORE_LOADOVER;
+            }
+        }
+    }
+    
+    return cell;
+}
+
+#pragma mark - UITableViewDelegate
+- (BOOL)_isLoadMoreCellAtIndexPath:(NSIndexPath *)indexPath
+{
+    return (indexPath.row == [self.dataSource count]);
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if ([self _isLoadMoreCellAtIndexPath:indexPath]){
+        return;
+    }
+    
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+    MyPrizeOrAnnouncementDataInfor *announcementItemInfor = [self.dataSource.data objectAtIndex:(indexPath.row)];
+    
+    NSString*urlStringParam = [[NSString alloc]initWithFormat:@"%@ShakeOff/Prize/?id=%@&userId=%@&source=%@",kBaseAPIURL,announcementItemInfor.dataSelfDataID,[CurrentUserInformation sharedCurrentUserInfo].userID,KProjectCityCodeString];
+    ShareWebViewController *webView = [[ShareWebViewController alloc]initWithWebURLString:urlStringParam withTitle:@"奖品详情" withStyle:InitNavigationWebStyle withImageInfor:[UIImage imageNamed:@"Icon.png"] withShareWebDataStyle:WebDataForDescriptionDataStyle withDataInforID:announcementItemInfor.dataSelfDataID];
+    [webView setIsNeedShareWebInfor:NO];
+    [self.navigationController pushViewController:webView animated:YES];
+}
+
+
+#pragma mark - 用户操作控制协议，用于作为数据传出的依据
+- (void)initWithUserGestureRecognizerOperationButtonEvent:(id)sender{
+    UIButton    *button = (UIButton *)sender;
+    NSInteger   viewTag  =  button.tag - KGestureButtonBaseTag;
+    
+    if (viewTag >=0 && viewTag <2) {
+        __weak typeof(self) weakSelf = self;
+        [weakSelf.tableScrollView scrollRectToVisible:CGRectMake(KProjectScreenWidth * viewTag, 0, KProjectScreenWidth, weakSelf.tableScrollView.frame.size.height)
+                                             animated:YES];
+    }
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView{
+    
+    CGFloat pageWidth = scrollView.frame.size.width;
+    NSInteger page = scrollView.contentOffset.x / pageWidth;
+    NSInteger selectedBtnTag = page+KGestureButtonBaseTag;
+    [self.headerNavigationView initWithChangedWithUserSelectedIndex:selectedBtnTag];
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate{
+    
+}
+@end

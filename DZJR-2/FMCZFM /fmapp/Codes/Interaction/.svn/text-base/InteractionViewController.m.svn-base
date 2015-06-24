@@ -1,0 +1,807 @@
+//
+//  InteractionViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "InteractionViewController.h"
+#import "QuestionInfo.h"
+#import "HTTPClient+Interaction.h"
+#import "QuestionInfoCell.h"
+#import "PublishQuestionViewController.h"
+#import "QuestionDetailViewController.h"
+#import "FMNavigateMenu.h"
+#import "CurrentUserInformation.h"
+#import "TSMessage.h"
+#import "AppDelegate.h"
+#import "LoginController.h"
+#import "FriendsViewController.h"
+#import "UnreadMsgController.h"
+#import "FMTabBarController.h"
+#import "AppDelegate.h"
+#import "FontAwesome.h"
+#import "APAvatarImageView.h"
+#import "UserInfo.h"
+#import "FriendDetailedInforViewController.h"
+#import "FMImageView.h"
+#import "MainTabViewController.h"
+#import "HTTPClient+Friends.h"
+#import "HTTPClient.h"
+#import "SliderViewController.h"
+#import "RightBarItemMenusView.h"
+#import <AudioToolbox/AudioToolbox.h>
+#import "FMSettings.h"
+
+
+#define KNavLeftTag                        20000
+#define KNavRightTag                       20001
+#define KCarTypeBtnTag                     20002
+
+
+#define kHeaderImageViewTag                 10002
+#define kTableViewBgImageViewTag            10003
+#define kHeaderImageHeight 350
+#define kDisplayHederImageHeight 200
+
+#define kNavTitleLabelTag       10008
+#define kNavTitleImageViewTag   10009
+
+///未读消息设置
+#define kUnreadMsgViewTag       10012
+#define kPromptLabelTag         10013
+#define KSegmentedControlTag     10014
+#define KCellUserPersonalImageViewTag       1310123
+
+#define KNavSelectedBtnColor  [UIColor colorWithWhite:0 alpha:0.3]
+#define KNavNOSelectedBtnColor  [UIColor colorWithWhite:0 alpha:0.1]
+
+
+@interface InteractionViewController () <QuestionInfoCellDelegate,UIActionSheetDelegate,RightBarItemMenusDelegate>
+//@property (nonatomic, strong) STSegmentedControl        *segmentCtl;
+@property (nonatomic, weak) UITableView                 *tableView;
+//@property (nonatomic ,strong) SINavigationMenuView      *actionMenu;
+@property (readwrite, strong) DataPage                  *dataSource;            //列表的数据源
+@property (nonatomic, weak)   AFHTTPRequestOperation    *requestDataOperation;  //请求列表数据的操作
+@property (nonatomic,assign)  QuestionResquestType      questionType;           //请求问题类型
+@property (nonatomic,weak)    HUILoadMoreCell           *loadMoreCell;
+@property (nonatomic,weak)UIButton                      *navTitleButton;        //问题类型按钮
+@property (nonatomic,weak)QuestionInfo                  *currentFeedBackQuestion;//当前举报问题
+@property (nonatomic , weak)    UIView                  *userunreadMsgView;
+@property (nonatomic , weak)    UILabel                 *userNnreadMsgpromptLabel;
+///用户未读消息的总数
+@property (nonatomic , assign)  NSInteger               userPersonalUnReadMSGCount;
+@property (nonatomic , strong)UserInfo                  *userFriendUserInfo;
+@property (nonatomic,strong)  UIView                  *backgroundView;
+@property (nonatomic,strong)  UIView                  *tbHeaderView;
+
+
+@property (nonatomic , strong)      RightBarItemMenusView   *rightBarMenusView;
+
+@end
+
+
+@implementation InteractionViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        self.enableCustomNavbarBackButton = FALSE;
+        self.dataSource = [DataPage page];
+        self.questionType = QuestionResquestTypeAll;
+        
+    }
+    return self;
+    
+}
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [[ThemeManager sharedThemeManager].skin backgroundColor];
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view.
+    
+    [UIButton appearance];
+    [self addNotification];
+    
+    [self settingNavTitle:@"互动"];
+    
+    //导航栏左侧按钮-发布
+    self.navButtonSize = KNavSize;
+    [self setRightNavButtonFA:FMIconList
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(RightBarButtonEvent)];
+    
+    [self setLeftNavButtonFA:FMIconAddTie withFrame:kNavButtonRect actionTarget:self action:@selector(publishQuestion)];
+    [self createTableView];
+    
+    [self settingUnReadMsgView];
+    
+    NSArray *menusArray= [[NSArray alloc]initWithObjects:@"全部",@"直播贴",@"我的关注",@"我的帖子",@"我的回复", nil];
+    NSArray *menusIconArray = [[NSArray alloc]initWithObjects:[NSNumber numberWithInteger:FMIconMapFriend],[NSNumber numberWithInteger:FMIconShakeList],[NSNumber numberWithInteger:FMIconQRCode], nil];
+    
+    self.rightBarMenusView = [[RightBarItemMenusView alloc]initWithFrame:CGRectMake(0.0f, 0.0f, KProjectScreenWidth, KProjectScreenHeight) withMenusArray:menusArray withTitleIcon:NO withMenusIconArray:menusIconArray];
+    [self.rightBarMenusView setDelegate:self];
+    [self.view addSubview:self.rightBarMenusView];
+    
+    [self.rightBarMenusView setHidden:YES];
+    
+}
+- (void)RightBarButtonEvent{
+    
+    if (self.rightBarMenusView.hidden==NO) {
+        
+        [self.rightBarMenusView setHidden:YES];
+    }
+    else
+    {
+        [self.rightBarMenusView setHidden:NO];
+        
+    }
+}
+//导航栏右侧按钮点击事件
+- (void)initWithUserOperationRightBarItemMenusItemButtonEvent:(NSInteger)barItemIndex{
+    
+    [self.rightBarMenusView setHidden:YES];
+    
+    if (barItemIndex>1) {
+        if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0) {
+            //登陆控制器
+            LoginController *loginController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:loginController];
+            [self presentModalViewController:navController animated:YES];
+            return;
+        }
+    }
+    
+    NSArray *menusArray= [[NSArray alloc]initWithObjects:@"互动",@"直播贴",@"我的关注",@"我的帖子",@"我的回复", nil];
+    
+    [self settingNavTitle:[menusArray objectAtIndex:barItemIndex-1]];
+    
+    self.questionType = (QuestionResquestType)(barItemIndex-1);
+    
+    [self.tableView triggerPullToRefresh];
+    
+}
+
+-(void)createTableView
+{
+    
+    UITableView* tbView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    tbView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    tbView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    tbView.backgroundColor = [UIColor clearColor];
+    tbView.dataSource = self;
+    tbView.delegate = self;
+    [self.view addSubview:tbView];
+    _tableView = tbView;
+    _tableView.tableHeaderView=self.tbHeaderView;
+    
+    //RefreshControl for TableView
+    __weak __typeof(&*self)weakSelf = self;
+    [self.tableView addPullToRefreshWithActionHandler:^(void){
+        [weakSelf refreshListData];
+    }];
+    ConfiguratePullToRefreshViewAppearanceForScrollView(self.tableView);
+    [self.tableView triggerPullToRefresh];
+    
+}
+
+- (void)viewDidUnload
+{
+    if (HUISystemVersionBelow(kHUISystemVersion_6_0))
+        [super viewDidUnload];
+    
+    [self.requestDataOperation cancel];
+    self.tableView.dataSource = nil;
+    self.tableView.delegate = nil;
+    self.tableView = nil;
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+#pragma mark -
+#pragma mark -UIScrollViewDelegate
+- (void) scrollViewDidScroll:(UIScrollView *)scrollView{
+    CGFloat contentOffsetY = scrollView.contentOffset.y;
+    UIImageView *headerImageView = (UIImageView *)[self.view viewWithTag:kHeaderImageViewTag];
+    UIImageView *tableViewBgImageView = (UIImageView *)[self.view viewWithTag:kTableViewBgImageViewTag];
+    if (contentOffsetY <= 0) {
+        headerImageView.frame = CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight + contentOffsetY)/-2, self.view.bounds.size.width, kHeaderImageHeight);
+        
+        if (contentOffsetY < (kDisplayHederImageHeight - kHeaderImageHeight)) {
+            headerImageView.frame = CGRectMake(0, (kDisplayHederImageHeight - kHeaderImageHeight) - contentOffsetY, self.view.bounds.size.width, kHeaderImageHeight);
+        }
+    }else{
+        headerImageView.frame = CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight)/-2 - contentOffsetY, self.view.bounds.size.width, kHeaderImageHeight);
+    }
+    
+    tableViewBgImageView.frame = CGRectMake(0, kDisplayHederImageHeight - contentOffsetY, self.view.bounds.size.width, 1000);
+}
+
+#pragma mark -添加通知
+- (void) addNotification
+{
+    //发布问题通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(publishQuestionSucceedNotification:)
+                                                 name: FMPublishNewQuestionNotification
+                                               object: nil];
+    
+    //推送通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(interactionNotification:)
+                                                 name: FMInteractionNotification
+                                               object: nil];
+    
+    //删除问题通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(deleteQuestionSucceedNotification:)
+                                                 name: FMDeleteQuestionNotification
+                                               object: nil];
+    //主题通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(themeChangedNotification:)
+                                                 name: FMThemeChangedNotification
+                                               object: nil];
+    
+}
+#pragma mark -发布问题成功通知
+- (void) publishQuestionSucceedNotification:(NSNotification *) notification
+{
+    [self.tableView triggerPullToRefresh];
+}
+- (void) deleteQuestionSucceedNotification:(NSNotification *) notification
+{
+    [self.tableView triggerPullToRefresh];
+}
+
+#pragma mark -互动通知 （远程通知、下拉刷新）
+- (void) interactionNotification:(NSNotification *)notification
+{
+    if(notification == nil){//空
+        [self getUnreadMsgCount];//获取未读消息数量
+    }else{
+        [self.tableView triggerPullToRefresh];
+    }
+}
+#pragma mark -主题通知
+- (void) themeChangedNotification:(NSNotification *)notification
+{
+    [self updateNaviTheme];
+    
+    [self.navTitleButton setTitleColor:[FMThemeManager.skin navigationTextColor] forState:UIControlStateNormal];
+    [self.navTitleButton setBackgroundImage:createImageWithColor([UIColor clearColor]) forState:UIControlStateNormal];
+    [self.navTitleButton setBackgroundImage:createImageWithColor([[ThemeManager sharedThemeManager].skin baseTintColor])
+                                   forState:UIControlStateHighlighted];
+    [self refreshListData];
+}
+
+
+#pragma mark -显示未读消息控制器
+- (void) showUnreadMsgController
+{
+    UnreadMsgController *viewController = [[UnreadMsgController alloc]initWithUserPersonalQuestionDelegate:self];
+    viewController.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:viewController animated:YES];
+}
+
+#pragma mark -设置内容视图
+- (void) settingUnReadMsgView
+{
+    //未读消息视图
+    UIView *unreadMsgView = [[UIView alloc] initWithFrame:CGRectMake(0, -40, KProjectScreenWidth, 0)];
+    unreadMsgView.backgroundColor = [UIColor colorWithRed:76/255.0f green:144/255.0f blue:249/255.0f alpha:0.8];
+    unreadMsgView.clipsToBounds = YES;
+    [unreadMsgView setTag:kUnreadMsgViewTag];
+    
+    //添加单击手势
+    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(showUnreadMsgController)];
+    [unreadMsgView addGestureRecognizer:tapGestureRecognizer];
+    
+    //提示文字
+    UILabel *promptLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, KProjectScreenWidth, 40)];
+    promptLabel.tag = kPromptLabelTag;
+    promptLabel.textAlignment = UITextAlignmentCenter;
+    promptLabel.textColor = [[UIColor whiteColor] colorWithAlphaComponent:1.0f];;
+    promptLabel.backgroundColor = [UIColor clearColor];
+    promptLabel.font = [UIFont systemFontOfSize:14.0f];
+    promptLabel.text = @"";
+    self.userNnreadMsgpromptLabel = promptLabel;
+    [unreadMsgView addSubview:self.userNnreadMsgpromptLabel];
+    self.userunreadMsgView = unreadMsgView;
+    [self.view addSubview:self.userunreadMsgView];
+    [self.view bringSubviewToFront:self.userunreadMsgView];
+}
+
+- (void)haveReadAllMsg{
+    self.userunreadMsgView.frame = CGRectMake(0, -40, KProjectScreenWidth, 0);
+    [[UIApplication sharedApplication] setApplicationIconBadgeNumber:0];
+    MainTabViewController *mainTabView = FMMainViewController;
+    [mainTabView showHintPoint:1 showOrHide:NO];
+}
+
+- (void)haveReadMsgWithCount:(NSInteger)readCount{
+    self.userPersonalUnReadMSGCount = self.userPersonalUnReadMSGCount - readCount;
+    if (self.userPersonalUnReadMSGCount <= 0) {
+        self.userunreadMsgView.frame = CGRectMake(0, -40, KProjectScreenWidth, 0);
+        [[UIApplication sharedApplication] setApplicationIconBadgeNumber:0];
+        MainTabViewController *mainTabView = FMMainViewController;
+        [mainTabView showHintPoint:1 showOrHide:NO];
+    }else{
+        self.userNnreadMsgpromptLabel.text = [NSString stringWithFormat:@"您有%d条未读消息",self.userPersonalUnReadMSGCount];
+        [[UIApplication sharedApplication] setApplicationIconBadgeNumber:self.userPersonalUnReadMSGCount];
+    }
+}
+- (void)deleteQuestionSucceed{
+    
+}
+#pragma mark -获取未读消息数目
+- (void) getUnreadMsgCount
+{
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+        return;
+    }
+    
+    Log(@"userLoginState is %d",[CurrentUserInformation sharedCurrentUserInfo] .userLoginState);
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient getUnreadMsgNumsWithUserID:[CurrentUserInformation sharedCurrentUserInfo].userID complet:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            MainTabViewController *mainTabView = FMMainViewController;
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                Log(@"response.responseObject %@",response.responseObject)
+                NSInteger unreadMsgCount = IntForKeyInUnserializedJSONDic(response.responseObject,  @"data");
+                
+                ///存在未读消息内容
+                weakSelf.userPersonalUnReadMSGCount = unreadMsgCount;
+                if (unreadMsgCount > 0) {
+                    
+                    if (FMShareSetting.appFMInteractionUnReadCountInteger != unreadMsgCount) {
+                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);//震动
+                    }
+                    NSString* tipStr = [NSString stringWithFormat:@"你有%d条未读消息",unreadMsgCount];
+                    //在tab互动上显示小红点
+                    [weakSelf.userNnreadMsgpromptLabel setText:tipStr];
+                    
+                    [mainTabView showHintPoint:1 showOrHide:YES];
+                    
+                    [[UIApplication sharedApplication] setApplicationIconBadgeNumber:unreadMsgCount];//设置应用程序徽标
+                    
+                    [UIView animateWithDuration:0.8f animations:^{
+                        weakSelf.userunreadMsgView.frame = CGRectMake(0, 0, KProjectScreenWidth, 40);
+                    } completion:^(BOOL finished) {
+                        if (finished) {
+                            [FMShareSetting setAppFMInteractionUnReadCountInteger:unreadMsgCount];
+                        }
+                    }];
+                }
+                ///没有未读消息
+                else {
+                    UIView *unReadMsgView = [self.view viewWithTag:kUnreadMsgViewTag];
+                    unReadMsgView.frame = CGRectMake(0, -40, KProjectScreenWidth, 0);
+                    
+                    [mainTabView showHintPoint:1 showOrHide:NO];
+                    [[UIApplication sharedApplication] setApplicationIconBadgeNumber:0];
+                }
+            }
+            else{
+                UIView *unReadMsgView = [self.view viewWithTag:kUnreadMsgViewTag];
+                unReadMsgView.frame = CGRectMake(0, -40, KProjectScreenWidth, 0);
+                [mainTabView showHintPoint:1 showOrHide:NO];
+                [[UIApplication sharedApplication] setApplicationIconBadgeNumber:0];
+            }
+        });
+    }];
+}
+
+- (NSString* )getLastQuestionId
+{
+    NSString *lastId = @"0";
+    if (self.dataSource.count > 0) {
+        QuestionInfo *question = [self.dataSource.data lastObject];
+        lastId = question.questionID;
+    }
+    return lastId;
+}
+- (void)refreshListData
+{
+    //停掉当前未完成的请求操作
+    [self.requestDataOperation cancel];
+    //清空当前数据源中所有·数据
+    [self.dataSource cleanAllData];
+    [self.tableView reloadData];
+    [self loadMoreListData];
+    [self getUnreadMsgCount];//获取未读消息数量
+}
+
+- (void)loadMoreListData
+{
+    
+    [self requestQuestionByType:self.questionType withLastId:[self getLastQuestionId]];
+    
+}
+- (void)requestQuestionByType:(QuestionResquestType)type withLastId:(NSString* )lastId
+{
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient getQusetionList:lastId
+                     questionType:(NSUInteger)type
+                        pageIndex:[self.dataSource nextPageIndex]
+                         pageSize:[self.dataSource pageSize]
+                       withUserId:[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ? @"0":[CurrentUserInformation sharedCurrentUserInfo].userID
+                       completion:^(WebAPIResponse *response) {
+                           Log(@"%@",response.responseObject);
+                           
+                           dispatch_async(dispatch_get_main_queue(), ^(void){
+                               //关掉PullToRefreshView
+                               if (weakSelf.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+                               {
+                                   UpdateLastRefreshDataForPullToRefreshViewOnView([weakSelf tableView]);
+                                   [weakSelf.tableView.pullToRefreshView stopAnimating];
+                               }
+                               if(response.code == WebAPIResponseCodeSuccess){
+                                   NSMutableArray *questionList = [NSMutableArray array];
+                                   NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                                   if ([dataList isKindOfClass:[NSArray class]]) {
+                                       for (NSDictionary *dic in dataList)
+                                       {
+                                           QuestionInfo *question = [QuestionInfo questionWithUnserializedJSONDic:dic];
+                                           if (question) {
+                                               if (question.status != QuestionStatusBlack ||
+                                                   question.status != QuestionStatusAdminDel) {
+                                                   [questionList addObject:question];
+                                               }
+                                           }
+                                       }
+                                   }
+                                   //页数
+                                   weakSelf.dataSource.pageCount = IntForKeyInUnserializedJSONDic(response.responseObject,kDataKeyPageCount);
+                                   //避免服务器返回数据异常导致loadmore循环加载
+                                   if ([questionList count] == 0) {
+                                       weakSelf.dataSource.pageCount = 0;
+                                   }
+                                   [weakSelf.dataSource appendPage:questionList];
+                                   [weakSelf.tableView reloadData];
+                               } else {
+                                   if (response.code == WebAPIResponseCodeNetError) {
+                                       ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+                                   }
+                                   if (self.loadMoreCell) {
+                                       [self.loadMoreCell stopLoadingAnimation];
+                                       if (response.code == WebAPIResponseCodeNetError) {
+                                           self.loadMoreCell.textLabel.text = LOADMORE_LOADFAILD;
+                                       }else{
+                                           self.loadMoreCell.textLabel.text = LOADMORE_LOADOVER;
+                                       }
+                                   }
+                               }
+                           });
+                       }];
+}
+#pragma mark -发布问题
+- (void) publishQuestion
+{
+    PublishQuestionViewController *publishQuestionController = [[PublishQuestionViewController alloc] init];
+    FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:publishQuestionController];
+    [self presentModalViewController:navController animated:YES];
+}
+#pragma mark -QuestionInfoCellDelegate
+- (void)questionCellLongPressed:(QuestionInfoCell *)cell
+{
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+        
+        //注册控制器
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+        
+        return;
+    }
+
+    //举报
+    self.currentFeedBackQuestion = cell.curQuestion;
+    if (![cell.curQuestion.publishUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:@"我们坚决反对色情、暴力、欺诈信息，对您的举报会认真处理"
+                                                                delegate:self
+                                                       cancelButtonTitle:@"取消"
+                                                  destructiveButtonTitle:@"举报"
+                                                       otherButtonTitles: nil];
+        actionSheet.tag=101;
+        [actionSheet showInView:self.view.window];
+
+    }
+}
+#pragma mark -UIActionSheetDelegate
+- (void) actionSheet:(UIActionSheet *)actionSheet willDismissWithButtonIndex:(NSInteger)buttonIndex
+{
+    if (actionSheet.tag==100) {
+        if (buttonIndex != 2) {//取消
+            //选择照片
+            UIImagePickerController *imagePickerController = [[UIImagePickerController alloc] init];
+            imagePickerController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+            [self class];
+            
+            imagePickerController.delegate = self;
+            
+            imagePickerController.allowsEditing = NO;
+            if(buttonIndex == 0){//拍照
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+            }else if(buttonIndex == 1){//相册
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+            }
+            
+            [self presentModalViewController:imagePickerController animated:YES];
+        }
+    }else
+    {
+        
+        if (self.currentFeedBackQuestion == nil) {
+            return;
+        }
+        
+        Log(@"buttonIndex is %d",buttonIndex);
+        
+        //    return;
+        if (buttonIndex == 0 ) {
+            WaittingMBProgressHUD(ShareAppDelegate.window, @"正在发送...");
+            [FMHTTPClient feedbackQuestion:self.currentFeedBackQuestion.questionID
+                                    userId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                           withPublicState:self.currentFeedBackQuestion.is_public
+                                completion:^(WebAPIResponse *response) {
+                                    
+                                    dispatch_async(dispatch_get_main_queue(), ^(void){
+                                        
+                                        if(response.code == WebAPIResponseCodeSuccess){
+                                            SuccessMBProgressHUD(ShareAppDelegate.window, @"举报成功");
+                                            
+                                        }else{
+                                            FailedMBProgressHUD(ShareAppDelegate.window,@"举报失败");
+                                        }
+                                    });
+                                }];
+        }
+    }
+}
+
+#pragma mark - UITableViewDataSource
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count] + 1; //添加一行显示“正在加载”或“加载完毕”;
+}
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+        
+    }
+    QuestionInfoCell* cell = [[QuestionInfoCell alloc] init];
+    cell.delegate = self;
+    return cell;
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellIdentifier = @"QuestionCell";
+    BOOL isLoadMoreCell = [self _isLoadMoreCellAtIndexPath:indexPath];
+    cellIdentifier = isLoadMoreCell? kHUILoadMoreCellIdentifier: cellIdentifier;
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (!cell) {
+        cell = [self createCellWithIdentifier:cellIdentifier];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    }
+    if (!isLoadMoreCell)
+        [self _configureCell:cell forRowAtIndexPath:indexPath];
+    else
+    {
+        self.loadMoreCell = (HUILoadMoreCell*)cell;
+        if ([self.dataSource canLoadMore])
+        {
+            
+            __weak __typeof(&*self)weakSelf = self;
+            [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                [weakSelf loadMoreListData];
+            }];
+            [(HUILoadMoreCell*)cell startLoadMore];
+        }
+        else
+        {
+            if (self.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+            }else{
+                cell.textLabel.text = LOADMORE_LOADOVER;
+            }
+        }
+    }
+    return cell;
+}
+
+- (void)_configureCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row >= [self.dataSource.data count]) {
+        return;
+    }
+    
+    QuestionInfo *question = [self.dataSource.data objectAtIndex:(indexPath.row)];
+    
+    QuestionInfoCell* questionCell = (QuestionInfoCell* )cell;
+    
+    NSInteger selectIndex=[[NSUserDefaults standardUserDefaults] integerForKey:@"InteractionViewSelectedIndex"];
+    if (!selectIndex) {
+        questionCell.cellType=0;
+        
+    }
+    else
+    {
+        questionCell.cellType=2;
+        
+    }
+    
+    [questionCell displayQuestion:question];
+    
+}
+
+#pragma mark - UITableViewDelegate
+- (BOOL)_isLoadMoreCellAtIndexPath:(NSIndexPath *)indexPath
+{
+    return (indexPath.row == [self.dataSource count]);
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if([self _isLoadMoreCellAtIndexPath:indexPath])
+        return kSizeLoadMoreCellHeight;
+    if (indexPath.row < [self.dataSource.data count]) {
+        QuestionInfo *question = [self.dataSource.data objectAtIndex:(indexPath.row)];
+        CGFloat h = [QuestionInfoCell getQuestionImageHeight:question];
+        
+        return 44 + [question getShortContentHeight:KProjectScreenWidth-20] + 15 + h +40;
+        
+    }
+    return 40.0;
+}
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+    if ([self _isLoadMoreCellAtIndexPath:indexPath])
+        return;
+    
+    QuestionInfo *question = [self.dataSource.data objectAtIndex:(indexPath.row)];
+    
+    if (question.status == QuestionStatusNormal) {
+        QuestionDetailViewController *questionDetailController = [[QuestionDetailViewController alloc] initWithQuestionInfo:question];
+        if (question.pushStyle==1) {
+            questionDetailController.whetherDelete=YES;
+            
+        }
+        [questionDetailController setUserSendInforIsPublic:question.is_public];
+        questionDetailController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:questionDetailController animated:YES];
+    }
+    
+}
+-(void)APAvatarImageViewdealTap:(UITapGestureRecognizer *)tap
+{
+    
+    FriendDetailedInforViewController *viewController = [[FriendDetailedInforViewController alloc]
+                                                         initWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID];
+    viewController.hidesBottomBarWhenPushed=YES;
+    [self.navigationController pushViewController:viewController animated:YES];
+    
+    
+}
+-(void)btnClick:(UIButton *)btn
+{
+    
+    UIActionSheet *takePictureActionSheet = [[UIActionSheet alloc] initWithTitle:@"编辑背景图片" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍照",@"从相册选择", nil];
+    takePictureActionSheet.tag=100;
+    [takePictureActionSheet showInView:self.view.window];
+}
+#pragma mark -
+#pragma mark -UIImagePickerControllerDelegate
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
+{
+    
+    UIImage *imageinfo = [info objectForKey:@"UIImagePickerControllerOriginalImage"];
+    //UIImageWriteToSavedPhotosAlbum(imageinfo, nil, nil, nil);//将照片保存到相册
+    CGSize imageSize = imageinfo.size;
+    
+    
+    CGFloat imageHeight = imageSize.height * 640 /imageSize.width;
+    imageSize.width = 640;
+    imageSize.height = imageHeight;
+    
+    
+    UIGraphicsBeginImageContext(imageSize);
+    [imageinfo drawInRect: CGRectMake(0, 0, imageSize.width,imageSize.height)];
+    UIImage *smallImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    
+    SDImageCache *headerImage=[SDImageCache sharedImageCache];
+    [headerImage storeImage:smallImage forKey:@"TableViewPickerControllerOriginalImage"];
+    
+    
+    [picker dismissModalViewControllerAnimated:YES];
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+    self.navigationItem.rightBarButtonItem.enabled = YES;//保存按钮可用
+    //上传图片
+    [self publishQuestionHeaderImageWithImage:smallImage];
+    
+}
+
+- (void)initWithSetupUserPersonalHeaderImageWithImageWithImageParamInfor:(NSDictionary *)imageParam{
+    
+    NSArray *imageArray =@[imageParam];
+    NSString *imageParamString = [NSString stringWithFormat:@"%@",[imageArray JSONString]];
+    [FMHTTPClient getSetupUserPersonalBackGroundPhotoImageForInteractiveWithUserID:[CurrentUserInformation sharedCurrentUserInfo].userID withImageParamString:imageParamString withcompletion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            if (response.code == WebAPIResponseCodeSuccess) {
+                FinishMBProgressHUD(HUIKeyWindow);
+            }else{
+                FailedMBProgressHUD(HUIKeyWindow,@"修改失败");
+            }
+        });
+    }];
+}
+
+- (void) publishQuestionHeaderImageWithImage:(UIImage *)headerImage
+{
+    WaittingMBProgressHUD(HUIKeyWindow,@"正在发布...");
+    //首先上传图片
+    UIImage* imageData =headerImage;
+    [FMImageClient imageUpload:imageData
+                     imageType:@"5"
+                    completion:^(WebAPIResponse* response){
+                        
+                        dispatch_async(dispatch_get_main_queue(), ^(void){
+                            
+                            Log(@"response.responseObject is %@",response.responseObject)
+                            if (response.code == WebAPIResponseCodeSuccess) {
+                                NSDictionary* dic = [response.responseObject objectForKey:kDataKeyData];
+                                NSString* strKey = [dic objectForKey:@"pic_url"];
+                                
+                                
+                                FMImage* im = [[FMImage alloc] init];
+                                im.url = strKey;
+                                im.imageSize = CGSizeMake([[dic objectForKey:@"pic_width"] floatValue],
+                                                          [[dic objectForKey:@"pic_height"] floatValue]);
+                                if (dic.count >=3) {
+                                    [self initWithSetupUserPersonalHeaderImageWithImageWithImageParamInfor:dic];
+                                }
+                                
+                            }else{
+                                FailedMBProgressHUD(HUIKeyWindow,@"发布失败");
+                            }
+                        });
+                    }];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
+    
+    [picker dismissModalViewControllerAnimated:YES];
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+}
+@end

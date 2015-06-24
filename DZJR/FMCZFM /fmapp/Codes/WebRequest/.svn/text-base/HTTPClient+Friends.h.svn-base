@@ -1,0 +1,224 @@
+//
+//  HTTPClient+Friends.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-26.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "HTTPClient.h"
+#import "FriendCircleModel.h"
+#import "FriendCirclePostsModel.h"
+
+@interface HTTPClient (Friends)
+
+//获取我的车友
+- (AFHTTPRequestOperation *)getMyFriends:(NSString *)userId
+                                  pageIndex:(NSUInteger)pageIndex
+                                   pageSize:(NSUInteger)pageSize
+                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取附近车友
+- (AFHTTPRequestOperation *)getAroundFriends:(NSString *)userId
+                                   longitude:(double)longitude
+                                   latitude:(double)latitude
+                               pageIndex:(NSUInteger)pageIndex
+                                pageSize:(NSUInteger)pageSize
+                              completion:(WebAPIRequestCompletionBlock)completion;
+
+
+//获取活跃车友
+- (AFHTTPRequestOperation *)getActiveFriends:(NSString *)userId
+                                   pageIndex:(NSUInteger)pageIndex
+                                    pageSize:(NSUInteger)pageSize
+                                  completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取附近10公里好友
+- (AFHTTPRequestOperation *)getFriendsNeayByLongitude:(double)longitude
+                                             latitude:(double)latitude
+                                           completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取好友详细信息
+- (AFHTTPRequestOperation *)getFriendsDetailInfo:(NSString *)userId
+                                      WithUserId:(NSString *)userPersonId
+                                      completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取消息列表好友信息
+- (AFHTTPRequestOperation *)getMsgListFriendsDetailInfo:(NSString *)userId
+                                             completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取聊天记录
+- (AFHTTPRequestOperation *)getIMChatRecord:(NSString *)userId
+                                 chatUserId:(NSString *)chatUserId
+                             firstMessageId:(NSUInteger)firstMsgId
+                                       page:(NSUInteger)page
+                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+// 获取认证用户信息
+- (AFHTTPRequestOperation *)getAuthUserDetailInfo:(WebAPIRequestCompletionBlock)completion;
+
+//添加好友到黑名单
+- (AFHTTPRequestOperation *)addToBlackList:(NSString *)userId
+                               blackUserId:(NSString *)blackUserId
+                                      completion:(WebAPIRequestCompletionBlock)completion;
+//关注用户列表
+- (AFHTTPRequestOperation *)requetFriendsList:(NSString *)userId
+                                    completion:(WebAPIRequestCompletionBlock)completion;
+
+///添加好友到关注
+- (AFHTTPRequestOperation *)addToAttentionList:(NSString *)userId
+                                   attentionUserId:(NSString *)attentionUserId
+                                    completion:(WebAPIRequestCompletionBlock)completion;
+
+///取消好友到关注
+- (AFHTTPRequestOperation *)CancelToAttentionList:(NSString *)userId
+                               attentionUserId:(NSString *)attentionUserId
+                                    completion:(WebAPIRequestCompletionBlock)completion;
+
+///更改个人背景图片
+- (AFHTTPRequestOperation *)getSetupUserPersonalBackGroundPhotoImageForInteractiveWithUserID:(NSString *)userId
+                                                                        withImageParamString:(NSString *)imageParaString
+                                                                              withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 根据双经纬获取周边用户信息内容
+ 
+ *@param leftLocation 左上角经纬度
+ *@param rightLocation 右下角经纬度
+ **/
+- (AFHTTPRequestOperation *)getFriendsInforForDoubleLocationCoordinateWithLeftLocationCoordinate:(CLLocationCoordinate2D)leftLocation
+                                                                           withRightLocationCoordinate:(CLLocationCoordinate2D)rightLocation
+                                                                                        withcompletion:(WebAPIRequestCompletionBlock)completion;
+#pragma mark - ====================添加IM系统接口内容====================
+
+/** 获取消息界面中最新的10条数据内容
+ 
+ *@param userId 用户ID
+ **/
+- (AFHTTPRequestOperation *)getMessageWithLatestDataForInstantMessagingWithUserId:(NSString *)userId
+                                                                       completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取最新的聊天记录信息
+ 
+ *@param loginUserId 当前登录用户ID
+ *@param toUserId 聊天参与者的用户ID
+ **/
+- (AFHTTPRequestOperation *)getMessageWithLatestDataForChatHistoryWithLoginUserId:(NSString *)loginUserId
+                                                                     withToUserId:(NSString *)toUserId
+                                                                    withLastMsgId:(NSString *)msgId
+                                                                         withPage:(NSInteger)msgPage
+                                                                         withSecuryCode:(NSString *)securyCodeString
+                                                                       completion:(WebAPIRequestCompletionBlock)completion;
+/** 通知服务端已读IM的消息内容
+ 
+ *@param loginUserId 当前登录用户ID
+ *@param toUserId 聊天参与者的用户ID
+ **/
+- (AFHTTPRequestOperation *)getMessageWIthUserReadForChatInforWithUserId:(NSString *)loginUserId
+                                                            withToUserId:(NSString *)toUserId
+                                                              completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 删除聊天消息
+ 
+ *@param loginUserId 当前登录用户ID
+ *@param toUserId 聊天参与者的用户ID
+ **/
+- (AFHTTPRequestOperation *)chatMessageDeleteWIthUserReadForChatInforWithUserId:(NSString *)loginUserId
+                                                                  withMessageId:(NSString *)messageId
+                                                                     completion:(WebAPIRequestCompletionBlock)completion;
+/**获取聊天用户数  **/
+- (AFHTTPRequestOperation *)getChatNumberWithUserId:(NSString *)loginUserId
+                                         Completion:(WebAPIRequestCompletionBlock)completion;
+
+/**删除用户个人聊天记录  
+ 
+ *
+ *@param (NSString *)userId 当前登录用户ID
+ *@param (NSString *)chatUserId 聊天参与者的用户ID
+ **/
+- (AFHTTPRequestOperation *)getDeleteChatMsgInfor:(NSString *)userId
+                                   withChatUserId:(NSString *)chatUserId
+                                   withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - ====================添加朋友圈接口内容=============
+/** 获取朋友圈名字信息
+ 
+ *@param friCirName 圈名信息
+ *@param fcPage 当前页码
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleInforWithFriCirName:(NSString *)friCirName
+                                                      withPage:(NSInteger)fcPage
+                                                withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 当前用户创建朋友圈
+ 
+ *@param friCirName 圈名信息
+ *@param fcPage 当前页码
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleCreateInforWith:(FriendCircleModel *)fcircleInfor
+                                            withcompletion:(WebAPIRequestCompletionBlock)completion;
+/** 当前用户加入某个圈子
+ 
+ *@param userId 用户ID
+ *@param circleID 当前圈子ID
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleJoinThisCircleWith:(NSString *)userId
+                                                 withCircleId:(NSString *)circleID
+                                               withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 当前用户退出某个圈子
+ 
+ *@param userId 用户ID
+ *@param circleID 当前圈子ID
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleLogoutThisCircleWith:(NSString *)userId
+                                                 withCircleId:(NSString *)circleID
+                                               withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取当前圈子中用户成员信息
+ 
+ *@param userId     用户ID
+ *@param circleID   当前圈子ID
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleUserMembersThisCircleWithCircleId:(NSString *)circleID
+                                                              withPageNumber:(NSInteger)pageNumber
+                                                           withNumberPerPage:(NSInteger)numberPerPage
+                                                              withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取当前圈子中所有帖子信息
+ 
+ *@param circleID       当前圈子ID
+ *@param pageNumber     当前页码
+ *@param numberPerPage  每页数量
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleAllPostsInforWithCircleId:(NSString *)circleID
+                                                      withPageNumber:(NSInteger)pageNumber
+                                                   withNumberPerPage:(NSInteger)numberPerPage
+                                                      withcompletion:(WebAPIRequestCompletionBlock)completion;
+/** 当前用户给某个帖子点赞操作
+ 
+ *@param circleID       当前圈子ID
+ *@param userID         用户ID
+ *@param numberPerPage  每页数量
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleClickAgreeWithCircleId:(NSString *)circleID
+                                                       withUserID:(NSString *)userID
+                                                   withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 删除当前用户发的帖子
+ 
+ *@param circleID       当前圈子ID
+ *@param userID         用户ID
+ *@param numberPerPage  每页数量
+ **/
+- (AFHTTPRequestOperation *)getFriendCircleDeletePostsWithCircleId:(NSString *)circleID
+                                                        withUserID:(NSString *)userID
+                                                    withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 对当前圈子发帖子
+  
+  *@param fcPostModel 需要发送的帖子信息
+  **/
+- (AFHTTPRequestOperation *)getFriendCircleSendPostWith:(FriendCirclePostsModel *)fcPostModel
+                                         withcompletion:(WebAPIRequestCompletionBlock)completion;
+@end

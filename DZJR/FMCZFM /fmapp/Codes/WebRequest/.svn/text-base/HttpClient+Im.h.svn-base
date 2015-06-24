@@ -1,0 +1,22 @@
+//
+//  HttpClient+Im.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14/11/15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#ifndef fmapp_HttpClient_Im_h
+#define fmapp_HttpClient_Im_h
+
+
+#import "HTTPClient.h"
+
+@interface HTTPClient (IM)
+
+//获取im服务器地址
+- (AFHTTPRequestOperation *)getImserverPerfer:(WebAPIRequestCompletionBlock)completion;
+
+
+@end
+#endif

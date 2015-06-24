@@ -1,0 +1,50 @@
+//
+//  ViolationTravelItemInformation.m
+//  fmapp
+//
+//  Created by 张利广 on 14-6-19.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "ViolationTravelItemInformation.h"
+
+@implementation ViolationTravelItemInformation
+- (id)init{
+    self = [super init];
+    
+    if (self) {
+        
+    }
+    
+    return self;
+}
+
+#pragma mark - 
+#pragma mark - 初始化单条列表数据内容
++(id)initViolationTravelItemInformationWithUnserializedJSONDic:(NSDictionary *)dataDictionary{
+    ViolationTravelItemInformation *itemInfor = [[ViolationTravelItemInformation alloc]init];
+    if (itemInfor == nil) {
+        return nil;
+    }
+    ///编号
+    [itemInfor setItemInformationIdentity: StringForKeyInUnserializedJSONDic(dataDictionary, @"CJJG")];
+    ///标题或者名字
+    [itemInfor setItemInformationName: StringForKeyInUnserializedJSONDic(dataDictionary, @"WFDZ")];
+    ///违法行为 即内容
+    [itemInfor setItemInformationContent: StringForKeyInUnserializedJSONDic(dataDictionary, @"WFMS")];
+    ///违法时间
+    [itemInfor setItemInformationTime: StringForKeyInUnserializedJSONDic(dataDictionary, @"time")];
+    ///罚款情况
+    [itemInfor setItemInformationPrice: StringForKeyInUnserializedJSONDic(dataDictionary, @"FKJE_MAX")];
+    ///违法扣分情况
+    [itemInfor setItemInformationScore: StringForKeyInUnserializedJSONDic(dataDictionary, @"WFJFS")];
+    ///违法日期
+    [itemInfor setItemInformationDay:StringForKeyInUnserializedJSONDic(dataDictionary, @"day")];
+    ///违法月份
+    [itemInfor setItemInformationMonth:StringForKeyInUnserializedJSONDic(dataDictionary, @"month")];
+    ///违法类型
+    [itemInfor setItemInformationType:StringForKeyInUnserializedJSONDic(dataDictionary, @"type")];
+    
+    return itemInfor;
+}
+@end

@@ -1,0 +1,36 @@
+//
+//  FriendDetailedInforViewController.h
+//  FM_CZFW
+//
+//  Created by 张利广 on 14-4-21.
+//  Copyright (c) 2014年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "UserInfo.h"
+#import "QuestionInfo.h"
+
+@protocol FriendDetaildAttentionInfoDelegate <NSObject>
+
+- (void)initWithFriendDetaildWithAttentionInfo:(NSString *)attentionInfo AndWithUserId:(NSString *)userId;
+@end
+
+
+/** 用户好友个人详细资料
+ 
+ *@See 用户个人相关详细信息内容，同时可以进行访问限制操作
+ 
+ 
+ **/
+@interface FriendDetailedInforViewController : FMViewController<UIAlertViewDelegate>
+@property (nonatomic , assign) id<FriendDetaildAttentionInfoDelegate>         attentionDelegate;
+
+/** 初始化用户详情数据信息
+ 
+ *@param (QuestionInfo *)m_questionInfor 用户信息内容
+ *@return id
+ **/
+- (id)initWithUserInfo:(UserInfo *)userInfo;
+- (id)initWithUserId:(NSString *)userId;
+
+@end

@@ -1,0 +1,224 @@
+//
+//  AuthenticationUserCell.m
+//  fmapp
+//
+//  Created by SDYK on 14-10-22.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "AuthenticationUserCell.h"
+#import "APAvatarImageView.h"
+#import "MessageCellData.h"
+#import "NSString+FontAwesome.h"
+#import "FontAwesome.h"
+
+
+#define kUserIconWidthAndHeight     46.5
+
+
+#define KCellSexBGManColor [UIColor colorWithRed:0.11 green:0.65 blue:0.99 alpha:1]
+#define KCellSexBGWomanColor [UIColor colorWithRed:0.98 green:0.16 blue:0.73 alpha:1]
+
+
+@interface AuthenticationUserCell ()
+
+@property (nonatomic, weak) APAvatarImageView   *userIcon;
+@property (nonatomic, weak) UILabel             *userNameLabel;
+@property (nonatomic, weak) UIView              *sexBackground;
+@property (nonatomic, weak) UILabel             *userManSexLabel;
+@property (nonatomic, weak) UILabel             *userWomanSexLabel;
+
+@property (nonatomic, weak) UILabel             *distanceLabel;
+@property (nonatomic, weak) UILabel             *signatureLabel;
+@property (nonatomic, weak) UIView              *signatureView;
+@property (nonatomic,weak)  UIView              *lineView;
+
+@end
+
+@implementation AuthenticationUserCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        
+        self.selectionStyle  = UITableViewCellSelectionStyleNone;
+        
+        //设置选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:self.bounds];
+        [selectedView setBackgroundColor:[FMThemeManager.skin buttonHighlightColor]];
+        self.selectedBackgroundView = selectedView;
+        
+        UIView *backView=[[UIView alloc]initWithFrame:self.bounds];
+        backView.backgroundColor=KDefaultOrNightBackGroundColor;
+        self.backgroundView=backView;
+        
+        //车Logo视图
+        APAvatarImageView *carLogoImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(10, 11, 40, 40)
+                                                                     borderColor:[UIColor whiteColor]
+                                                                     borderWidth:1.0];
+        carLogoImageView.contentMode = UIViewContentModeScaleAspectFill;
+        [self.contentView addSubview:carLogoImageView];
+        self.userIcon = carLogoImageView;
+
+        //用户名
+        UILabel *nameLabel = [[UILabel alloc] init];
+        
+        nameLabel.frame = CGRectMake(65, 20, KProjectScreenWidth/3, 22);
+        nameLabel.font = [UIFont systemFontOfSize:17.0f];
+        nameLabel.textColor = [FMThemeManager.skin textColor];
+        nameLabel.backgroundColor = [UIColor clearColor];
+        [self.contentView addSubview:nameLabel];
+        self.userNameLabel = nameLabel;
+        
+        //性别
+        UILabel *sexImageView = [FontAwesome labelWithFAIcon:FMIconMale size:12.0f
+                                                       color:KCellSexBGManColor];
+        [sexImageView setTextAlignment:NSTextAlignmentCenter];
+        [sexImageView setBackgroundColor:[UIColor clearColor]];
+        [self.contentView addSubview:sexImageView];
+        self.userManSexLabel=sexImageView;
+        //性别
+        UILabel *sexWomanView = [FontAwesome labelWithFAIcon:FMIconFemale size:12.0f
+                                                       color:KCellSexBGWomanColor];
+        [sexWomanView setTextAlignment:NSTextAlignmentCenter];
+        [sexWomanView setBackgroundColor:[UIColor clearColor]];
+        [self.contentView addSubview:sexWomanView];
+        self.userWomanSexLabel = sexWomanView;
+        
+        UIView  *sexBGView = [[UIView alloc]init];
+        [sexBGView setBackgroundColor:KCellSexBGManColor];
+        [sexBGView.layer setCornerRadius:4.0f];
+        [sexBGView.layer setMasksToBounds:YES];
+        [self.contentView addSubview:sexBGView];
+        self.sexBackground=sexBGView;
+        
+        ///距离内容
+        UILabel *distanceLabel = [[UILabel alloc]init];
+        [distanceLabel setTextColor:[UIColor whiteColor]];
+        [distanceLabel setFont:[UIFont systemFontOfSize:13.0f]];
+        [distanceLabel setBackgroundColor:[UIColor clearColor]];
+        [sexBGView addSubview:distanceLabel];
+        self.distanceLabel = distanceLabel;
+        
+        UIView  *signatureBGView = [[UIView alloc]init];
+        [signatureBGView setFrame:CGRectMake(KProjectScreenWidth-(KProjectScreenWidth/3), 18,
+                                             KProjectScreenWidth/3-5,
+                                             42)];
+        [signatureBGView setBackgroundColor:[UIColor colorWithRed:245.0f/255.0f
+                                                            green:245.0f/255.0f
+                                                             blue:245.0f/255.0f
+                                                            alpha:1.0f]];
+        
+        self.signatureView=signatureBGView;
+        [self.contentView addSubview:signatureBGView];
+        
+        //右侧Label
+        UILabel *signatureLabel = [[UILabel alloc] initWithFrame:CGRectMake(5.0f, 2.0f,
+                                                                            (signatureBGView.frame.size.width - 10),
+                                                                            38)];
+        //signatureLabel.lineBreakMode = UILineBreakModeWordWrap;
+        signatureLabel.numberOfLines = 2;
+        //signatureLabel.textAlignment = UITextAlignmentLeft;
+        signatureLabel.backgroundColor=[UIColor clearColor];
+        signatureLabel.font = [UIFont systemFontOfSize:12.0f];
+        signatureLabel.textColor = KSubTitleContentTextColor;
+        [signatureBGView addSubview:signatureLabel];
+        self.signatureLabel = signatureLabel;
+
+        //添加分隔线
+        UIView *underLineSeparatorView = [[UIView alloc] initWithFrame:CGRectMake(65.0f, 62.0f,
+                                                                                  (KProjectScreenWidth - 65.0f),
+                                                                                  0.5f)];
+        underLineSeparatorView.backgroundColor = [FMThemeManager.skin sepratorColor];
+        self.lineView=underLineSeparatorView;
+        [self.contentView addSubview:underLineSeparatorView];
+
+    }
+    return self;
+}
+
+-(void)displaySearchUserWithData:(MessageCellData *)cellData
+{
+    if (ThemeCategory==5) {
+        self.signatureView.alpha=0.7;
+    }
+    
+    [self.userIcon setImageWithURL:[NSURL URLWithString:
+                                    [NSString stringWithFormat:@"%@%@thumb",
+                                     KMediaServerImagesInforURL, cellData.userIconKey]]
+                  placeholderImage:kImgDefaultCar];
+    self.userNameLabel.text = cellData.userName;
+    
+    CGSize nameSize=[self.userNameLabel.text sizeWithFont:self.userNameLabel.font];
+    
+    if (cellData.userSex == 1) {
+        [self.userManSexLabel setHidden:NO];
+        [self.userManSexLabel setFrame:CGRectMake(self.userNameLabel.frame.origin.x+nameSize.width, self.userNameLabel.frame.origin.y+2, 20.0f, 20.0f)];
+        [self.userWomanSexLabel setHidden:YES];
+        [self.userWomanSexLabel setFrame:CGRectMake(3.0f, 0.0, 0.0f, 0.0f)];
+        //[self.sexBackground setBackgroundColor:KCellSexBGManColor];
+        
+    }else {
+        [self.userManSexLabel setHidden:YES];
+        [self.userManSexLabel setFrame:CGRectMake(3.0f, 0.0, 0.0f, 0.0f)];
+        [self.userWomanSexLabel setHidden:NO];
+        [self.userWomanSexLabel setFrame:CGRectMake(self.userNameLabel.frame.origin.x+nameSize.width, self.userNameLabel.frame.origin.y+2, 20.0f, 20.0f)];
+        //[self.sexBackground setBackgroundColor:KCellSexBGWomanColor];
+        
+    }
+    
+    if (IsStringEmptyOrNull(cellData.signature)) {
+        [self.signatureLabel setHidden:YES];
+        [self.signatureView setHidden:YES];
+    }
+    else
+    {
+        [self.signatureLabel setHidden:NO];
+        [self.signatureView setHidden:NO];
+        
+        self.signatureLabel.frame =CGRectMake(4.0f, 2.0f,
+                                         (self.signatureView.frame.size.width - 8),
+                                         38);
+        
+        [self.signatureLabel setText:cellData.signature];
+        
+        CGSize signatureSize=[self.signatureLabel.text sizeWithFont:self.signatureLabel.font];
+        
+        if (signatureSize.width<=(KProjectScreenWidth/3-10)) {
+            
+            self.signatureView.frame=CGRectMake(KProjectScreenWidth-signatureSize.width-10.0f-8, 10.0f, signatureSize.width+8.0f, 42.0f);
+            
+            self.signatureLabel.frame=CGRectMake(4.0f, 2.0f,
+                                            (self.signatureView.frame.size.width - 8),
+                                            38);
+        }
+        else
+        {
+            
+            [self.signatureView setFrame:CGRectMake((80+KProjectScreenWidth/3)+20, 10,
+                                                 (KProjectScreenWidth - (80+KProjectScreenWidth/3) -10)-20,
+                                                 42)];
+            
+            self.signatureLabel.frame=CGRectMake(4.0f, 2.0f,
+                                                                       (self.signatureView.frame.size.width - 8),
+                                                                       38);
+        }
+        
+    }
+ 
+}
+
+- (void)awakeFromNib
+{
+    // Initialization code
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+@end

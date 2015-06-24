@@ -1,0 +1,78 @@
+//
+//  QuestionInfo.h
+//  FM_CheZhuFuWu
+//
+//  Created by Ma Yiming on 13-5-29.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "UserInfo.h"
+
+typedef enum {
+    QuestionStatusAdminDel  = 0,            //后台管理员删除
+    QuestionStatusNormal = 1,               //正常
+    QuestionStatusBlack = 2,                //用户屏蔽
+    QuestionStatusUserReport = 3            //用户举报
+}QuestionStatus;
+
+@interface QuestionInfo : NSObject
+
+@property (nonatomic,copy)      NSString *questionID;                   //问题ID
+@property (nonatomic,strong)    UserInfo *publishUserInfo;              //发布者信息
+@property (nonatomic,strong)    UserInfo *commentedUserInfo;            //被评论者信息
+@property (nonatomic,copy)      NSString *questionContent;              //问题内容
+@property (nonatomic,copy)      NSString *createTime;                   //创建时间
+@property (nonatomic,copy)      NSString *collectTimes;                 //收藏次数
+@property (nonatomic,copy)      NSString *commentTimes;                 //评论次数
+@property (nonatomic,copy)      NSString *viewTimes;                    //查看次数
+@property (nonatomic,copy)      NSString *goodTimes;                    //点赞次数
+
+@property (nonatomic,copy)      NSString *commentAnswerId;              //被评论的回复id
+@property (nonatomic,assign)    BOOL haveSolved;                        //问题已解决
+@property (nonatomic,assign)    NSInteger totalPageCount;               //问题总页数
+@property (nonatomic,copy)      NSArray  *images;                       //图片信息FMImage
+@property (nonatomic,copy)      NSString *userPersonalSignatureContent; //用户个性签名
+@property (nonatomic,assign)    QuestionStatus status;                  //状态
+@property (nonatomic,assign)    NSInteger      pushStyle;
+
+@property (nonatomic,assign)    NSInteger   addStyle;                    //可见范围
+
+///数据是否为私信
+@property (nonatomic,assign)    NSInteger is_public;
+///统计浏览的次数设置
+@property (nonatomic,assign)    NSInteger   browseStatisticsInteger;
+
+@property (nonatomic,assign)    BOOL        whetherDelete;
+
+///存储小量数据内容数据的内容
+@property (nonatomic,copy) NSString  *questionSmallContent;
+@property (nonatomic,strong) NSAttributedString *attributedQuestionSmallContent;//带属性短数据的问题内容
+@property (nonatomic,strong) NSAttributedString *attributedQuestionContent;//带属性完整数据的问题内容
+
+//读取问题信息
++ (id)questionWithUnserializedJSONDic:(NSDictionary *)dic;
+
+//读取回答消息
++ (id)answerWithUnserializedJSONDic:(NSDictionary *)dic;
+
+//生成交警留言参数表
+- (NSDictionary *)generatePoliceMessageJSONDic;
+
+
+//生成发布问题参数表
+- (NSDictionary* )generateQuestionJSONDic;
+
+//生成发布问题回复参数表
+- (NSDictionary* )generateAnswerJSONDic;
+//生成点赞回复参数
+- (NSDictionary* )generateAnswerPraiseJSONDic;
+
+
+//获取短消息高度
+- (GLfloat)getShortContentHeight:(GLfloat)containerWidth;
+
+//获取消息高度
+- (GLfloat)getContentHeight:(GLfloat)containerWidth;
+
+@end

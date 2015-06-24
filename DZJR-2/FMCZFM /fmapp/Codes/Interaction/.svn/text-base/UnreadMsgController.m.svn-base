@@ -1,0 +1,373 @@
+//
+//  UnreadMsgController.m
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-12-23.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "UnreadMsgController.h"
+#import "CurrentUserInformation.h"
+#import "UnreadMsgInfo.h"
+#import "UnreadMsgCell.h"
+#import "AttributedStringHelper.h"
+#import "NSAttributedString+Height.h"
+#import <AudioToolbox/AudioToolbox.h>
+#import "QuestionDetailViewController.h"
+#import "HTTPClient+Interaction.h"
+
+@interface UnreadMsgController () <UITableViewDelegate,UITableViewDataSource,UIActionSheetDelegate>
+@property (nonatomic,weak)    UITableView               *mainTableView;
+@property (nonatomic, weak)   AFHTTPRequestOperation    *requestDataOperation;
+@property (readwrite, strong) DataPage                  *dataSource;            //列表的数据源
+
+@property (nonatomic , assign)id<QuestionDelegate>      userReadUnReadDelegate;
+@end
+
+@implementation UnreadMsgController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        self.dataSource = [DataPage page];
+    }
+    return self;
+}
+
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [[ThemeManager sharedThemeManager].skin backgroundColor];
+}
+
+
+- (id)initWithUserPersonalQuestionDelegate:(id<QuestionDelegate>)m_delegate{
+    if (self) {
+        // Custom initialization
+        self.dataSource = [DataPage page];
+        self.userReadUnReadDelegate = m_delegate;
+    }
+    return self;
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    [self settingContentView];//设置内容视图
+    
+    [self getData];
+}
+
+- (void) viewDidAppear:(BOOL)animated
+{
+    if ([self.dataSource count] == 0) {
+        self.navigationItem.rightBarButtonItem.enabled = NO;
+    }
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+
+#pragma mark -
+#pragma mark -自定义方法
+
+//设置内容视图
+- (void) settingContentView
+{
+    [self settingNavigationBarItem];//设置导航栏按钮
+    [self settingNavTitle:@"未读消息"];//设置标题
+    
+    //添加列表视图
+    UITableView *mainTableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    mainTableView.delegate = self;
+    mainTableView.dataSource = self;
+    mainTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    mainTableView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:mainTableView];
+    
+    self.mainTableView = mainTableView;
+}
+
+//设置导航栏左右按钮
+- (void) settingNavigationBarItem
+{
+    if ([self respondsToSelector:@selector(edgesForExtendedLayout)]) {
+        //右侧发布按键
+        UIBarButtonItem  *rightSendBarButton = [[UIBarButtonItem alloc]initWithTitle:@"忽略" style:UIBarButtonItemStyleBordered target:self action:@selector(navigationBarItemClicked:)];
+        [rightSendBarButton setTintColor:[FMThemeManager.skin navigationTextColor]];
+        [self.navigationItem setRightBarButtonItem:rightSendBarButton];
+
+    }else{
+        //设置右侧Item
+        UIButton *rightItemButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [rightItemButton setBackgroundImage:[UIImage imageNamed:@"RightItem.png"]
+                                   forState:UIControlStateNormal];
+        [rightItemButton setFrame:CGRectMake(0, 0, 49, 29)];
+        [rightItemButton setTitle:@"忽略" forState:UIControlStateNormal];
+        [rightItemButton addTarget:self action:@selector(navigationBarItemClicked:) forControlEvents:UIControlEventTouchUpInside];
+        rightItemButton.titleLabel.font = [UIFont systemFontOfSize:12.0f];
+        UIBarButtonItem *rightItem = [[UIBarButtonItem alloc] initWithCustomView:rightItemButton];
+        self.navigationItem.rightBarButtonItem = rightItem;
+    }
+    self.navigationItem.rightBarButtonItem.enabled = NO;//右侧按钮不可用
+    
+    
+    /*
+    [self setLeftNavButton:kImgNavbarBackItem withFrame:CGRectMake(0.0f, 0.0f, 55.0f, 44.0f) actionTarget:self action:@selector(initWithBackGroundView)];
+     */
+    
+    self.navButtonSize=KNavSize;
+    [self setLeftNavButtonFA:FMIconLeftArrow
+                   withFrame:kNavButtonRect
+                actionTarget:self
+                      action:@selector(initWithBackGroundView)];
+}
+
+//导航栏按钮点击时
+- (void) navigationBarItemClicked:(id) sender
+{
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"是否忽略所有未读消息？"
+                                                             delegate:self cancelButtonTitle:@"取消"
+                                               destructiveButtonTitle:@"忽略"
+                                                    otherButtonTitles:nil];
+    [actionSheet showInView:self.view];
+}
+
+- (void)loadMoreListData
+{
+    [self getData];
+}
+
+//获取数据
+- (void) getData
+{
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient getUnreadMsgList:[[CurrentUserInformation sharedCurrentUserInfo] userID]
+                         pageIndex:[self.dataSource nextPageIndex]
+                          pageSize:[self.dataSource pageSize]
+                       completion:^(WebAPIResponse *response) {
+                           Log(@"%@",response.responseObject);
+                           dispatch_async(dispatch_get_main_queue(), ^(void){
+
+                               //关掉PullToRefreshView
+                               if (weakSelf.mainTableView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+                               {
+                                   UpdateLastRefreshDataForPullToRefreshViewOnView([weakSelf mainTableView]);
+                                   [weakSelf.mainTableView.pullToRefreshView stopAnimating];
+                               }
+
+                               if(response.code == WebAPIResponseCodeSuccess){
+                                   NSMutableArray *msgList = [NSMutableArray array];
+                                   NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                                   if ([dataList isKindOfClass:[NSArray class]]) {
+                                       for (NSDictionary *dic in dataList)
+                                       {
+                                           UnreadMsgInfo *msgInfo = [UnreadMsgInfo unreadMsgWithUnserializedJSONDic:dic];
+                                           if (msgInfo) {
+                                               [msgList addObject:msgInfo];
+                                           }
+                                       }
+                                   }
+                                   //页数
+                                   weakSelf.dataSource.pageCount = IntForKeyInUnserializedJSONDic(response.responseObject, @"totalPage");
+                                   //避免服务器返回数据异常导致loadmore循环加载
+                                   if ([msgList count] == 0) {
+                                       weakSelf.dataSource.pageCount = 0;
+                                   }else{
+                                       weakSelf.navigationItem.rightBarButtonItem.enabled = YES;
+                                   }
+                                   [weakSelf.dataSource appendPage:msgList];
+                                   [weakSelf.mainTableView reloadData];
+                                   
+                               }else{
+                                   if (response.code == WebAPIResponseCodeNetError) {
+                                       ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+                                   }
+                               }
+                           });
+                       }];
+}
+
+
+- (void)initWithBackGroundView{
+    [self.navigationController popViewControllerAnimated:YES];
+}
+//读消息
+- (void) readMsg:(NSIndexPath *) unreadMsgIndexPath
+{
+    UnreadMsgInfo *selectedUnreadMsgInfo = [self.dataSource.data objectAtIndex:unreadMsgIndexPath.row];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient markMsgRead:[[CurrentUserInformation sharedCurrentUserInfo] userID]
+                   questionId:selectedUnreadMsgInfo.questionID
+                   completion:^(WebAPIResponse *response) {
+                            
+                            dispatch_async(dispatch_get_main_queue(), ^(void){
+                                
+                                if(response.code == WebAPIResponseCodeSuccess){
+                                    
+                                    //移除未读消息
+                                    NSMutableArray* delList = [NSMutableArray array];
+                                    for (UnreadMsgInfo *unreadMsgInfo in weakSelf.dataSource.data) {
+                                        if ([unreadMsgInfo.questionID isEqualToString:selectedUnreadMsgInfo.questionID]) {
+                                            [delList addObject:unreadMsgInfo];
+                                        }
+                                    }
+                                    [weakSelf.dataSource deleteDatas:delList];
+                                
+                                    [self.userReadUnReadDelegate haveReadMsgWithCount:[delList count]];
+                                    [weakSelf.mainTableView reloadData];
+                                }
+                            });
+                        }];
+}
+
+//忽略全部消息
+- (void) ignoreAllMsg
+{
+    WaittingMBProgressHUD(self.view, @"发送中...");
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation = [FMHTTPClient ingoreUnreadMsg:[CurrentUserInformation sharedCurrentUserInfo].userID completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                [weakSelf.dataSource cleanAllData];
+                [weakSelf.mainTableView reloadData];
+                [weakSelf.userReadUnReadDelegate haveReadAllMsg];
+                SuccessMBProgressHUD(weakSelf.view, @"忽略成功!");
+            }else{
+                FailedMBProgressHUD(weakSelf.view, @"忽略失败!");
+            }
+        });
+    }] ;
+}
+
+#pragma mark -
+#pragma mark -UITableViewDelegate UITableViewDataSource
+- (NSInteger) tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count] + 1;
+}
+
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+    }
+    UnreadMsgCell* cell = [[UnreadMsgCell alloc] init];
+    return cell;
+}
+
+#pragma mark - UITableViewDelegate
+- (BOOL)_isLoadMoreCellAtIndexPath:(NSIndexPath *)indexPath
+{
+    return (indexPath.row == [self.dataSource count]);
+}
+
+- (void)_configureCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row >= [self.dataSource.data count]) {
+        return;
+    }
+    
+    UnreadMsgCell *unreadMsgCell = (UnreadMsgCell *)cell;
+    UnreadMsgInfo *msgInfo = [self.dataSource.data objectAtIndex:indexPath.row];
+    [unreadMsgCell displayUnreadMsg:msgInfo];
+}
+
+- (UITableViewCell *) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellIdentifier = @"QuestionCell";
+    BOOL isLoadMoreCell = [self _isLoadMoreCellAtIndexPath:indexPath];
+    cellIdentifier = isLoadMoreCell? kHUILoadMoreCellIdentifier: cellIdentifier;
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (!cell) {
+        cell = [self createCellWithIdentifier:cellIdentifier];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    }
+    
+    if (!isLoadMoreCell){
+        [self _configureCell:cell forRowAtIndexPath:indexPath];
+    }
+    else
+    {
+        if ([self.dataSource canLoadMore])
+        {
+            
+            __weak __typeof(&*self)weakSelf = self;
+            [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                [weakSelf loadMoreListData];
+            }];
+            [(HUILoadMoreCell*)cell startLoadMore];
+        }
+        else
+        {
+            
+            if (self.mainTableView.pullToRefreshView.state == SVPullToRefreshStateLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+            }else{
+                cell.textLabel.text = LOADMORE_LOADOVER;
+            }
+        }
+    }
+    
+    return cell;
+
+}
+
+- (CGFloat) tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSInteger msgCount = [self.dataSource count];
+    CGFloat rowHeight = 0;
+    
+    if (indexPath.row < msgCount) {
+        UnreadMsgInfo *unreadMsgInfo = (UnreadMsgInfo *)[self.dataSource.data objectAtIndex:indexPath.row];
+        CGFloat contentLabelHeight = [unreadMsgInfo getContentHeight:265];
+        CGFloat commentedcontentLabelHeight = [unreadMsgInfo getCommentHeight:265];
+        
+        if (commentedcontentLabelHeight != 0) {
+            rowHeight =  43 + contentLabelHeight + 20 + commentedcontentLabelHeight + 22;
+        }else{
+            rowHeight =  43 + contentLabelHeight + 20;
+        }
+    }else{
+        rowHeight = 37.0f;
+    }
+    
+    return rowHeight;
+}
+
+- (void) tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSInteger msgCount = [self.dataSource count];
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if(indexPath.row < msgCount){//未读消息
+
+        //未读消息
+        UnreadMsgInfo *unreadMsgInfo = (UnreadMsgInfo *)[self.dataSource.data objectAtIndex:indexPath.row];
+        QuestionDetailViewController *interactionDetailController = [[QuestionDetailViewController alloc] initWithQuestionId:unreadMsgInfo.questionID];
+        [interactionDetailController setUserSendInforIsPublic:unreadMsgInfo.is_publicInfor];
+        [self readMsg:indexPath];//已读消息
+        [self.navigationController pushViewController:interactionDetailController animated:YES];
+    }
+}
+
+#pragma mark -
+#pragma mark -UIActionSheetDelegate
+- (void) actionSheet:(UIActionSheet *)actionSheet willDismissWithButtonIndex:(NSInteger)buttonIndex
+{
+    if (buttonIndex == 0) {//忽略
+        [self ignoreAllMsg];//忽略所有消息
+        
+    }
+}
+@end

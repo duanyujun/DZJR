@@ -1,0 +1,54 @@
+//
+//  QuestionInfoCell.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-12.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+#import <UIKit/UIKit.h>
+#import "QuestionInfo.h"
+@class QuestionInfoCell;
+@protocol QuestionInfoCellDelegate <NSObject>
+@optional
+//长按事件触发
+- (void)questionCellLongPressed:(QuestionInfoCell *)cell ;
+
+//点击删除按钮触发
+- (void)questionCellDelete:(QuestionInfoCell *)cell ;
+/** 点击用户头像进入用户详情界面**/
+- (void)questionCellPrassClickeDetailed:(QuestionInfoCell *)cell;
+
+-(void)questionReplyMoreBtnWithDetail:(QuestionInfo* )question WithSelectBtnTag:(NSInteger)index;
+
+-(void)replyMoreBtnClickWithSecfCell:(QuestionInfoCell *)clickCell;
+
+@end
+
+@interface QuestionInfoCell : UITableViewCell
+
+@property (nonatomic,weak) id<QuestionInfoCellDelegate> delegate;
+@property (nonatomic,weak) QuestionInfo     *curQuestion;
+
+//0：互动   1：互动问题回复
+@property (nonatomic,assign) NSInteger     cellType;
+
+//当前问题
+
+///显示问题信息
+- (void) displayQuestion:(QuestionInfo* )question;
+
+
+///显示回复信息
+- (void) displayReply:(QuestionInfo* )question;
+
+///显示问题详细信息
+- (void) displayQuestionDetail:(QuestionInfo* )question;
+
+//获取图片显示高度
++ (CGFloat)getQuestionImageHeight:(QuestionInfo* )question;
+
+- (void)hideMoreBtnWithAnimateWithDuration;
+
+
+
+@end

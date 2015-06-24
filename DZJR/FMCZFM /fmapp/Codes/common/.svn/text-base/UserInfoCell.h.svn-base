@@ -1,0 +1,16 @@
+//
+//  UserInfoCell.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-19.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "QuestionInfo.h"
+
+@interface UserInfoCell : UITableViewCell
+
+- (void) displayUserInfo:(QuestionInfo* )question;
+
+@end

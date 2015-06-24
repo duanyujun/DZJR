@@ -1,0 +1,153 @@
+//
+//  UserInfo.m
+//  CheYouHui
+//
+//  Created by Ma Yiming on 12-11-20.
+//
+//
+
+#import "UserInfo.h"
+#import "FMImageView.h"
+#import "ActivityInfo.h"
+
+@implementation UserInfo
+
+
+-(id) init
+{
+    self = [super init];
+    
+    if (self) {
+        
+    }
+    
+    return self;
+}
+- (BOOL) isMobileUser
+{
+    return [self.userRole intValue] == 0;
+}
+//JSON反序列化车主用户信息
++ (id)userWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    UserInfo *userInfo = [[UserInfo alloc] init];
+  
+    Log(@"dic is %@",dic);
+    //用户ID
+    userInfo.userID = StringForKeyInUnserializedJSONDic(dic, @"userId");
+    userInfo.userName = StringForKeyInUnserializedJSONDic(dic, @"userName");
+    //用户背景图
+    userInfo.backgroundImage=StringForKeyInUnserializedJSONDic(dic, @"background");
+    //用户性别
+    userInfo.userSex = IntForKeyInUnserializedJSONDic(dic, @"sex");
+   //关注状态
+    userInfo.is_friends=IntForKeyInUnserializedJSONDic(dic, @"is_friend");
+    //头像
+    userInfo.userAvatar = StringForKeyInUnserializedJSONDic(dic, @"avatar");
+    
+    //第一张爱车图片
+    userInfo.userCarImage = StringForKeyInUnserializedJSONDic(dic, @"Brand_logo_name");
+    
+    //用户最后登录时间
+    userInfo.userLoginTime = StringForKeyInUnserializedJSONDic(dic,@"time");
+    
+    //距离
+    userInfo.userDistance = StringForKeyInUnserializedJSONDic(dic,@"distance");
+    
+    //角色
+    userInfo.userRole = StringForKeyInUnserializedJSONDic(dic, @"role");
+    
+    //所在位置
+    userInfo.userCityName = StringForKeyInUnserializedJSONDic(dic, @"cityName");
+    
+    //用户等级
+    userInfo.userLevel = StringForKeyInUnserializedJSONDic(dic, @"level");
+    
+    userInfo.circle=StringForKeyInUnserializedJSONDic(dic, @"circle");
+    userInfo.circleId=StringForKeyInUnserializedJSONDic(dic, @"circleId");
+    
+    //车系
+    userInfo.userCarSeriesName = StringForKeyInUnserializedJSONDic(dic,@"series");
+    if (IsStringEmptyOrNull(userInfo.userCarSeriesName)) {
+        userInfo.userCarSeriesName = @"未知车型";
+    }
+    
+    //车型
+    userInfo.userCarTypeName = StringForKeyInUnserializedJSONDic(dic,@"Brand_Series_type");
+    if ([userInfo.userCarSeriesName isEqualToString:@"未知车型"]) {
+        userInfo.userCarTypeName = @"未知车型";
+    }
+    
+    Log(@"\nuserInfo.userCarSeriesName is %@\nuserInfo.userCarTypeName is %@\n",userInfo.userCarSeriesName,userInfo.userCarTypeName);
+    
+    //个性签名
+    userInfo.userPersonalSignature = StringForKeyInUnserializedJSONDic(dic,@"signature");
+    
+//    if (IsStringEmptyOrNull(userInfo.userPersonalSignature)) {
+//        [userInfo setUserPersonalSignature:@"未编辑个性签名"];
+//    }
+    
+    //语音介绍
+    NSDictionary* audioDic = ObjForKeyInUnserializedJSONDic(dic, KDataKeyAudio);
+    if (audioDic) {
+        userInfo.audioURL = StringForKeyInUnserializedJSONDic(audioDic, @"voiceKey");
+        userInfo.audioLength = IntForKeyInUnserializedJSONDic(audioDic, @"voiceLen");
+    }
+    
+    //最近活动
+    NSArray* activityData = ObjForKeyInUnserializedJSONDic(dic, @"activity");
+    if (activityData) {
+        NSMutableArray* actArray = [[NSMutableArray alloc] init];
+        for (NSDictionary* activityDic in activityData) {
+            ActivityInfo* activityInfo = [[ActivityInfo alloc] init];
+            activityInfo.activityId = StringForKeyInUnserializedJSONDic(activityDic, @"id");
+            activityInfo.activityImage = StringForKeyInUnserializedJSONDic(activityDic, @"pic_url");
+            activityInfo.stop_sign=IntForKeyInUnserializedJSONDic(activityDic, @"stop_sign");
+            [activityInfo setActivityForStateStyle:StringForKeyInUnserializedJSONDic(activityDic, @"status")];
+            [actArray addObject:activityInfo];
+        }
+        userInfo.activity = actArray;
+    }
+    
+    //最后位置
+    userInfo.userCoordinate = CLLocationCoordinate2DMake(DoubleForKeyInUnserializedJSONDic(dic, @"lastLatitude"),
+                                                         DoubleForKeyInUnserializedJSONDic(dic, @"lastLongitude")) ;
+    //爱车图片
+    NSArray* imageData = ObjForKeyInUnserializedJSONDic(dic,@"pic");
+    NSMutableArray* imageArray = [[NSMutableArray alloc] init];
+    if ([imageData isKindOfClass:[NSArray class]]) {
+        for (NSDictionary* imgDic in imageData) {
+            FMImage* im = [[FMImage alloc]init];
+            im.url = ObjForKeyInUnserializedJSONDic(imgDic,@"pic_url");
+            im.imageSize = CGSizeMake(FloatForKeyInUnserializedJSONDic(imgDic,@"pic_width")/2.0,
+                                      FloatForKeyInUnserializedJSONDic(imgDic,@"pic_height")/2.0);
+            [imageArray addObject:im];
+        }
+    }
+    userInfo.images = [NSArray arrayWithArray:imageArray];
+    
+    ///用户互动到场率
+    NSInteger enrollRatio = IntForKeyInUnserializedJSONDic(dic, @"EnrollRatio");
+    [userInfo setUserPersonalEnrollRatio:[NSString stringWithFormat:@"%d%%",enrollRatio]];
+    return userInfo;
+}
+//JSON反序列化主持人信息
++ (id)emceeWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    UserInfo *userInfo = [[UserInfo alloc] init];
+    userInfo.userID = StringForKeyInUnserializedJSONDic(dic, @"id");
+    //用户名
+    userInfo.userName = StringForKeyInUnserializedJSONDic(dic, @"name");
+    
+    //头像
+    userInfo.userAvatar = StringForKeyInUnserializedJSONDic(dic, @"head");
+    userInfo.userCarImage = StringForKeyInUnserializedJSONDic(dic, @"head");
+    
+    //节目
+    userInfo.userDistance = StringForKeyInUnserializedJSONDic(dic, @"note");
+    //角色
+    userInfo.userRole = StringForKeyInUnserializedJSONDic(dic, @"role");
+    return userInfo;
+}
+
+@end

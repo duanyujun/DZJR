@@ -1,0 +1,25 @@
+//
+//  CustomMKAnnotation.m
+//  FM_CheZhuFuWu
+//
+//  Created by Ma Yiming on 13-5-21.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "CustomMKAnnotation.h"
+
+@implementation CustomMKAnnotation
+
+
+- (id) init{
+    self = [super init];
+    
+    if (self) {
+        
+    }
+    
+    return self;
+}
+
+
+@end

@@ -1,0 +1,273 @@
+//
+//  FriendCircPostsViewCell.m
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+
+#import "FriendCircPostsViewCell.h"
+#import "CurrentUserInformation.h"
+#import "FontAwesome.h"
+#import "APAvatarImageView.h"
+#import "RichTextLabel.h"
+#import "FMImageView.h"
+
+#define kImageGap                           10
+#define KMulImageSize                       60
+
+
+@interface FriendCircPostsViewCell ()
+@property (nonatomic , strong)      FriendCirclePostsModel          *postModelInfor;
+
+@property (nonatomic , weak)        UIView                          *postBackGroundView;
+///头像内容
+@property (nonatomic , weak)        APAvatarImageView               *postUserPhotoImageView;
+///名字内容
+@property (nonatomic , weak)        UILabel                         *postUserNameLabel;
+///删除按键
+@property (nonatomic , weak)        UIButton                        *postUserDeleteButton;
+///发布的内容信息
+@property (nonatomic , weak)        RichTextLabel                   *postUserContentLabel;
+
+@property (nonatomic , weak)        FMImageView                     *postUserContentImageView;
+///分割线内容
+@property (nonatomic , weak)        UIView                          *postContenSeparatorView;
+///创建时间标签
+@property (nonatomic , weak)        UILabel                         *postCreateDateLabel;
+///会话指示图
+@property (nonatomic , weak)        UIButton                         *postTalkButton;
+
+//@property (nonatomic , weak)
+//@property
+///点赞按键
+@property (nonatomic , weak)        UIButton                        *postClickAgreeButton;
+///被点赞个数
+@property (nonatomic , weak)        UILabel                         *postAgreenCountLable;
+
+- (void)initWithUserOperationButtonEvent:(id)sender;
+@end
+@implementation FriendCircPostsViewCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        
+        ///背景色
+        UIView *backGroundView = [[UIView alloc]init];
+        [backGroundView setBackgroundColor:[UIColor whiteColor]];
+        [backGroundView.layer setCornerRadius:6.0f];
+        [backGroundView.layer setMasksToBounds:YES];
+        self.postBackGroundView = backGroundView;
+        [self addSubview:self.postBackGroundView];
+        
+        APAvatarImageView   *userPhotoImage = [[APAvatarImageView alloc]initWithFrame:CGRectMake(20.0f, 10.0f, 27.5, 27.5) borderColor:KContentTextLightGrayColor borderWidth:0.5];
+        [userPhotoImage setBackgroundColor:[UIColor clearColor]];
+        self.postUserPhotoImageView = userPhotoImage;
+        [self.postBackGroundView addSubview:self.postUserPhotoImageView];
+        
+        UILabel *userNameLabel = [[UILabel alloc]init];
+        [userNameLabel setBackgroundColor:[UIColor clearColor]];
+        [userNameLabel setTextAlignment:NSTextAlignmentLeft];
+        userNameLabel.font = [UIFont systemFontOfSize:14];
+        [userNameLabel setTextColor:KContentTextCanEditColor];
+        self.postUserNameLabel = userNameLabel;
+        [self.postBackGroundView addSubview:self.postUserNameLabel ];
+        
+        UIButton *deleteButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [deleteButton.titleLabel setFont:[UIFont systemFontOfSize:12.0f]];
+        [deleteButton setTag:KCellButtonDeleteTag];
+        [deleteButton setBackgroundColor:[UIColor clearColor]];
+        [deleteButton setTitleColor: KDefaultOrNightBaseColor forState:UIControlStateNormal];
+        [deleteButton setTitleColor:[UIColor colorWithRed:145.0f/255.0f
+                                                    green:196.0f/255.0f
+                                                     blue:155.0f/255.0f
+                                                    alpha:1.0f]
+                           forState:UIControlStateHighlighted];
+        [deleteButton setTitle:@"删除" forState:UIControlStateNormal];
+        [deleteButton addTarget:self
+                         action:@selector(initWithUserOperationButtonEvent:)
+             forControlEvents:UIControlEventTouchUpInside];
+        self.postUserDeleteButton = deleteButton;
+        [self.postBackGroundView addSubview:self.postUserDeleteButton];
+        
+        //问题详情
+        RichTextLabel* richLable = [[RichTextLabel alloc] initWithFrame:self.bounds];
+        richLable.lineBreakMode = NSLineBreakByCharWrapping;
+        richLable.textColor = KDisableTextColor;
+        richLable.highlightedTextColor = [UIColor whiteColor];
+        richLable.numberOfLines = 0;
+        richLable.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        richLable.backgroundColor = [UIColor clearColor];
+        self.postUserContentLabel = richLable;
+        [self.postBackGroundView addSubview:self.postUserContentLabel];
+        
+        FMImageView *contentImage = [[FMImageView alloc]init];
+        [contentImage setBackgroundColor:KUIImageViewDefaultColor];
+        self.postUserContentImageView = contentImage;
+        if (ThemeCategory==5) {
+            self.postUserContentImageView.alpha=0.6;
+        }
+        [self.postBackGroundView addSubview:self.postUserContentImageView];
+        
+        
+        //添加分隔线
+        UIView *separatorView = [[UIView alloc] initWithFrame:CGRectMake(17.0f, 46.5,
+                                                                         (KProjectScreenWidth - 17.0f), 0.5f)];
+        separatorView.backgroundColor = [FMThemeManager.skin sepratorColor];
+        self.postContenSeparatorView = separatorView;
+        [self.postBackGroundView addSubview:self.postContenSeparatorView];
+        
+        UILabel *createDateLabel = [[UILabel alloc]init];
+        [createDateLabel setBackgroundColor:[UIColor clearColor]];
+        [createDateLabel setTextAlignment:NSTextAlignmentLeft];
+        createDateLabel.font = [UIFont systemFontOfSize:12];
+        [createDateLabel setTextColor:KSubTitleContentTextColor];
+        self.postCreateDateLabel = createDateLabel;
+        [self.postBackGroundView addSubview:self.postCreateDateLabel];
+        
+        UIButton *talkButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        talkButton.titleLabel.font = [UIFont systemFontOfSize:16.5f];
+        
+        talkButton.contentHorizontalAlignment=UIControlContentHorizontalAlignmentRight;
+        [talkButton setTag:KCellButtonTalkTag];
+        [talkButton addTarget:self action:@selector(initWithUserOperationButtonEvent:)
+             forControlEvents:UIControlEventTouchUpInside];
+        self.postTalkButton = talkButton;
+        [self.postTalkButton setBackgroundColor:[UIColor clearColor]];
+        [self.postBackGroundView addSubview:self.postTalkButton];
+ 
+    }
+    return self;
+}
+
+- (void)awakeFromNib
+{
+    // Initialization code
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+
+- (void)initWithFriendCircPostsDataWith:(FriendCirclePostsModel *)postsModel{
+    
+    ///Model
+    self.postModelInfor = postsModel;
+    
+    
+    
+    //IconPhoto
+    NSString *imageUrl = [NSString stringWithFormat:@"%@%@thumb",KMediaServerImagesInforURL,postsModel.postUserInfor.userCarImage];
+    [self.postUserPhotoImageView setImageWithURL:[NSURL URLWithString:imageUrl]
+                                placeholderImage:kImgDefaultCar];
+    
+    ///UserName
+    [self.postUserNameLabel setText:postsModel.postUserInfor.userName];
+    
+    if (postsModel.postImagesArray.count >= 1) {
+        NSDictionary *imageDic = [NSDictionary dictionaryWithDictionary:(NSDictionary *)[postsModel.postImagesArray objectAtIndex:0]];
+        ///大图图片地址
+        NSString *largeImageKeyURL = [NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,StringForKeyInUnserializedJSONDic(imageDic, @"pic_url")];
+        [self.postUserContentImageView setImageViewWithURL:largeImageKeyURL largeUrl:largeImageKeyURL holdImage:[UIImage imageNamed:@""]];
+    }
+    ///Content
+    [self.postUserContentLabel setAttString:postsModel.postsAttributedContent];
+    
+    ///CreateTime
+    [self.postCreateDateLabel setText:[NSString stringWithFormat:@"%@  %@",postsModel.postCreateDate,postsModel.postCityCode]];
+    
+    ///agreement Count
+    [self.postAgreenCountLable setText:[NSString stringWithFormat:@"%d",postsModel.postsUserPraiseCount]];
+    
+    [self layoutIfNeeded];
+}
+
+
+- (void)layoutSubviews{
+    CGRect cellRect = self.bounds;
+    
+
+    ///BackGroundView
+    [self.postBackGroundView setFrame:CGRectMake(10.0f, 20.0f, (cellRect.size.width- 20.0f),(cellRect.size.height- 20.0f))];
+
+    //IconImage
+    [self.postUserPhotoImageView setFrame:CGRectMake(20.0f, 23, 27.5, 27.5)];
+
+    ///Name
+    [self.postUserNameLabel setFrame:CGRectMake(55.0f, 27.0f, 150.0f, 19.5)];
+    
+    
+    //content
+    CGFloat contentSizeH = [self.postModelInfor getContentHeight:(KProjectScreenWidth - 40)];
+    [self.postUserContentLabel setFrame:CGRectMake(10.0f, 70.0f, (self.postBackGroundView.frame.size.width-20.0f),
+                                                   contentSizeH)];
+    
+    CGFloat imageHeight = 0.0f;
+    CGFloat imageWidth = 0.0f;
+    if (self.postModelInfor .postImagesArray.count >= 1) {
+        [self.postUserContentImageView setHidden:NO];
+        NSDictionary *imageDic = [NSDictionary dictionaryWithDictionary:(NSDictionary *)[self.postModelInfor .postImagesArray objectAtIndex:0]];
+        imageHeight = FloatForKeyInUnserializedJSONDic(imageDic, @"pic_height")/2;
+        imageWidth = FloatForKeyInUnserializedJSONDic(imageDic, @"pic_width")/2;
+        [self.postUserContentImageView setFrame:CGRectMake((self.postBackGroundView.frame.size.width - imageWidth)/2 , (self.postUserContentLabel.frame.origin.y + contentSizeH+ 15.0f), imageWidth, imageHeight)];
+    }else{
+        
+        [self.postUserContentImageView setHidden:YES];
+        [self.postUserContentImageView setFrame: CGRectZero];
+    }
+    
+
+    ///SeparatorView
+    [self.postContenSeparatorView setFrame:CGRectMake(0.0f, (self.postBackGroundView.frame.size.height - 40.5),
+                                                      self.postBackGroundView.frame.size.width, 0.5f)];
+    
+    ///createTime
+    
+    CGSize dateSize=[self.postCreateDateLabel.text sizeWithFont:self.postCreateDateLabel.font];
+
+    [self.postCreateDateLabel setFrame:CGRectMake(20.0f, self.postContenSeparatorView.frame.origin.y, dateSize.width, 40.0f)];
+    
+    ///deleteButton
+    if([self.postModelInfor.postUserInfor.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]){
+        [self.postUserDeleteButton setFrame:CGRectMake(KProjectScreenWidth-70, self.postContenSeparatorView.frame.origin.y-3, 50.0f, 50.0f)];
+    }else{
+        [self.postUserDeleteButton setFrame:CGRectZero];
+    }
+
+    
+    
+    CGSize agreeSize = [self.postAgreenCountLable.text sizeWithFont:self.postAgreenCountLable.font];
+    [self.postAgreenCountLable setFrame:CGRectMake((self.postBackGroundView.frame.size.width - agreeSize.width - 20),
+                                                   (self.postContenSeparatorView.frame.origin.y+5), agreeSize.width, 30.0f)];
+    
+    
+//    if(![self.postModelInfor.postUserInfor.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]){
+
+    ///TalkButton
+    [self.postTalkButton setFrame:CGRectMake(10, 10, 100, 45)];
+//    }
+    
+    ///ClickeAgreenButton
+    [self.postClickAgreeButton setFrame:CGRectMake((self.postBackGroundView.frame.size.width- 50 - agreeSize.width - 10),
+                                                   (self.postContenSeparatorView.frame.origin.y+5), 50, 30.0f)];
+    
+    [self.postContenSeparatorView setHidden:YES];
+}
+
+- (void)initWithUserOperationButtonEvent:(id)sender{
+    
+    UIButton *button = (UIButton *)sender;
+    if (self.delegate) {
+        if ([self.delegate respondsToSelector:@selector(initWithUserOperationFriendCircPostsButtonEvent:withButtonTag:withIndexPath:)]) {
+            [self.delegate initWithUserOperationFriendCircPostsButtonEvent:self.postModelInfor withButtonTag:button.tag withIndexPath:self.selectedIndexPath];
+        }
+    }
+}
+@end

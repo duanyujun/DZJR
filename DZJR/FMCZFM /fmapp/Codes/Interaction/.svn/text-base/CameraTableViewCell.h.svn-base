@@ -1,0 +1,20 @@
+//
+//  CameraTableViewCell.h
+//  fmapp
+//
+//  Created by SDYK on 14-8-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface CameraTableViewCell : UITableViewCell
+
+@property (strong, nonatomic) UIImageView       *imageView;
+@property (strong, nonatomic) UIImageView       *deleteImageView;
+
+@property (copy, nonatomic)   UIImage           *image;
+@property (copy, nonatomic)   UIImage           *deleteImage;
+
+
+@end

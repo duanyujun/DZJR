@@ -1,0 +1,39 @@
+//
+//  CustomMKAnnotation.h
+//  FM_CheZhuFuWu
+//
+//  Created by Ma Yiming on 13-5-21.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import <MapKit/MapKit.h>
+#import "RoadConditionInfo.h"
+
+typedef enum
+{
+    FMJamAnnotation = 1,//拥堵标注
+    FMSlowAnnotation,//缓慢标注
+    FMPassImpededAnnotation,//畅行标注
+    FMExposureAnnotation,//曝光标注
+    FMNearbyPeopleAnnotation,//附近车友标注
+    FMNearbyPrivilegeMerchantAnnotation,//附近优惠商家
+    FMUserDetailInfoAnnotation,//用户详情
+    FMLongPressAnnotation,//长按标注
+    FMQuickDealWithServicePointAnnotation//快处服务点标注
+} FMAnnotationType;
+
+@interface CustomMKAnnotation : NSObject<MKAnnotation>
+{
+    
+}
+
+@property (nonatomic, assign) CLLocationCoordinate2D coordinate;        //经纬度
+@property (nonatomic, copy) NSString *title;                            //主标题
+@property (nonatomic, copy) NSString *subtitle;                         //副标题
+@property (nonatomic, assign) FMAnnotationType type;                    //标注类型
+@property (nonatomic, copy) NSString *subType;                          //标注副类型 （加油站，汽车美容，维修保养。。）
+@property (nonatomic, assign) NSInteger tag;
+@property (nonatomic, strong) id data;                                  //数据信息
+
+@end

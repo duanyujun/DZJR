@@ -1,0 +1,205 @@
+//
+//  CellFrameModel.m
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "CellFrameModel.h"
+#import "FMMessage.h"
+#import "AttributedStringHelper.h"
+#import "FMImageView.h"
+#import "NSAttributedString+Height.h"
+
+#define kCellWidth              [UIScreen mainScreen].bounds.size.width
+#define kTimeLabelBgH           20
+#define kTimeLabelH             12
+#define kUserIconW              42
+#define kUserIconH              42
+#define kMessageMaxWidth        (KProjectScreenWidth - 138)
+#define kVoiceMessageWidth      100
+
+#define kMessagePadding         12      // 内容与气泡边界的间距
+#define kSpaceVertical          2       // 气泡与cell边界的距离
+#define kSpaceHorizontal        9       // 头像与屏幕边界的距离
+#define kSpaceIconAndMsg        5       // 头像与气泡的间距
+#define kBubbleVoiceWidth       100     // 语音消息时气泡宽度
+#define kVoiceDurationLabelW    30      // 语音时长
+
+#define kReceiveContentColor [UIColor colorWithRed:0.0f green:0.0f blue:0.0f alpha:1]
+#define kSendContentColor    [UIColor colorWithRed:1.0f green:1.0f blue:1.0f alpha:1]
+
+@interface CellFrameModel ()
+
+@property (nonatomic, assign) CGFloat   imageW;
+@property (nonatomic, assign) CGFloat   imageH;
+
+@end
+
+
+
+@implementation CellFrameModel
+
+- (void)setMessage:(FMMessage *)message
+{
+    _message = message;
+    
+    // 1.时间的frame
+    if (message.isShowTime) {
+        CGFloat timeLabelBgFrameX = 0;
+        CGFloat timeLabelBgFrameY = 0;
+        CGFloat timeLabelBgFrameW = kCellWidth;
+        CGFloat timeLabelBgFrameH = kTimeLabelBgH;
+        _timeLabelBgFrame = CGRectMake(timeLabelBgFrameX,
+                                       timeLabelBgFrameY,
+                                       timeLabelBgFrameW,
+                                       timeLabelBgFrameH);
+        CGFloat timeLabelFrameX = 0;
+        CGFloat timeLabelFrameY = kTimeLabelBgH-kTimeLabelH;
+        CGFloat timeLabelFrameW = kCellWidth;
+        CGFloat timeLabelFrameH = kTimeLabelH;
+        _timeLabelFrame = CGRectMake(timeLabelFrameX,
+                                     timeLabelFrameY,
+                                     timeLabelFrameW,
+                                     timeLabelFrameH);
+    }
+    
+    // 2.用户头像的frame
+    CGFloat userIconFrameX = message.sendOrReceive ? kSpaceHorizontal : kCellWidth-kSpaceHorizontal-kUserIconW;
+    CGFloat userIconFrameY = CGRectGetMaxY(_timeLabelBgFrame) + kSpaceVertical;
+    CGFloat userIconFrameW = kUserIconW;
+    CGFloat userIconFrameH = kUserIconH;
+    _userIconFrame = CGRectMake(userIconFrameX,
+                                userIconFrameY,
+                                userIconFrameW,
+                                userIconFrameH);
+    
+    // 3.消息气泡的frame
+    if (message.messageType == MessageTypeText) {       // 文本、表情
+        
+        // 文本颜色
+        UIColor *textColor = message.sendOrReceive ? kReceiveContentColor : kSendContentColor;
+        // 转换属性数据
+        AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+        [attributedStringHelper initStringSystemFontOfSize:17 withSetupFont:YES];
+        message.attributedContent = [attributedStringHelper getAttributedStringWithNSString:message.content textColor:textColor];
+        // 内容最大size
+        CGSize contentMaxSize = CGSizeMake((kCellWidth-kUserIconW*2-kSpaceHorizontal*2-kMessagePadding*2), MAXFLOAT);
+        // 内容实际size
+        CGFloat singleRowWidth = [message.attributedContent boundingWidthForHeight:0];
+        CGFloat contentWidth = MIN(singleRowWidth, contentMaxSize.width);
+
+        // 内容高度
+        CGFloat contentHeight = [message getContentHeight:kMessageMaxWidth+5];
+        // 气泡size
+        CGSize bubbleSize     = CGSizeMake(contentWidth + kMessagePadding *2,
+                                           contentHeight + kMessagePadding * 2);
+        CGFloat bubbleFrameX  = message.sendOrReceive ? (kSpaceHorizontal + kUserIconW + kSpaceIconAndMsg) : (kCellWidth - kUserIconW - kSpaceHorizontal - kSpaceIconAndMsg - bubbleSize.width);
+        CGFloat bubbleFrameY  = userIconFrameY + 5;
+        _bubbleBgFrame = (CGRect){bubbleFrameX, bubbleFrameY, bubbleSize};
+        
+        
+        //  文本、表情
+        CGFloat bubbleContentLabelFrameX = message.sendOrReceive ? (kMessagePadding + 3) : (kMessagePadding - 2);
+        CGFloat bubbleContentLabelFrameY = kMessagePadding;
+        //CGSize bubbleContentSize = contentSize;
+        _bubbleContentLabelFrame = CGRectMake(bubbleContentLabelFrameX,
+                                              bubbleContentLabelFrameY,
+                                              contentWidth+5,
+                                              contentHeight);
+        
+    }
+    else if (message.messageType == MessageTypeImage) { // 图片
+        
+        self.imageW = message.imageWidth;
+        self.imageH = message.imageHeight;
+        
+        CGFloat imageWidth=0.0f;
+        CGFloat imageHeight=0.0f;
+        
+        CGFloat length = KProjectScreenWidth <= 320 ? 80.0f : 120.0f;
+        CGFloat maxWidth = length;
+        CGFloat maxHeight = length;
+        
+        if (self.imageW > maxWidth || self.imageH > maxHeight) {
+            if (self.imageW >= self.imageH) {
+                imageWidth = maxWidth;
+                imageHeight = self.imageH * imageWidth / self.imageW;
+            } else {
+                imageHeight = maxHeight;
+                imageWidth = self.imageW * imageHeight / self.imageH;
+            }
+        } else if (self.imageW <= maxWidth && self.imageH <= maxHeight) {
+            imageWidth = self.imageW;
+            imageHeight = self.imageH;
+        }
+        
+        
+        
+        // 气泡背景
+        CGFloat bubbleBgFrameX = message.sendOrReceive ? (kSpaceHorizontal + kUserIconW + kSpaceIconAndMsg) :
+                                                         (kCellWidth - (kSpaceHorizontal+kSpaceIconAndMsg+kUserIconW+12+imageWidth));
+        CGFloat bubbleBgFrameY = userIconFrameY + 5;
+        CGFloat bubbleBgFrameW = imageWidth + 6 + 7;
+        CGFloat bubbleBgFrameH = imageHeight + 6;
+        _bubbleBgFrame = CGRectMake(bubbleBgFrameX,
+                                    bubbleBgFrameY,
+                                    bubbleBgFrameW,
+                                    bubbleBgFrameH);
+        // 图片
+        CGFloat bubbleImageViewFrameX = message.sendOrReceive ? 10 : 3;
+        CGFloat bubbleImageViewFrameY = 3;
+        _bubbleImageViewFrame = CGRectMake(bubbleImageViewFrameX,
+                                           bubbleImageViewFrameY,
+                                           imageWidth,
+                                           imageHeight);
+        
+    }
+    else if (message.messageType == MessageTypeVoice) { // 语音
+        
+        CGFloat bubbleBgFrameX = message.sendOrReceive ? (kSpaceHorizontal + kUserIconW + kSpaceIconAndMsg) :
+                                                         (kCellWidth - (kSpaceHorizontal+kSpaceIconAndMsg+kUserIconW+kBubbleVoiceWidth));
+        CGFloat bubbleBgFrameY = userIconFrameY + 5;
+        _bubbleBgFrame = CGRectMake(bubbleBgFrameX,
+                                    bubbleBgFrameY,
+                                    kVoiceMessageWidth,
+                                    45);
+        // 语音时长
+        CGFloat voiceDurationLabelFrameX = message.sendOrReceive ? (_bubbleBgFrame.size.width - kVoiceDurationLabelW - 5) : 5;
+        CGFloat voiceDurationLabelFrameY = 0;
+        CGFloat voiceDurationLabelFrameW = kVoiceDurationLabelW;
+        CGFloat voiceDurationLabelFrameH = 45;
+        _voiceDurationLabelFrame = CGRectMake(voiceDurationLabelFrameX,
+                                              voiceDurationLabelFrameY,
+                                              voiceDurationLabelFrameW,
+                                              voiceDurationLabelFrameH);
+        
+        // 语音播放动画
+        CGFloat voiceAnimationFrameX = message.sendOrReceive ? 20 : (_bubbleBgFrame.size.width-20-17);
+        CGFloat voiceAnimationFrameY = 14;
+        _voiceAnimationFrame = CGRectMake(voiceAnimationFrameX,
+                                          voiceAnimationFrameY,
+                                          17,
+                                          17);
+        
+        _voicePlayButtonFrame = CGRectMake(0, 0, kVoiceMessageWidth, 45);
+        
+    }
+    
+    // 4.indicatorView的frame
+    CGFloat indicatorViewFrameX = message.sendOrReceive ? (_bubbleBgFrame.origin.x + _bubbleBgFrame.size.width +20) :
+                                                          (_bubbleBgFrame.origin.x - 20);
+    CGFloat indicatorViewFrameY = (_bubbleBgFrame.origin.y + _bubbleBgFrame.size.height)/2;
+    CGFloat indicatorViewFrameW = 12;
+    CGFloat indicatorViewFrameH = 12;
+    _indicatorViewFrame = CGRectMake(indicatorViewFrameX,
+                                     indicatorViewFrameY,
+                                     indicatorViewFrameW,
+                                     indicatorViewFrameH);
+    
+    // 4.cell的高度
+    _cellHeight = MAX(CGRectGetMaxY(_userIconFrame), CGRectGetMaxY(_bubbleBgFrame)+5) + 2*kSpaceVertical;
+    
+}
+@end

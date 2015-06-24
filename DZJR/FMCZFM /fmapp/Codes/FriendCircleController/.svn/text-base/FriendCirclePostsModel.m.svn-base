@@ -1,0 +1,91 @@
+//
+//  FriendCirclePostsModel.m
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FriendCirclePostsModel.h"
+#import "AttributedStringHelper.h"
+#import "NSAttributedString+Height.h"
+#import "FMImageView.h"
+#import "CurrentUserInformation.h"
+
+@interface FriendCirclePostsModel ()
+@property (nonatomic , assign) CGFloat contentHeight;
+@end
+
+@implementation FriendCirclePostsModel
+- (id)init{
+    self = [super init];
+    if (self) {
+        self.contentHeight = -1.0f;
+        self.postUserInfor = [[UserInfo alloc]init];
+    }
+    return self;
+}
+
+
+
++ (id)initWithFriendCirclePostsModelWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    
+    
+    FriendCirclePostsModel *model = [[FriendCirclePostsModel alloc]init];
+    ///数据ID
+    [model setPostCreateID:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    ///创建者名字
+    [model.postUserInfor setUserName:StringForKeyInUnserializedJSONDic(dicInfor, @"userName")];
+    ///创建者LOGO
+    [model.postUserInfor setUserCarImage:StringForKeyInUnserializedJSONDic(dicInfor, @"Brand_logo_name")];
+    [model.postUserInfor setUserID:StringForKeyInUnserializedJSONDic(dicInfor, @"userId")];
+    ///创建时间
+    [model setPostCreateDate:StringForKeyInUnserializedJSONDic(dicInfor, @"createtime")];
+    [model setPostsUserPraiseCount:IntForKeyInUnserializedJSONDic(dicInfor, @"praise")];
+    ///帖子内容
+    [model setPostsContentString:StringForKeyInUnserializedJSONDic(dicInfor, @"content")];
+    AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+    model.postsAttributedContent=[attributedStringHelper
+                                  getAttributedStringWithNSString:model.postsContentString textColor:[FMThemeManager.skin textColor]];
+    [attributedStringHelper initStringSystemFontOfSize:19 withSetupFont:YES];
+    
+    NSString *cityCode=StringForKeyInUnserializedJSONDic(dicInfor, @"cityCode");
+    if (cityCode) {
+        [model setPostCityCode:StringForKeyInUnserializedJSONDic(dicInfor, @"cityCode")];
+        
+    }
+    else
+    {
+        [model setPostCityCode:@""];
+    }
+    ///保存图片内容
+    NSArray* imageData = (NSArray *)ObjForKeyInUnserializedJSONDic(dicInfor,@"pic");
+    
+    if (imageData.count > 0) {
+        [model setPostImagesArray:imageData];
+    }
+    
+    
+    
+    [model setPostImagesArray:imageData];
+    
+    
+    return model;
+}
+
+- (CGFloat)getContentHeight:(GLfloat)containerWidth{
+    if (self.contentHeight < 0) {
+        self.contentHeight = [self.postsAttributedContent boundingHeightForWidth:containerWidth];
+    }
+    return self.contentHeight;
+}
+
+- (NSDictionary *)getParamForSendFriendCirclePost{
+    NSMutableDictionary *paraDic = [[NSMutableDictionary alloc]init];
+    AddObjectForKeyIntoDictionary(self.postUserInfor.userID, @"userId", paraDic);
+    AddObjectForKeyIntoDictionary(self.postsContentString, @"content", paraDic);
+    AddObjectForKeyIntoDictionary(self.postAtFriendCircleId, @"circleId", paraDic);
+    AddObjectForKeyIntoDictionary([CurrentUserInformation sharedCurrentUserInfo].userCityCode, @"cityCode", paraDic);
+    return paraDic;
+}
+@end

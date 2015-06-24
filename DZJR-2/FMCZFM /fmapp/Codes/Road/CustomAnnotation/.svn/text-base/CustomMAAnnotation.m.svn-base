@@ -1,0 +1,21 @@
+//
+//  CustomMAAnnotation.m
+//  CheYouHui
+//
+//  Created by Ma Yiming on 13-1-6.
+//
+//
+
+#import "CustomMAAnnotation.h"
+
+@implementation CustomMAAnnotation
+
+@synthesize coordinate;
+@synthesize title;
+@synthesize subtitle;
+@synthesize type;
+@synthesize tag;
+
+
+
+@end

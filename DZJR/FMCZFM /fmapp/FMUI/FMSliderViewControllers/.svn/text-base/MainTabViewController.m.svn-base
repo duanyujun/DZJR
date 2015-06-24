@@ -1,0 +1,257 @@
+//
+//  HomePageViewController.m
+//  IMApp
+//
+//  Created by chen on 14/7/20.
+//  Copyright (c) 2014年 chen. All rights reserved.
+//
+
+// 版权属于原作者
+// http://code4app.com (cn) http://code4app.net (en)
+// 发布代码于最专业的源码分享网站: Code4App.com
+
+#import "MainTabViewController.h"
+//#import "FMTabBarController.h"
+
+//#import "MessagesViewController.h"
+//#import "ContactsViewController.h"
+//#import "DynamicViewController.h"
+////#import "MineViewController.h"
+
+#import "FMImageView.h"
+#import "FontAwesome.h"
+#import "RoadViewController.h"
+#import "InteractionViewController.h"
+#import "MeViewController.h"
+#import "RoadMainViewController.h"
+#import "MessageViewController.h"
+
+#define kTableHintPointTag    200
+
+
+
+@interface MainTabViewController ()<UITabBarControllerDelegate,UIGestureRecognizerDelegate>
+
+@property (nonatomic,assign) NSInteger              lastTabIndex;
+@end
+
+@implementation MainTabViewController
+
+- (id)init
+{
+    self = [super init];
+    
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.navigationController.navigationBarHidden = YES;
+    self.tabController = [[FMTabBarController alloc] init];
+//    [_tabC.tabBar setBackgroundColor:[UIColor clearColor]];
+    [self.tabController.view setFrame:self.view.frame];
+    [self.view addSubview:self.tabController.view];
+    
+    //主题通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(themeChangedNotification:)
+                                                 name: FMThemeChangedNotification
+                                               object: nil];
+
+    
+    [self setTabRootControl];
+
+}
+
+#pragma mark -选项卡栏
+- (void)setTabRootControlItem
+{
+    FMTabBarController *tabBarController = self.tabController;
+    if ([tabBarController.viewControllers count] < 3) {
+        return;
+    }
+    FMNavigationController *roadConditionController = [tabBarController.viewControllers objectAtIndex:0];
+    roadConditionController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconHome
+                                                                                                       iconColor:[FMThemeManager.skin tabBarTitleColor]
+                                                                                                        iconSize:kTableBarItemSize]
+                                                                        selectedImage:[FontAwesome imageWithIcon:FMIconHome
+                                                                                                       iconColor:[FMThemeManager.skin tabBarSelectColor]
+                                                                                                        iconSize:kTableBarItemSize]
+                                                                                title:KProjectRadioFMNumber];
+    FMNavigationController *interactionController = [tabBarController.viewControllers objectAtIndex:1];
+    interactionController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconInteraction
+                                                                                                     iconColor:[FMThemeManager.skin tabBarTitleColor]
+                                                                                                      iconSize:kTableBarItemSize]
+                                                                      selectedImage:[FontAwesome imageWithIcon:FMIconInteraction
+                                                                                                     iconColor:[FMThemeManager.skin tabBarSelectColor]
+                                                                                                      iconSize:kTableBarItemSize]
+                                                                              title:@"互动"];
+    FMNavigationController *exploreController  =  [tabBarController.viewControllers objectAtIndex:2];
+    exploreController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconMessage
+                                                                                                 iconColor:[FMThemeManager.skin tabBarTitleColor]
+                                                                                                  iconSize:kTableBarItemSize]
+                                                                  selectedImage:[FontAwesome imageWithIcon:FMIconMessage
+                                                                                                 iconColor:[FMThemeManager.skin tabBarSelectColor]
+                                                                                                  iconSize:kTableBarItemSize]
+                                                                          title:@"消息"];
+}
+- (void)setTabRootControl
+{
+    NSMutableArray *controllersArray = [[NSMutableArray alloc] init];//控制器数组
+    //路况
+    RoadMainViewController *roadConditionController = [[RoadMainViewController alloc] init];
+    UINavigationController *roadConditionNavController = [[FMNavigationController alloc] initWithRootViewController:roadConditionController];
+    [controllersArray addObject:roadConditionNavController];
+    
+    //互动
+    InteractionViewController *interactionController = [[InteractionViewController alloc] init];
+    UINavigationController *interactionNavController = [[FMNavigationController alloc] initWithRootViewController:interactionController];
+    interactionNavController.navigationBar.translucent = NO;
+    [controllersArray addObject:interactionNavController];
+  
+
+    // 消息
+    MessageViewController *messageController = [[MessageViewController alloc] init];
+    UINavigationController *messageNavController = [[FMNavigationController alloc] initWithRootViewController:messageController];
+    [controllersArray addObject:messageNavController];
+    
+    /*
+    
+    //登录通知
+    [[NSNotificationCenter defaultCenter] addObserver: meController
+                                             selector: @selector(loginNotification:)
+                                                 name: FMUserLoginNotification
+                                               object: nil];
+    //退出登录通知
+    [[NSNotificationCenter defaultCenter] addObserver: meController
+                                             selector: @selector(loginOutNotification:)
+                                                 name: FMUserLogoutNotification
+                                               object: nil];
+    
+    */
+    FMTabBarController *tabBarController = self.tabController;
+    [tabBarController setViewControllers:controllersArray];
+    
+    tabBarController.delegate = self;
+    [self setTabRootControlItem];
+    self.lastTabIndex = tabBarController.selectedIndex;
+}
+- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+{
+    if (self.lastTabIndex == tabBarController.selectedIndex && tabBarController.selectedIndex == 1) {
+        //触发问题通知
+    [[NSNotificationCenter defaultCenter] postNotificationName:FMInteractionNotification object:nil];
+    }
+    
+//    if (tabBarController.selectedIndex == 2) {
+//        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+//            // 注册控制器
+//            LoginController *registerController = [[LoginController alloc] init];
+//            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+//            registerController.loginSuccessDelegate=self;
+//            [self presentModalViewController:navController animated:YES];
+//            return;
+//        }
+//        else
+//            [[NSNotificationCenter defaultCenter] postNotificationName:FMLocationSuccessNotification object:nil];
+//    }
+    
+    
+    self.lastTabIndex = tabBarController.selectedIndex;
+}
+
+#pragma mark -主题通知
+- (void) themeChangedNotification:(NSNotification *)notification
+{
+    
+    [self updateNaviTheme];
+    [self setTabRootControl];
+    [self changeSkinToTabBar:self.tabController.tabBar];
+    
+}
+
+- (void)changeSkinToTabBar:(UITabBar *)tabBarOrAppearance {
+    if (!tabBarOrAppearance) {
+        tabBarOrAppearance = [UITabBar appearance];
+    }
+    //设置背景
+    UIImage* img = [FMThemeManager.skin tabBarBackgroundImage];
+    
+    if(img){
+        
+        [tabBarOrAppearance setBackgroundImage:img];
+        
+    }else{
+        UIColor* color = [FMThemeManager.skin tabBarTintColor];
+        if (color) {
+            
+            if(HUISystemVersionBelow(kHUISystemVersion_7_0)){
+                tabBarOrAppearance.tintColor = color;
+            }else{
+                
+                tabBarOrAppearance.barTintColor = color;
+            }
+        }
+    }
+    //title颜色
+    [[UITabBarItem appearance] setTitleTextAttributes:
+     @{ UITextAttributeFont: kTableBarFontSize,
+        UITextAttributeTextShadowOffset: [NSValue valueWithUIOffset:UIOffsetMake(0, 0)],
+        UITextAttributeTextColor: [FMThemeManager.skin tabBarTitleColor]}
+                                             forState:UIControlStateNormal];
+    
+    [[UITabBarItem appearance] setTitleTextAttributes:
+     @{ UITextAttributeFont: kTableBarFontSize,
+        UITextAttributeTextShadowOffset: [NSValue valueWithUIOffset:UIOffsetMake(0, 0)],
+        UITextAttributeTextColor: [FMThemeManager.skin tabBarSelectColor]}
+                                             forState:UIControlStateSelected];
+    
+    //title位置
+    [[UITabBarItem appearance] setTitlePositionAdjustment:UIOffsetMake(0.0, -2.0)];
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer{
+    return YES;
+}
+
+- (void)showHintPoint:(NSInteger)buttonIndex showOrHide:(BOOL)bShow
+{
+    if(buttonIndex >= [self.tabController.tabBar.items count])
+        return;
+    
+    CGFloat w = self.tabController.tabBar.frame.size.width / [self.tabController.tabBar.items count];
+    
+    UIImageView* hintPoint = (UIImageView* )[self.tabController.tabBar viewWithTag:kTableHintPointTag + buttonIndex];
+    if(hintPoint == nil){
+        if (bShow == NO) {
+            return;
+        }
+        hintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+        hintPoint.tag = kTableHintPointTag + buttonIndex;
+        
+        CGFloat redWidth = [self genRedWidthWithrojectScreenWidth];
+        hintPoint.frame = CGRectMake(redWidth + buttonIndex * w, 6, 10, 10);
+        [self.tabController.tabBar addSubview:hintPoint];
+    }
+    if (bShow) {
+        hintPoint.hidden = NO;
+    }else{
+        hintPoint.hidden = YES;
+    }
+    
+}
+- (CGFloat )genRedWidthWithrojectScreenWidth{
+    CGFloat redWidth = 70.0f;
+    
+    Log(@"KProjectScreenWidth is %lf",KProjectScreenWidth);
+    if (KProjectScreenWidth >= 400 ) {
+        redWidth += 15.0f;
+    }
+    else if (KProjectScreenWidth >= 330 && KProjectScreenWidth <=  390) {
+        redWidth += 5.0f;
+    }
+    
+    return redWidth;
+}
+@end

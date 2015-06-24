@@ -1,0 +1,162 @@
+//
+//  RoadInformationListViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-8-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "RoadInformationListViewController.h"
+#import "NSAttributedString+Height.h"
+#import "HTTPClient+RoadCondition.h"
+#import "RoadInforItemTableCell.h"
+#import "CurrentUserInformation.h"
+#import "AttributedStringHelper.h"
+#import "RoadConditionInfo.h"
+#import "HTTPClient.h"
+
+
+@interface RoadInformationListViewController ()<RoadInforItemTableCellDelegate>
+///路况信息列表内容
+@property (nonatomic , strong)      NSMutableArray      *roadContentMutableArrayList;
+@property (nonatomic , weak)        UITableView         *roadTableView;
+
+- (void)initWithFrameForRoadInformationListViewController;
+@end
+
+@implementation RoadInformationListViewController
+
+- (id)init{
+    self = [super init];
+    if (self) {
+    
+    }
+    return self;
+}
+
+- (id)initWithRoadListInformation:(NSMutableArray *)roadArray{
+    self = [super init];
+    if (self) {
+        self.roadContentMutableArrayList = [[NSMutableArray alloc]initWithArray:roadArray];
+    }
+    return self;
+
+}
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    [self settingNavTitle:@"实时路况"];
+    [self initWithFrameForRoadInformationListViewController];
+  }
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (void)viewDidAppear:(BOOL)animated{
+    [self.roadTableView setFrame:self.view.bounds];
+}
+
+
+- (void)initWithFrameForRoadInformationListViewController{
+    
+    UITableView *tableView = [[UITableView alloc]initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    [tableView setBackgroundColor:[UIColor clearColor]];
+    [tableView setSeparatorStyle:UITableViewCellSeparatorStyleNone];
+    [tableView setDataSource:self];
+    [tableView setDelegate:self];
+    self.roadTableView = tableView;
+    [self.view addSubview:self.roadTableView];
+    
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    return self.roadContentMutableArrayList.count;
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    CGFloat heightForRow = 0.0f;
+    
+    
+    if (indexPath.row < self.roadContentMutableArrayList.count) {
+        RoadConditionInfo *roadInforItem = (RoadConditionInfo *)[self.roadContentMutableArrayList objectAtIndex:indexPath.row];
+        heightForRow = 43+15+[roadInforItem.attributedRoadConditionContent boundingHeightForWidth:265];
+        
+        ///若是自己上报的，则显示 删除按键，
+        if ([roadInforItem.reportUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+            heightForRow = heightForRow + 20.0f;
+        }
+    }
+    return heightForRow;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellIdentifier = @"RoadContentCell";
+        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (!cell) {
+        cell = [[RoadInforItemTableCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellIdentifier];
+    }
+    
+    if (indexPath.row < self.roadContentMutableArrayList.count) {
+        RoadConditionInfo *roadItemInfor = (RoadConditionInfo *)[self.roadContentMutableArrayList objectAtIndex:indexPath.row];
+        RoadInforItemTableCell *roadItemCell = (RoadInforItemTableCell *)cell;
+        [roadItemCell setDeleate:self];
+        [roadItemCell initWithRoadInforItemForRoadInfor:roadItemInfor];
+    }
+
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+}
+
+#pragma mark -
+#pragma mark - 用户删除单条数据内容
+- (void)initWithUserDeleteRoadInforItemOperationEvent:(RoadConditionInfo *)m_roadConditionInfor{
+    
+    
+    if (![m_roadConditionInfor.reportUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        return;
+    }
+    
+     __weak __typeof(&*self)weakSelf = self;
+    
+    WaittingMBProgressHUD(HUIKeyWindow, @"删除中...");
+    [FMHTTPClient userOperationDeleteRoadConditionItemInforForRoadId:m_roadConditionInfor.roadConditionID withUserId:[CurrentUserInformation sharedCurrentUserInfo].userID withCompletion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            Log(@"response.data is %@",response.responseObject);
+            if(response.code == WebAPIResponseCodeSuccess){
+            
+                Log(@"response.data is %@",response.responseObject);
+                
+                [weakSelf.roadContentMutableArrayList removeObject:m_roadConditionInfor];
+                [weakSelf.roadTableView reloadData];
+                SuccessMBProgressHUD(HUIKeyWindow, @"删除成功!");
+                
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"FMDeleteRoadConditionNotification"
+                                                                    object:m_roadConditionInfor];
+            }else{
+                FinishMBProgressHUD(HUIKeyWindow);
+            }
+        });
+
+        
+    }];
+    
+    
+}
+@end

@@ -1,0 +1,18 @@
+//
+//  UserInfoDelegate.h
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-21.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol UserInfoDelegate <NSObject>
+
+@optional
+- (void) changedWithName:(NSString *) userName;
+- (void) changedWithSex:(NSInteger) sexValue;
+- (void) changedWithUserPersonalSignatureInfor:(NSString *)signatureContent;
+
+@end

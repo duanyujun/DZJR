@@ -1,0 +1,522 @@
+//
+//  UserAudioInfoViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KMainScrollViewTag                  130111          ///界面视图
+#define KUserEditAudioAlertViewTag          130112          ///上传提示操作
+#define KUserUploadAudioAlertViewTag        130113          ///编辑修改操作
+
+#import "UserAudioInfoViewController.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient.h"
+#import "HTTPClient+MeModulesSetup.h"
+
+
+@interface UserAudioInfoViewController ()
+///用户录音动画图片
+@property (nonatomic , weak)    UIImageView         *userVoiceAnimationImageView;
+///用户播放动画
+@property (nonatomic , weak)    UIImageView         *userStarPlayAnimationIamgeView;
+///用户录音参数设置
+///@See 若原有音频介绍，则显示为秒数；若原无音频介绍，则显示录音操作提示
+@property (nonatomic , weak)    UILabel             *userVoiceParamPromptLable;
+///用户个人参数数据内容
+@property (nonatomic , strong)  NSMutableDictionary *userAudioDictionary;
+///用户录音按键
+@property (nonatomic , weak)    UIButton            *userVoiceButton;
+@property (nonatomic , weak)    UIButton            *userStartPlayAudioButton;
+///界面初始化类别
+@property (nonatomic , assign)  InitAudioFrameStyle initAudioStyle;
+
+@property (nonatomic , strong)  FMAudioManager      *userAudioManager;
+///用户个人录制语音KEY值
+@property (nonatomic , strong)  NSString            *userAudioURLKeyString;
+///判断语音是否正在播放
+@property (nonatomic , assign)  BOOL                isAudioPlaying;
+////录音获取到的数据内容
+@property (nonatomic , strong)  AMRInfo             *userRecordAMRInfor;
+
+/** 用户做返回操作
+ 
+ *@return void
+ **/
+- (void)initWithUserReturnOperation;
+/** 初始化录音界面
+ 
+ *@return void
+ **/
+- (void)initWithUserAudioInfoViewController;
+
+/** 初始化用户播放音频按键事件
+ 
+ *@return void
+ **/
+- (void)initWithUserStarPlayUserAudioInformation;
+
+/** 用户上传语音介绍内容
+ 
+ *@return
+ **/
+- (void)initWithUserUploadUserPersonalAudioInformation;
+
+/** 初始化用户播放音频框架
+ 
+ *@return void
+ **/
+- (void)initWithUserStartPlayFrame:(UIView *)m_baseView;
+/** 初始化用户录制语音框架
+ 
+ *@return void
+ **/
+- (void)initWithUserStarRecordFrame:(UIView *)m_baseView;
+
+
+/** 将音频参数与用户关联，并提交
+ 
+ *@return void
+ **/
+- (void)initWithUserUploadUserPersonalAudioParameterInfor;
+
+@end
+
+@implementation UserAudioInfoViewController
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        self.enableCustomNavbarBackButton = FALSE;
+    }
+    
+    return self;
+}
+
+- (id)initWithUserVoiceFrameWithInitStyle:(InitAudioFrameStyle)m_initStyle{
+    self = [super init];
+    if (self) {
+        
+        self.userAudioDictionary = [[NSMutableDictionary alloc]initWithDictionary:[CurrentUserInformation sharedCurrentUserInfo].userPersonalAudioInforDictionary];
+        self.initAudioStyle = m_initStyle;
+        if (self.initAudioStyle == InitAudioModalStyle) {
+            self.enableCustomNavbarBackButton = FALSE;
+        }else if (self.initAudioStyle == InitAudioNavigationStyle){
+            self.enableCustomNavbarBackButton = TRUE;
+        }
+    }
+    
+    return self;
+}
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    [self setNavButton];
+    [self settingNavTitle:@"语音简介"];
+    [self initWithUserAudioInfoViewController];
+}
+
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (void)viewDidUnload{
+    [self.userAudioManager setDelegate:nil];
+    
+}
+
+#pragma mark - 初始化用户录制语音框架
+- (void)initWithUserStarRecordFrame:(UIView *)m_baseView{
+    
+    if (self.userVoiceAnimationImageView) {
+        [self.userVoiceAnimationImageView setHidden:NO];
+    }else {
+        UIImageView* imageView = [[UIImageView alloc] init];
+        imageView.image = [UIImage imageNamed:@"UserVoice_Animation01.png"];
+        imageView.frame = CGRectMake((self.view.frame.size.width-172)/2, 85.0f, 172, 82.5);
+        imageView.animationImages = [NSArray arrayWithObjects:
+                                     [UIImage imageNamed:@"UserVoice_Animation02.png"],
+                                     [UIImage imageNamed:@"UserVoice_Animation03.png"],
+                                     [UIImage imageNamed:@"UserVoice_Animation04.png"],
+                                     nil];
+        imageView.animationDuration = 1.0;
+        self.userVoiceAnimationImageView = imageView;
+        [m_baseView addSubview:self.userVoiceAnimationImageView];
+        
+        ///操作提示
+        UILabel *alertLabel = [[UILabel alloc]initWithFrame:CGRectMake(50.0f, 180, 220.0f, 20.0f)];
+        [alertLabel setBackgroundColor:[UIColor clearColor]];
+        [alertLabel setTextColor:KDefaultOrNightTextColor];
+        [alertLabel setFont:[UIFont systemFontOfSize:17.0f]];
+        [alertLabel setTextAlignment:NSTextAlignmentCenter];
+        self.userVoiceParamPromptLable = alertLabel;
+        [m_baseView addSubview:self.userVoiceParamPromptLable];
+    }
+}
+
+#pragma mark - 初始化用户播放音频框架
+- (void)initWithUserStartPlayFrame:(UIView *)m_baseView{
+    
+    ///若存在，则直接显示，并更新数据
+    if(self.userStartPlayAudioButton){
+        [self.userStartPlayAudioButton setHidden:NO];
+        ///设置当前录音长度内容
+        NSString    *armLength = [NSString stringWithFormat:@"%ds",self.userRecordAMRInfor.amrLength];
+        [self.userStartPlayAudioButton setTitle:armLength forState:UIControlStateNormal];
+    }
+    ///若不从在，则直创建
+    else {
+        ///用户播放按键
+        UIButton    *startAudioButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        if (ThemeCategory==5) {
+            startAudioButton.alpha=0.6;
+        }
+
+        [startAudioButton setBackgroundColor:[UIColor clearColor]];
+        [startAudioButton setFrame:CGRectMake((self.view.frame.size.width -178.5)/2, 85.0f, 178.5 , 52.5f*0.8)];
+        [startAudioButton addTarget:self
+                             action:@selector(initWithUserStarPlayUserAudioInformation)
+                   forControlEvents:UIControlEventTouchUpInside];
+        [startAudioButton setBackgroundImage:[UIImage imageNamed:@"UserVoice_AudioPlayBtn.png"]
+                                    forState:UIControlStateNormal];
+        [startAudioButton setTitleColor:KDisableTextColor
+                               forState:UIControlStateNormal];
+        startAudioButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentRight;
+        startAudioButton.contentEdgeInsets = UIEdgeInsetsMake(0,0, 0, 80);
+        startAudioButton.titleLabel.font = kFontWithSmallSize;
+        
+        if (self.initAudioStyle == InitAudioNavigationStyle) {
+            
+            if (self.userRecordAMRInfor) {
+                
+                ///设置当前录音长度内容
+                NSString    *armLength = [NSString stringWithFormat:@"%ds",self.userRecordAMRInfor.amrLength];
+                [startAudioButton setTitle:armLength forState:UIControlStateNormal];
+                
+            }else{
+                if (self.userAudioDictionary .count > 0 ) {
+                    NSString *audioLength = [[NSString alloc]initWithFormat:@"%@",ObjForKeyInUnserializedJSONDic(self.userAudioDictionary , @"voiceLen")];
+                    NSString *audioKey = [NSString stringWithFormat:@"%@",ObjForKeyInUnserializedJSONDic(self.userAudioDictionary , @"voiceKey")];
+                    ///语音长度
+                    if (IsStringEmptyOrNull(audioLength)) {
+                    }else{
+                        [startAudioButton setTitle:audioLength forState:UIControlStateNormal];
+                    }
+                    
+                    if (!IsStringEmptyOrNull(audioKey)) {
+                        self.userAudioURLKeyString = [[NSString alloc]initWithFormat:@"%@",audioKey];
+                    }
+                }
+            }
+        }else{
+            ///设置当前录音长度内容
+            NSString    *armLength = [NSString stringWithFormat:@"%d''",self.userRecordAMRInfor.amrLength];
+            [startAudioButton setTitle:armLength forState:UIControlStateNormal];
+        }
+        
+        UIImageView* imageView = [[UIImageView alloc] init];
+        imageView.image = [UIImage imageNamed:@"Interaction_audio004.png"];
+        imageView.frame = CGRectMake(50, (52.5f*0.8-17.0f)/2, 17, 17);
+        imageView.animationImages = [NSArray arrayWithObjects:
+                                     [UIImage imageNamed:@"Interaction_audio001.png"],
+                                     [UIImage imageNamed:@"Interaction_audio002.png"],
+                                     [UIImage imageNamed:@"Interaction_audio003.png"],
+                                     [UIImage imageNamed:@"Interaction_audio004.png"],
+                                     nil];
+        imageView.animationDuration = 1.0;
+        self.userStarPlayAnimationIamgeView = imageView;
+        [startAudioButton addSubview:self.userStarPlayAnimationIamgeView];
+        self.userStartPlayAudioButton = startAudioButton;
+        [m_baseView addSubview:self.userStartPlayAudioButton];
+    }
+}
+
+#pragma mark - 
+#pragma mark - 初始化录音界面
+- (void)initWithUserAudioInfoViewController{
+    
+    ///播放器设置
+    self.userAudioManager = [[FMAudioManager alloc]init];
+    [self.userAudioManager setDelegate:self];
+    self.isAudioPlaying = NO;
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    [mainScrollView setBackgroundColor: [UIColor clearColor]];
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    mainScrollView.contentSize = CGSizeMake(320,mainScrollView.bounds.size.height +20.0f);
+    [mainScrollView setTag:KMainScrollViewTag];
+    ///没有语音介绍
+    if (self.initAudioStyle == InitAudioModalStyle) {
+        [self initWithUserStarRecordFrame:mainScrollView];
+    }
+    ///已有音频介绍
+    else if (self.initAudioStyle == InitAudioNavigationStyle){
+        [self initWithUserStartPlayFrame:mainScrollView];
+    }
+    ///界面内容
+    CGRect rc = self.view.frame;
+    //录音按钮
+    UIButton *recordButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    if (ThemeCategory==5) {
+        recordButton.alpha=0.6;
+    }
+    recordButton.frame = CGRectMake((rc.size.width - 109)/2, rc.size.height - 150, 109, 109);
+    [recordButton setBackgroundImage:[UIImage imageNamed:@"UserVoice_ButtonNormal.png"]
+                            forState:UIControlStateNormal];
+    [recordButton setBackgroundImage:[UIImage imageNamed:@"UserVoice_ButtonHighlight.png"]
+                            forState:UIControlStateHighlighted];
+    [recordButton addTarget:self action:@selector(recordStart)
+           forControlEvents:UIControlEventTouchDown];
+    [recordButton addTarget:self action:@selector(recordEnd)
+           forControlEvents:UIControlEventTouchUpInside];
+    [recordButton addTarget:self action:@selector(recordCancel)
+           forControlEvents:UIControlEventTouchUpOutside];
+    [mainScrollView addSubview:recordButton];
+    self.userVoiceButton = recordButton;
+    [self.view addSubview:mainScrollView];
+}
+- (void)setNavButton
+{
+    if (self.initAudioStyle == InitAudioModalStyle) {
+        self.navButtonSize=KNavSize;
+
+        //取消
+        [self setLeftNavButton:kImgNavCancelItem
+                     withFrame:kNavButtonRect
+                  actionTarget:self
+                        action:@selector(cancelButtonClick)];
+    }
+    //完成
+    [self setRightNavButton:kImgNavDoneItem
+                  withFrame:kNavButtonRect
+               actionTarget:self
+                     action:@selector(updateAudioInfo)];
+}
+
+- (void)initWithUserReturnOperation{
+    if (self.initAudioStyle == InitAudioModalStyle) {
+        [self dismissModalViewControllerAnimated:YES];
+    }else if (self.initAudioStyle == InitAudioNavigationStyle){
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+#pragma mark -导航栏Item点击时
+- (void) cancelButtonClick
+{
+    if (!self.userRecordAMRInfor) {
+        [self.navigationController dismissModalViewControllerAnimated:YES];
+        
+        return;
+    }else if (!self.userRecordAMRInfor.amrData){
+        
+        [self.navigationController dismissModalViewControllerAnimated:YES];
+        return;
+    }
+    else if (self.userRecordAMRInfor.amrLength == 0){
+        [self.navigationController dismissModalViewControllerAnimated:YES];
+        return;
+    }
+    
+    if (self.initAudioStyle == InitAudioModalStyle) {
+        UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"" message:@"已有新的语音简介是否上传？" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"上传", nil];
+        [alertView setTag:KUserEditAudioAlertViewTag];
+        [alertView show];
+        return;
+    }
+}
+-(void) updateAudioInfo
+{
+    
+    if (!IsStringEmptyOrNull(self.userAudioURLKeyString)) {
+        
+        
+        if (self.userRecordAMRInfor) {
+            if (self.userRecordAMRInfor.amrLength > 0) {
+                UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"" message:@"是否覆盖原有的语音介绍？" delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+                [alertView setTag:KUserUploadAudioAlertViewTag];
+                [alertView show];
+                return;
+            }
+            else{
+            ShowImportErrorAlertView(@"未能录制有效的语音介绍");
+            return;
+            }
+        }else{
+            ShowImportErrorAlertView(@"未录制新的语音介绍，不需要更新");
+            return;
+        } 
+    }
+    
+    [self initWithUserUploadUserPersonalAudioInformation];
+}
+
+#pragma mark -
+#pragma mark - 开始录音操作
+-(void) recordStart
+{
+    ///隐藏已有音频信息参数
+    [self.userStartPlayAudioButton setHidden:YES];
+    [self.userVoiceAnimationImageView setHidden:NO];
+    
+    
+    UIScrollView *mainScrollView = (UIScrollView *)[self.view viewWithTag:KMainScrollViewTag];
+    [self initWithUserStarRecordFrame:mainScrollView];
+    ///显示录音参数内容
+//    [self.userVoiceParamPromptLable setText:@"上划取消录音"];
+    [self.userVoiceParamPromptLable setText:@""];
+    ///开始录音
+    [self.userVoiceAnimationImageView startAnimating];
+    [self.userAudioManager startRecord];
+}
+
+#pragma mark -
+#pragma mark - 结束录音操作
+-(void) recordEnd
+{
+    [self.userVoiceParamPromptLable setText:@""];
+    [self.userVoiceAnimationImageView stopAnimating];
+    [self.userVoiceAnimationImageView setHidden:YES];
+    self.userRecordAMRInfor = [self.userAudioManager stopRecord];
+    
+    UIScrollView *mainScrollView = (UIScrollView *)[self.view viewWithTag:KMainScrollViewTag];
+    [self initWithUserStartPlayFrame:mainScrollView];
+}
+
+#pragma mark - 
+#pragma mark - 用户取消录音设置
+-(void) recordCancel
+{
+    
+    [self.userVoiceParamPromptLable setText:@""];
+    [self.userVoiceAnimationImageView stopAnimating];
+    [self.userVoiceAnimationImageView setHidden:YES];
+    self.userRecordAMRInfor = [self.userAudioManager stopRecord];
+    
+    UIScrollView *mainScrollView = (UIScrollView *)[self.view viewWithTag:KMainScrollViewTag];
+    [self initWithUserStartPlayFrame:mainScrollView];
+}
+
+#pragma mark -
+#pragma mark - 初始化用户播放音频按键事件
+- (void)initWithUserStarPlayUserAudioInformation{
+    
+    if (self.isAudioPlaying == NO) {
+        [self.userStarPlayAnimationIamgeView startAnimating];
+        if (self.userRecordAMRInfor) {
+            [self.userAudioManager playAMR:self.userRecordAMRInfor];
+        }else {
+             [self.userAudioManager playURL:self.userAudioURLKeyString];
+        }
+        self.isAudioPlaying = YES;
+    }
+    else if (self.isAudioPlaying == YES){
+        [self.userAudioManager stopPlay];
+        self.isAudioPlaying = NO;
+        [self.userStarPlayAnimationIamgeView stopAnimating];
+    }
+
+}
+
+#pragma mark - 语音播放事件触发
+- (void)audioPlayStatus:(NSInteger)status{
+    __weak __typeof(&*self)weakSelf = self;
+    if (status !=0 ) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            weakSelf.isAudioPlaying = NO;
+            [weakSelf.userStarPlayAnimationIamgeView stopAnimating];
+        });
+    }
+}
+
+#pragma mark-
+#pragma mark - 
+- (void)initWithUserUploadUserPersonalAudioInformation{
+    
+    WaittingMBProgressHUD(HUIKeyWindow, @"上传中...");
+    __weak __typeof(&*self)weakSelf = self;
+    [[HTTPClient sharedImageClient] audioUpload:self.userRecordAMRInfor.amrData
+                                     completion:^(WebAPIResponse *response) {
+                                         dispatch_async(dispatch_get_main_queue(), ^(void){
+                                             if(response.code == WebAPIResponseCodeSuccess){
+                                                 FinishMBProgressHUD(HUIKeyWindow);
+                                                 NSString *audioKeyString = StringForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData);
+                                                 
+                                                 if (!IsStringEmptyOrNull(audioKeyString)) {
+                                                     
+                                                     [weakSelf.userAudioDictionary setObject:audioKeyString forKey:@"voiceKey"];
+                                                     [weakSelf.userAudioDictionary setObject:[NSString stringWithFormat:@"%ds",self.userRecordAMRInfor.amrLength] forKey:@"voiceLen"];
+                                                     
+                                                     [weakSelf initWithUserUploadUserPersonalAudioParameterInfor];
+   
+                                                 }
+                                             }
+                                             else {
+                                                 FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                                             }
+                                         });
+                                     }];
+}
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if (alertView.tag == KUserEditAudioAlertViewTag) {
+        if (buttonIndex == 0) {
+            [self initWithUserReturnOperation];
+        }else{
+            [self initWithUserUploadUserPersonalAudioInformation];
+        }
+    }else if (alertView.tag == KUserUploadAudioAlertViewTag){
+        if (buttonIndex != 0) {
+            [self initWithUserUploadUserPersonalAudioInformation];
+        }
+        
+    }
+}
+
+#pragma mark - 将音频参数与用户关联，并提交
+- (void)initWithUserUploadUserPersonalAudioParameterInfor{
+    NSString    *userAudioParam = [[NSString alloc]initWithFormat:@"%@",[self.userAudioDictionary JSONString]];
+    WaittingMBProgressHUD(HUIKeyWindow, @"上传中...");
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient getWithUserPersonalInformationWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                                                               withUserName:[CurrentUserInformation sharedCurrentUserInfo].userName
+                                                        withUserGenderStyle:[CurrentUserInformation sharedCurrentUserInfo].userSex
+                                                              withSignature:[CurrentUserInformation sharedCurrentUserInfo].userPersonalSignatureString
+                                                     withUserPhototImageURL:[CurrentUserInformation sharedCurrentUserInfo].userPersonalPhotoImagesURLKey
+                                                             withAudioParam:userAudioParam completion:^(WebAPIResponse *response) {
+        if(response.code == WebAPIResponseCodeSuccess){
+            
+            dispatch_async(dispatch_get_main_queue(), ^(void){
+                if (response.code == WebAPIResponseCodeSuccess) {
+                    [[CurrentUserInformation sharedCurrentUserInfo] setUserPersonalAudioInforDictionary:weakSelf.userAudioDictionary];
+                    
+                    [[NSNotificationCenter defaultCenter] postNotificationName:FMChangeMyInformationNotification object:nil];
+
+                    FinishMBProgressHUD(HUIKeyWindow);
+                    
+                    if (self.initAudioStyle == InitAudioModalStyle) {
+                        [weakSelf dismissModalViewControllerAnimated:YES];
+                    }else if (self.initAudioStyle == InitAudioNavigationStyle){
+                        [weakSelf.navigationController popViewControllerAnimated:YES];
+                    }
+                }
+                else {
+                    FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                }
+            });
+        }
+    }];
+
+}
+@end

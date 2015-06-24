@@ -1,0 +1,20 @@
+//
+//  ActivityInfo.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-27.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface ActivityInfo : NSObject
+@property (nonatomic,copy)   NSString *activityId;          //活动ID
+@property (nonatomic,copy)   NSString *activityImage;       //活动图片
+/*!
+ *@breif 数据状态信息
+ *@See 若为其他的则为数据状态，若为奖品则为奖品剩余份数内容
+ */
+@property (nonatomic , copy)NSString        *activityForStateStyle;
+@property (nonatomic,assign)NSInteger        stop_sign;
+@end

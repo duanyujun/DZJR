@@ -1,0 +1,601 @@
+//
+//  RoadForMoreViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-10-12.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "RoadForMoreViewController.h"
+
+
+
+#import "QuickDealWithAccidentController.h"
+#import "SearchAndReceiveViewController.h"
+#import "DisclaimerStatementController.h"
+#import "AnnualSurveyViewController.h"
+#import "MultipleBreakRulesMainView.h"
+#import "RoadForMoreItemInformation.h"
+#import "CityFreeRideMainListView.h"
+#import "CurrentUserInformation.h"
+#import "UsedCarMainController.h"
+#import "InsteadOfDrivingView.h"
+#import "RadioPlayController.h"
+#import "FMSettings.h"
+#import "LoginController.h"
+#import "NearbyMerchantList.h"
+#import "RoadForMoreTableCell.h"
+#import "SystemMessageViewController.h"
+#import "ShareWebViewController.h"
+#import "RandomPhotoViewController.h"
+#import "RadioPlayerInforViewController.h"
+#import "InformationNetWorkViewController.h"
+#import "ExposureFreshThingViewController.h"
+#import "LuckUserGetCodewordsViewController.h"
+#import "TrafficPoliceMessageViewController.h"
+
+
+
+@interface RoadForMoreViewController ()<UITableViewDataSource,UITableViewDelegate,RoadForMoreTableCellDelegate>
+@property(nonatomic,strong)         NSArray     *moreFunctionNameInforArray;
+
+
+////初始化界面布局内容
+- (void)initWithRoadForMoreViewControllerFrame;
+
+- (void)initWithMoreFunctionNameInforArray;
+@end
+
+@implementation RoadForMoreViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    
+    [self settingNavTitle:@"更多"];
+    [self initWithRoadForMoreViewControllerFrame];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+   
+}
+
+
+- (void)initWithRoadForMoreViewControllerFrame{
+    
+    
+    [self initWithMoreFunctionNameInforArray];
+    ///初始化界面内容
+    UITableView *tableView= [[UITableView alloc]initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    [tableView setSeparatorStyle:UITableViewCellSeparatorStyleNone];
+    [tableView setBackgroundColor:[UIColor clearColor]];
+    [tableView setDelegate:self];
+    [tableView setDataSource:self];
+    [self.view addSubview:tableView];
+}
+
+
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    
+    NSInteger numberOfRows = (self.moreFunctionNameInforArray.count/3+(self.moreFunctionNameInforArray.count%3 >0 ?1:0));
+    return numberOfRows;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    return KCellButtonHeight;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    NSString *reuseIdetify = @"LeftTableViewCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdetify];;
+    
+    if (!cell)
+    {
+        cell = [[RoadForMoreTableCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdetify];
+        [cell setBackgroundColor:[UIColor clearColor]];
+    }
+
+    [cell setSelectionStyle:UITableViewCellSelectionStyleNone];
+    RoadForMoreTableCell *moreTableCell = (RoadForMoreTableCell *)cell;
+    [moreTableCell setDelegate:self];
+    
+    
+    NSInteger first = (0+ indexPath.row *3);
+    NSInteger second = (1 +indexPath.row *3);
+    NSInteger third = (2+indexPath.row*3);
+    
+    if (third < self.moreFunctionNameInforArray.count) {
+        [moreTableCell initWithFirstItemInfor:(RoadForMoreItemInformation *)[self.moreFunctionNameInforArray objectAtIndex:first]
+                               withSecondItem:(RoadForMoreItemInformation *)[self.moreFunctionNameInforArray objectAtIndex:second]
+                                withThirdItem:(RoadForMoreItemInformation *)[self.moreFunctionNameInforArray objectAtIndex:third] withCount:3];
+    }else if (second < self.moreFunctionNameInforArray.count){
+        [moreTableCell initWithFirstItemInfor:(RoadForMoreItemInformation *)[self.moreFunctionNameInforArray objectAtIndex:first]
+                               withSecondItem:(RoadForMoreItemInformation *)[self.moreFunctionNameInforArray objectAtIndex:second]
+                                withThirdItem:Nil withCount:2];
+    }
+    else if (first< self.moreFunctionNameInforArray.count){
+        [moreTableCell initWithFirstItemInfor:(RoadForMoreItemInformation *)[self.moreFunctionNameInforArray objectAtIndex:first]
+                               withSecondItem:Nil
+                                withThirdItem:Nil withCount:1];
+    }
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+}
+
+
+- (void)initWithMoreFunctionNameInforArray{
+    
+    
+#if defined (JN)
+  ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"电台直播"
+                                                                                    withNameIcon:FMIconRadioPlay
+                                                                                      WithButton:MoreForPlayRadioStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:[NSString stringWithFormat:@"%@找到了", KProjectRadioFMNumber]
+                                                                                    withNameIcon:FMIconSearchModel
+                                                                                      WithButton:MoreForUserSearchStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                    withNameIcon:FMIconFreeCar
+                                                                                      WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                    withNameIcon:FMIconHighSpeed
+                                                                                      WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"事故快处"
+                                                                                    withNameIcon:FMIconAccident
+                                                                                      WithButton:MoreForQuickDealAccident],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"违章多发"
+                                                                                    withNameIcon:FMIconMoreBreak
+                                                                                      WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"代驾"
+                                                                                    withNameIcon:FMIconDriving
+                                                                                      WithButton:MoreForInsteadOfDriverStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"二手车评估"
+                                                                                    withNameIcon:FMIconSecondCar
+                                                                                      WithButton:MoreForSecondCarStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"年检代办"
+                                                                                    withNameIcon:FMIconAnAgent
+                                                                                      WithButton:MoreForAnnualSurvey],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"车险购买"
+                                                                                    withNameIcon:FMIconInsurance
+                                                                                      WithButton:MoreForAutoEstimationStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                    withNameIcon:FMIconBusiness
+                                                                                      WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+    
+#if defined (YT)
+    ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"电台直播"
+                                                                                                              withNameIcon:FMIconRadioPlay
+                                                                                                                WithButton:MoreForPlayRadioStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"103找到了"
+                                                                                                              withNameIcon:FMIconSearchModel
+                                                                                                                WithButton:MoreForUserSearchStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                                              withNameIcon:FMIconFreeCar
+                                                                                                                WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                                              withNameIcon:FMIconHighSpeed
+                                                                                                                WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                                              withNameIcon:FMIconHighSpeed
+                                                                                                                WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"交通违法多发"
+                                                                                                              withNameIcon:FMIconMoreBreak
+                                                                                                                WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                                              withNameIcon:FMIconBusiness
+                                                                                                                WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+    
+#if defined (WF)
+    ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"电台直播"
+                                                                                                              withNameIcon:FMIconRadioPlay
+                                                                                                                WithButton:MoreForPlayRadioStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"959找到了"
+                                                                                                              withNameIcon:FMIconSearchModel
+                                                                                                                WithButton:MoreForUserSearchStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                                              withNameIcon:FMIconFreeCar
+                                                                                                                WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"959爱帮忙"
+                                                                                                              withNameIcon:FMIconInfoNet
+                                                                                                                WithButton:MoreForInforNetWork],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"幸运闪大灯"
+                                                                                                              withNameIcon:FMIconLuckyStar
+                                                                                                                WithButton:MoreForLuckUserStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                                              withNameIcon:FMIconHighSpeed
+                                                                                                                WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"违章多发"
+                                                                                                              withNameIcon:FMIconMoreBreak
+                                                                                                                WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                                              withNameIcon:FMIconBusiness
+                                                                                                                WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+
+    
+#if defined (LY)
+    ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"电台直播"
+                                                                                                              withNameIcon:FMIconRadioPlay
+                                                                                                                WithButton:MoreForPlayRadioStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"899找到了"
+                                                                                                              withNameIcon:FMIconSearchModel
+                                                                                                                WithButton:MoreForUserSearchStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                                              withNameIcon:FMIconFreeCar
+                                                                                                                WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                                              withNameIcon:FMIconHighSpeed
+                                                                                                                WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"违章多发"
+                                                                                                              withNameIcon:FMIconMoreBreak
+                                                                                                                WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                                              withNameIcon:FMIconBusiness
+                                                                                                                WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+    
+#if defined (SJC)
+    ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"电台直播"
+                                                                                    withNameIcon:FMIconRadioPlay
+                                                                                      WithButton:MoreForPlayRadioStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"946找到啦"
+                                                                                                              withNameIcon:FMIconSearchModel
+                                                                                                                WithButton:MoreForUserSearchStyle],
+                                       
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                    withNameIcon:FMIconFreeCar
+                                                                                      WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"946爱帮忙"
+                                                                                    withNameIcon:FMIconInfoNet
+                                                                                      WithButton:MoreForInforNetWork],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"淘淘二手车"
+                                                                                    withNameIcon:FMIconSecondCar
+                                                                                      WithButton:MoreForSecondCarStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"代驾"
+                                                                                    withNameIcon:FMIconDriving
+                                                                                      WithButton:MoreForInsteadOfDriverStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"946幸运星"
+                                                                                    withNameIcon:FMIconLuckyStar
+                                                                                      WithButton:MoreForLuckUserStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                    withNameIcon:FMIconHighSpeed
+                                                                                      WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"违章多发"
+                                                                                    withNameIcon:FMIconMoreBreak
+                                                                                      WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"啄木鸟在行动"
+                                                                                    withNameIcon:FMIconExposure
+                                                                                      WithButton:MoreForExposureFreshStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                    withNameIcon:FMIconBusiness
+                                                                                      WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+    
+    
+    
+#if defined (NN) || (CS) || (WH)
+    ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"电台直播"
+                                                                                                              withNameIcon:FMIconRadioPlay
+                                                                                                                WithButton:MoreForPlayRadioStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                                              withNameIcon:FMIconFreeCar
+                                                                                                                WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                                              withNameIcon:FMIconHighSpeed
+                                                                                                                WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"违章多发"
+                                                                                                              withNameIcon:FMIconMoreBreak
+                                                                                                                WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                                              withNameIcon:FMIconBusiness
+                                                                                                                WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+    
+#if defined (CS)
+    ///初始化模块内容
+    self.moreFunctionNameInforArray = [[NSArray alloc] initWithObjects:
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"都市顺风车"
+                                                                                                              withNameIcon:FMIconFreeCar
+                                                                                                                WithButton:MoreForUserCityFreeCar],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"高速路况"
+                                                                                                              withNameIcon:FMIconHighSpeed
+                                                                                                                WithButton:MoreForHighSpeedStyle],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"违章多发"
+                                                                                                              withNameIcon:FMIconMoreBreak
+                                                                                                                WithButton:MoreForMultipleBreakRules],
+                                       (RoadForMoreItemInformation *)[RoadForMoreItemInformation initWithMoreItemInforWith:@"特约商户"
+                                                                                                              withNameIcon:FMIconBusiness
+                                                                                                                WithButton:MoreForNearMerchant],
+                                       nil];
+    
+#endif
+    Log(@"self.moreFunctionNameInforArray count is %d",self.moreFunctionNameInforArray.count);
+
+}
+
+
+- (void)initWithUserOperationMoreTableCellButtonWithTag:(MoreForFunctionStyle)functionStyle{
+    
+    ///电台直播
+    if (functionStyle == MoreForPlayRadioStyle) {
+        if ([KProjectCityCodeString isEqualToString:@"420100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        /*
+        
+        RadioPlayController *radioPlayController = [[RadioPlayController alloc]init];
+        [self presentModalViewController:radioPlayController animated:YES];
+         */
+        RadioPlayerInforViewController *radioPlayControl = [[RadioPlayerInforViewController alloc]init];
+        [self presentModalViewController:radioPlayControl animated:YES];
+    }
+    
+    ///找到了
+    else if (functionStyle == MoreForUserSearchStyle){
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            SearchAndReceiveViewController *viewController = [[SearchAndReceiveViewController alloc]init];
+            [self.navigationController pushViewController:viewController animated:YES];
+        }
+
+    }
+    
+    ///顺风车
+    else if (functionStyle == MoreForUserCityFreeCar){
+        if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DisclaimerDeclaration"]) {
+            
+            //免责协议控制器
+            DisclaimerStatementController *viewController = [[DisclaimerStatementController alloc]init];
+            viewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }else {
+            CityFreeRideMainListView *mainListView = [[CityFreeRideMainListView alloc]init];
+            mainListView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:mainListView animated:YES];
+        }
+    }
+    
+    ///高速路况
+    else if (functionStyle == MoreForHighSpeedStyle){
+        ShareWebViewController *webControler = [[ShareWebViewController alloc]initWithWebURLString:[NSString stringWithFormat:@"%@Freeway/conditionShare?id=0&uid=%@&source=%@",kBaseAPIURL,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0",KProjectCityCodeString] withTitle:@"高速路况" withStyle:InitNavigationWebStyle withImageInfor:[UIImage imageNamed:FMCZFWLogoImage] withShareWebDataStyle:WebDataForHighSpeedRoadStyle withDataInforID:@""];
+        [webControler setIsNeedShareWebInfor:YES];
+        [webControler setHidesBottomBarWhenPushed:YES];
+        
+        Log(@"%@",[NSString stringWithFormat:@"%@Freeway/conditionShare?id=0&uid=%@&source=%@",kBaseAPIURL,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0",KProjectCityCodeString]);
+        [self.navigationController pushViewController:webControler animated:YES];
+    }
+    
+    ///事故快处
+    else if (functionStyle == MoreForQuickDealAccident){
+        QuickDealWithAccidentController *accidentViewController = [[QuickDealWithAccidentController alloc]init];
+        [accidentViewController setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:accidentViewController animated:YES];
+    }
+    
+    ///违章多发
+    else if (functionStyle == MoreForMultipleBreakRules){
+        MultipleBreakRulesMainView  *rulesMainView = [[MultipleBreakRulesMainView alloc]init];
+        [rulesMainView setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:rulesMainView animated:YES];
+    }
+    
+    /// 代驾
+    else if (functionStyle == MoreForInsteadOfDriverStyle){
+        if ([KProjectCityCodeString isEqualToString:@"420100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"450100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"371300"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        InsteadOfDrivingView *instreadView = [[InsteadOfDrivingView alloc]init];
+        instreadView.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:instreadView animated:YES];
+    }
+    
+    ///二手车
+    else if (functionStyle == MoreForSecondCarStyle){
+        
+        /*
+        SystemMessageViewController *randomPhotoView = [[SystemMessageViewController alloc]init];
+        [randomPhotoView setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:randomPhotoView animated:YES];
+        
+        return;
+        */
+         
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            UsedCarMainController *usedCarViewContrller = [[UsedCarMainController alloc]init];
+            usedCarViewContrller.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:usedCarViewContrller animated:YES];
+        }
+    }
+    
+    ///年检代办
+    else if (functionStyle == MoreForAnnualSurvey){
+        
+        if ([KProjectCityCodeString isEqualToString:@"420100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"450100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"371300"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        UIImage *imageInfor = [UIImage imageNamed:FMCZFWLogoImage];
+        ShareWebViewController *shareWebView = [[ShareWebViewController alloc]initWithWebURLString:[NSString stringWithFormat:@"%@Driver/AnnualCheckDetail?source=%@",kBaseAPIURL,KProjectCityCodeString] withTitle:@"年检代办" withStyle:InitNavigationWebStyle withImageInfor:imageInfor withShareWebDataStyle:WebDataForAnnualCheckStyle withDataInforID:@""];
+        //        [shareWebView setIsNeedShareWebInfor:NO];
+        [self.navigationController pushViewController:shareWebView animated:YES];
+    }
+    
+    ///特约商户
+    else if (functionStyle == MoreForNearMerchant){
+        NearbyMerchantList *viewController = [[NearbyMerchantList alloc]init];
+        viewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+    
+    ///信息网
+    else if (functionStyle == MoreForInforNetWork){
+        InformationNetWorkViewController *viewController = [[InformationNetWorkViewController alloc]init];
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+    
+    ///幸运星/幸运闪大灯
+    else if (functionStyle == MoreForLuckUserStyle){
+        LuckUserGetCodewordsViewController  *viewController = [[LuckUserGetCodewordsViewController alloc]init];
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+    
+    ///留言板
+    else if (functionStyle == MoreForPoliceMessageStyle){
+        if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0) {
+            //登陆控制器
+            LoginController *loginController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:loginController];
+            [self presentModalViewController:navController animated:YES];
+        } else {
+            
+            TrafficPoliceMessageViewController *policeMessageView = [[TrafficPoliceMessageViewController alloc]init];
+            policeMessageView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:policeMessageView animated:YES];
+        }
+
+    }
+    
+    ///随手拍
+    else if (functionStyle == MoreForRandomPhotoStyle){
+        
+        
+        RandomPhotoViewController *randomPhotoView = [[RandomPhotoViewController alloc]init];
+        [randomPhotoView setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:randomPhotoView animated:YES];
+         
+
+    }
+    
+    ///爆新鲜
+    else if (functionStyle == MoreForExposureFreshStyle){
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            
+            ExposureFreshThingViewController *viewController = [[ExposureFreshThingViewController alloc]init];
+            [viewController setHidesBottomBarWhenPushed:YES];
+            [self.navigationController pushViewController:viewController animated:YES];        }
+    }
+    ///车险估算
+    else if (functionStyle == MoreForAutoEstimationStyle) {
+        UIImage *imageInfor = [UIImage imageNamed:FMCZFWLogoImage];
+   
+//        http://api.czfw.cn:81/v31/
+//        CarSecure/index/?source=370100&userId=33723
+        ShareWebViewController *shareWebView = [[ShareWebViewController alloc]initWithWebURLString:[NSString stringWithFormat:@"%@CarSecure/index/?source=%@&userId=%@",kBaseAPIURL,KProjectCityCodeString,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"] withTitle:@"车险购买" withStyle:InitNavigationWebStyle withImageInfor:imageInfor withShareWebDataStyle:WebDataForAutoEstimationStyle withDataInforID:@""];
+        [self.navigationController pushViewController:shareWebView animated:YES];
+    }
+    
+    
+}
+@end

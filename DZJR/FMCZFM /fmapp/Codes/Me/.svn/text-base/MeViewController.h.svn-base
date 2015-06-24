@@ -1,0 +1,19 @@
+//
+//  MeViewController.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-11.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "ZBarSDK.h"
+#import "UserInfoDelegate.h"
+#import "AutoTypeDelegate.h"
+#import "PersonalLoveCarController.h"
+
+
+@interface MeViewController : FMViewController<UIScrollViewDelegate,UserInfoDelegate,AutoTypeDelegate,UINavigationControllerDelegate,UIImagePickerControllerDelegate,ZBarReaderDelegate,UIAlertViewDelegate>
+- (void) loginNotification:(NSNotification *) notification;
+- (void) loginOutNotification:(NSNotification *) notification;
+@end

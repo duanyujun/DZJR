@@ -1,0 +1,64 @@
+//
+//  CameraTableViewCell.m
+//  fmapp
+//
+//  Created by SDYK on 14-8-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "CameraTableViewCell.h"
+
+@implementation CameraTableViewCell
+
+@synthesize imageView;
+@synthesize deleteImageView;
+
+@synthesize image;
+@synthesize deleteImage;
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        // Initialization code
+        
+        imageView = [[UIImageView alloc] initWithFrame:CGRectMake(5, 5, 50, 50)];
+        deleteImageView = [[UIImageView alloc] initWithFrame:CGRectMake(45, 45, 15, 15)];
+        deleteImageView.image = [UIImage imageNamed:@"remove.png"];
+        deleteImageView.userInteractionEnabled = YES;
+        [self.contentView addSubview:imageView];
+        [self.contentView addSubview:deleteImageView];
+        
+    }
+    return self;
+}
+
+
+- (void)setImage:(UIImage *)img {
+    if (![img isEqual:image]) {
+        image = [img copy];
+        self.imageView.image = image;
+    }
+}
+
+- (void)setDelimage:(UIImage *)delimg {
+    if (![delimg isEqual:deleteImage]) {
+        deleteImage = [delimg copy];
+        self.deleteImageView.image = deleteImage;
+    }
+}
+
+
+- (void)awakeFromNib
+{
+    // Initialization code
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+@end

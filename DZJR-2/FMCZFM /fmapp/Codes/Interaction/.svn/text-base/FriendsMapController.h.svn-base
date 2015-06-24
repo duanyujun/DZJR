@@ -1,0 +1,16 @@
+//
+//  CarOwnersMapController.h
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-11-12.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import <MapKit/MapKit.h>
+#import "CustomMKAnnotation.h"
+
+@interface FriendsMapController : FMViewController<MKMapViewDelegate,UIGestureRecognizerDelegate>
+
+
+@end

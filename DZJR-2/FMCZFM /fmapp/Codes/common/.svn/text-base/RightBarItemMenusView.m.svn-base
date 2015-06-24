@@ -1,0 +1,161 @@
+//
+//  RightBarItemMenusView.m
+//  fmapp
+//
+//  Created by 张利广 on 14-10-11.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KItemMenusButtonBaseTag         1740111     ///按键的标注起点
+#define KButtonDifferenceBaseTag        1740110     ///按键的标注差值
+
+#define KDarkGrayBGViewWidth            144.0f      ///右上角深灰色背景的宽度 107
+#define KBarItemButtonSizeHeight        45.0f       ///按键的高度  38
+#define KGrayBGViewTag                  191032
+
+#import "RightBarItemMenusView.h"
+
+@interface RightBarItemMenusView ()
+@property (nonatomic , assign)BOOL      isTitlIconBool;
+@end
+
+@implementation RightBarItemMenusView
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+     
+        // Initialization code
+        
+    }
+    return self;
+}
+
+- (id)initWithFrame:(CGRect)frame withMenusArray:(NSArray *)menusArray withTitleIcon:(BOOL)titlIconBool withMenusIconArray:(NSArray *)menusIconArray{
+    self = [super initWithFrame:frame];
+    if (self) {
+        
+        [self setBackgroundImage:createImageWithColor([UIColor clearColor])
+                        forState:UIControlStateNormal];
+        [self setBackgroundImage:createImageWithColor([UIColor clearColor])
+                        forState:UIControlStateNormal];
+        [self addTarget:self action:@selector(initWithHiddenMenusView)
+       forControlEvents:UIControlEventTouchUpInside];
+        
+        UIImageView *imageview=[[UIImageView alloc]initWithFrame:CGRectMake(self.bounds.size.width-27, 0, 14, 7)];
+        imageview.image=[UIImage imageNamed:@"首页_06.png"];
+        [self addSubview:imageview];
+        
+        [self setBackgroundColor:[UIColor clearColor]];
+        self.isTitlIconBool = titlIconBool;
+
+        int itmesCount = menusArray.count;
+        UIView *grayBGView = [[UIView alloc]init];
+        [grayBGView setTag:KGrayBGViewTag];
+        [grayBGView setUserInteractionEnabled:YES];
+        [grayBGView setFrame:CGRectMake((self.bounds.size.width - 5.0 -KDarkGrayBGViewWidth),
+                                        7.0f, KDarkGrayBGViewWidth,
+                                        (KBarItemButtonSizeHeight*itmesCount))];
+        [grayBGView setBackgroundColor:[UIColor colorWithRed:0.28 green:0.28 blue:0.28 alpha:1]];
+        [self addSubview:grayBGView];
+        
+        NSInteger num = 10;
+        NSInteger numberResult = 1;
+        for (int itemIndex = 0; itemIndex < itmesCount; itemIndex++) {
+            
+            if (titlIconBool == YES) {
+                [self initWithItemMenusBtnFrame:CGRectMake(0.0,
+                                                           itemIndex*KBarItemButtonSizeHeight,
+                                                           KDarkGrayBGViewWidth,
+                                                           KBarItemButtonSizeHeight)
+                                    withBtnName:[menusArray objectAtIndex:(NSInteger)(itemIndex)]
+                                        withTag:(itemIndex+KItemMenusButtonBaseTag)
+                                   withBaseView:grayBGView
+                                   withIconName:(NSNumber *)[menusIconArray objectAtIndex:(NSInteger)(itemIndex)]];
+            }else{
+                [self initWithItemMenusBtnFrame:CGRectMake(0.0,
+                                                           itemIndex*KBarItemButtonSizeHeight,
+                                                           KDarkGrayBGViewWidth,
+                                                           KBarItemButtonSizeHeight)
+                                    withBtnName:[menusArray objectAtIndex:(NSInteger)(itemIndex)]
+                                        withTag:(itemIndex+KItemMenusButtonBaseTag)
+                                   withBaseView:grayBGView withIconName:[NSNumber numberWithInteger:0]];
+            }
+            
+            
+            numberResult = numberResult *num;
+        }
+        
+        Log(@"numberResult is %d",numberResult)
+        
+        
+    }
+    return self;
+}
+
+/** 初始化按键
+ 
+ *@param btnFrame 按键的 CGRect
+ *@param titleName 按键的标题
+  *@param btnTag 按键的标注
+ */
+- (void)initWithItemMenusBtnFrame:(CGRect)btnFrame
+                      withBtnName:(NSString *)titleName
+                          withTag:(NSInteger)btnTag
+                     withBaseView:(UIView *)baseView withIconName:(NSNumber *)stringName{
+    
+    
+    UIImageView *imageLine = [[UIImageView alloc]init];
+    [imageLine setFrame:CGRectMake(10.0f, btnFrame.origin.y,(btnFrame.size.width - 20.0f), 0.5)];
+    [imageLine setBackgroundColor:[UIColor colorWithRed:112.0f/255.0f green:112.0f/255.0f
+                                                   blue:112.0f/255.0f alpha:1.0f]];
+    [baseView addSubview:imageLine];
+    
+    UIButton    *button= [UIButton buttonWithType:UIButtonTypeCustom];
+    [button setTag:btnTag];
+    button.titleLabel.font=[UIFont systemFontOfSize:16];
+    [button setTitle:[NSString stringWithFormat:@" %@",titleName] forState:UIControlStateNormal];
+    [button setBackgroundColor:[UIColor clearColor]];
+    
+    [button setBackgroundImage:createImageWithColor([UIColor clearColor])
+                      forState:UIControlStateNormal];
+    [button setBackgroundImage:createImageWithColor([UIColor clearColor])
+                      forState:UIControlStateHighlighted];
+    [button setTitleColor:[UIColor whiteColor]
+                 forState:UIControlStateNormal];
+    
+    [button addTarget:self
+               action:@selector(initWithUserOperationItemMenusButtonEvent:)
+     forControlEvents:UIControlEventTouchUpInside];
+    [button setFrame:CGRectMake(0.0f, btnFrame.origin.y+0.5,
+                                btnFrame.size.width,
+                                (btnFrame.size.height - 0.5))];
+    [baseView addSubview:button];
+    
+    if (self.isTitlIconBool == YES) {
+        button.titleLabel.font =button.titleLabel.font;
+        button.contentHorizontalAlignment=UIControlContentHorizontalAlignmentCenter;
+        [button simpleButtonWithImageColor:[UIColor whiteColor]];
+        [button addAwesomeIcon:[stringName integerValue] beforeTitle:YES];
+    }
+    
+    [button setTitleColor:[UIColor colorWithRed:112.0f/255.0f green:112.0f/255.0f
+                                           blue:112.0f/255.0f alpha:1.0f]
+                 forState:UIControlStateHighlighted];
+}
+
+- (void)initWithUserOperationItemMenusButtonEvent:(id)sender{
+    UIButton *button = (UIButton *)sender;
+    if (self.delegate) {
+        if ([self.delegate respondsToSelector:@selector(initWithUserOperationRightBarItemMenusItemButtonEvent:)]) {
+            [self.delegate initWithUserOperationRightBarItemMenusItemButtonEvent:(button.tag - KButtonDifferenceBaseTag)];
+        }
+    }
+}
+
+- (void)initWithHiddenMenusView{
+    [self setHidden:YES];
+}
+
+@end

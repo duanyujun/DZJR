@@ -1,0 +1,437 @@
+//
+//  HTTPClient+ExploreModules.h
+//  fmapp
+//
+//  Created by 张利广 on 14-5-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "HTTPClient.h"
+#import "SearchAndReceiveDataInfor.h"
+#import "BreakRulesAnnotationInfor.h"
+#import "QuestionInfo.h"
+#import "StationActivityDescriptionWebView.h"
+#import "WelfareMerchantInfor.h"
+
+/** 探索模块网络层数据连接设置
+ 
+ *@See 探索模块中各个界面中网络层数据接口链接设置
+ **/
+@interface HTTPClient (ExploreModules)
+
+
+
+#pragma mark - 摇一摇模块
+
+/** 摇一摇模块_摇一摇结束获取摇一摇结果数据内容
+ 
+ *@param NSString *)m_UserID  用户ID
+ **/
+- (AFHTTPRequestOperation *)getUserShakedResultInforShakedEndWithUserId:(NSString *)m_UserID
+                                                             completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户报名参加活动
+ 
+ *@param NSString *)m_UserID  用户ID
+ **/
+- (AFHTTPRequestOperation *)getUserPersonalUploadPersonalMobileNumberWithUserId:(NSString *)m_UserID
+                                                           withUserMobileNumber:(NSString *)m_userPersonalNumber
+                                                                 withActivityID:(NSString *)m_actvityID
+                                                             completion:(WebAPIRequestCompletionBlock)completion;
+
+
+/** 用户取消参加活动
+ 
+ *@param NSString *)m_UserID  用户ID
+ **/
+- (AFHTTPRequestOperation *)getUserPersonalActivityCancelWithUserId:(NSString *)m_UserID
+                                                                 withActivityID:(NSString *)m_actvityID
+                                                                     completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户确认参加活动
+ 
+ *@param NSString *)m_UserID  用户ID
+ **/
+- (AFHTTPRequestOperation *)getUserPersonalActivityEnsureWithUserId:(NSString *)m_UserID
+                                                     withActivityID:(NSString *)m_actvityID
+                                                         completion:(WebAPIRequestCompletionBlock)completion;
+
+
+/** 摇一摇模块_获取摇一摇中奖品列表内容
+ 
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getUserShakePrizeListInformationWithIntPage:(NSInteger)page
+                                                         withnumPerPage:(NSInteger)numPerPage
+                                                             completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户摇一摇提醒
+ 
+ *@param NSString *)m_UserID  摇奖ID
+ **/
+- (AFHTTPRequestOperation *)getUserShakePrizeTipWithUserId:(NSString *)m_UserID
+                                                     withPrizeID:(NSString *)m_prizeID
+                                                        withTipTime:(NSInteger)time
+                                                         completion:(WebAPIRequestCompletionBlock)completion;
+
+
+/** 用户消费券退款
+ 
+ *@param NSString *)m_UserID  消费券m_ticketID
+ **/
+- (AFHTTPRequestOperation *)UserCarWelfareDrawBackWithUserId:(NSString *)m_UserID
+                                               withPrizeID:(NSString *)m_ticketID
+                                                completion:(WebAPIRequestCompletionBlock)completion;
+
+
+#pragma mark - 电台活动模块
+/** 获取电台活动内容信息
+
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getBroadcastinStationActivityDataInforWithIntPage:(NSInteger)page
+                                                               withnumPerPage:(NSInteger)numPerPage
+                                                                   completion:(WebAPIRequestCompletionBlock)completion;
+#pragma mark - 事故快处模块
+/** 事故快处模块_获取事故快处服务点
+ 
+ *@param (NSString *)m_longitudeValue  经度内容
+ *@param (NSString *)m_lotitudeValue   纬度内容
+ *@See 获取28个事故处理点，并标注到地图上
+ **/
+-(AFHTTPRequestOperation *)getQuickDealWithServicePointWithLongitude:(NSString *)m_longitudeValue
+                                                        withLatitude:(NSString *)m_latitudeValue
+                                                          completion:(WebAPIRequestCompletionBlock)completion;
+
+
+#pragma mark - 
+#pragma mark - 二手车模块相关接口内容
+
+/** 获取二手车评估结果内容信息
+ 
+ *@param m_userId 用户个人编号
+ *@return AFHTTPRequestOperation *
+ **/
+-(AFHTTPRequestOperation *)getUserPersonalSecondHandCarResultInforWithUserID:(NSString *)m_userId
+                                                                  completion:(WebAPIRequestCompletionBlock)completion;
+-(AFHTTPRequestOperation *)getUserPersonalSecondHandCarAddItemInforWithDictionary:(NSMutableDictionary *)m_inforDictionary
+                                                                       completion:(WebAPIRequestCompletionBlock)completion;
+
+- (AFHTTPRequestOperation *)getSecondHandCarAutomobileLogoWithCompletion:(WebAPIRequestCompletionBlock)completion;
+
+- (AFHTTPRequestOperation *)getSecondHandCarSeriesDataWithLogoID:(NSString *)m_logoId
+                                                      completion:(WebAPIRequestCompletionBlock)completion;
+- (AFHTTPRequestOperation *)getSecondHandCarCarTypeDataWithSeriesId:(NSString *)m_SeriesID
+                                                         completion:(WebAPIRequestCompletionBlock)completion;
+
+- (AFHTTPRequestOperation *)getSecondHandCarExhibitionListDataInformationWithIntPage:(NSInteger)page
+                                                                      withnumPerPage:(NSInteger)numPerPage
+                                                                          completion:(WebAPIRequestCompletionBlock)completion;
+- (AFHTTPRequestOperation *)getSecondHandWillSellCarWithUserSetupWithUserName:(NSString *)m_UserName
+                                                                 withResultID:(NSString *)m_ResultDataId
+                                                          withUserPhoneNumber:(NSString *)m_userPhoneNumber
+                                                                WithSellState:(NSInteger)m_sellState
+                                                                   completion:(WebAPIRequestCompletionBlock)completion;
+
+- (AFHTTPRequestOperation *)getSecondHandCarMainViewFooterInforWithCompletion:(WebAPIRequestCompletionBlock)completion;
+
+
+#pragma mark - 找到了模块
+
+/** 获取找到了内容信息
+ 
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (NSInteger)m_type  信息类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getSearchOrRecevieDataInforWithIntPage:(NSInteger)page
+                                                    withnumPerPage:(NSInteger)numPerPage
+                                                      withDataType:(NSInteger)m_type
+                                                    withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户添加找到了数据内容
+ 
+ *@param (SearchAndReceiveDataInfor *)m_AddItemData 添加的参数实体
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)userAddWithSearchOrRecevieItemDataWithParamData:(SearchAndReceiveDataInfor *)m_AddItemData
+                                                             withcompletion:(WebAPIRequestCompletionBlock)completion;
+/** 用户删除单条找到了数据内容
+ 
+ *@param (NSString *)m_itemId 数据信息对应的ID参数
+ *@param (NSString *)m_userID 用户个人ID
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)operationWithUserDeleteSearchOrRecevieItemDataWithItemID:(NSString *)m_itemId
+                                                                          withUserID:(NSString *)m_userID
+                                                                      withcompletion:(WebAPIRequestCompletionBlock)completion;
+#pragma mark - 都市顺风车模块 
+
+/** 获取都市顺风车列表内容信息
+ 
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (NSInteger)m_type  信息类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getCityFreeRideDataWithIntPage:(NSInteger)page
+                                            withnumPerPage:(NSInteger)numPerPage
+                                              withDataType:(NSInteger)m_type
+                                            withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - 都市顺风车模块
+
+/** 获取都市顺风车列表内容信息
+ 
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (NSInteger)m_type  信息类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getCityFreeRideDataWithSearchKey:(NSString *)m_searchKey
+                                                 withIntPage:(NSInteger)page
+                                            withnumPerPage:(NSInteger)numPerPage
+                                              withDataType:(NSInteger)m_type
+                                            withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取都市顺风车列表内容信息(针对地图模式)
+ 
+ *@param m_longitudeValue/m_latitudeValue 经纬度信息
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (NSInteger)m_type  信息类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getCityFreeRideDataForMapViewWithLongitude:(NSString *)m_longitudeValue
+                                                          withLatitude:(NSString *)m_latitudeValue
+                                                          withDataType:(NSInteger)m_type
+                                                        withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户添加都市顺风车数据内容
+ 
+ *@param (SearchAndReceiveDataInfor *)m_AddItemData 添加的参数实体
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)userAddWithCityFreeRideDataWithCityFreeRideItemInfor:(SearchAndReceiveDataInfor *)m_dataInfor
+                                                                  withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户删除单条都市顺风车数据内容
+ 
+ *@param (NSString *)m_itemId 数据信息对应的ID参数
+ *@param (NSString *)m_userID 用户个人ID
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)operationWithUserDeleteCityFreeRideItemDataWithItemID:(NSString *)m_itemId
+                                                                          withUserID:(NSString *)m_userID
+                                                                      withcompletion:(WebAPIRequestCompletionBlock)completion;
+#pragma mark -  违章多发模块
+/** 获取违章多发数据内容信息
+ 
+ *@param (NSString *)m_longitudeValue  经度内容
+ *@param (NSString *)m_lotitudeValue   纬度内容
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getMultipleBreakRulesDataInforWithLongitude:(NSString *)m_longitudeValue
+                                                           withLatitude:(NSString *)m_latitudeValue
+                                                         withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户添加都市顺风车数据内容
+ 
+ *@param (BreakRulesAnnotationInfor *)m_dataInfor 添加的参数实体
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)userAddMultipleBreakRulesItemInforWith:(BreakRulesAnnotationInfor *)m_dataInfor
+                                                    withImageParam:(NSString *)imageParamInfor
+                                                    withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户删除单条违章多发数据内容
+ 
+ *@param (NSString *)m_itemId 数据信息对应的ID参数
+ *@param (NSString *)m_userID 用户个人ID
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)operationWithUserDeleteItemBreakRulesDataInforWithItemID:(NSString *)m_itemId
+                                                                          withUserID:(NSString *)m_userID
+                                                                      withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - 代驾模块
+
+/** 代驾模块上传用户个人信息
+ 
+ *@param (NSString *)m_userId   用户个人GUID
+ *@param (NSString *)m_userPhone    用户个人手机号
+ *@param (NSString *)m_userName     用户个人名字或匿名
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getUserInsteadOfDrivingUploadInforWithUserID:(NSString *)m_userId
+                                                     withUserPhoneNumber:(NSString *)m_userPhone
+                                                            withUserName:(NSString *)m_userName
+                                                          withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - 特约商户模块
+
+/** 获取周边商户数据内容信息
+ 
+ *@param (NSString *)m_longitudeValue  经度内容
+ *@param (NSString *)m_lotitudeValue   纬度内容
+ *@param (NSInteger)m_styleType 商户类别
+ *@param (NSInteger)m_PageNumber    页数
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getNearbyMerchantInformationWithLongitude:(NSString *)m_longitudeValue
+                                                         withLatitude:(NSString *)m_latitudeValue
+                                                        withStyleType:(NSInteger)m_styleType
+                                                       withPageNumber:(NSInteger)m_PageNumber
+                                                       withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取周边商户数据内容信息
+ 
+ *@param (NSString *)m_longitudeValue  经度内容
+ *@param (NSString *)m_lotitudeValue   纬度内容
+ *@param (NSInteger)m_styleType 商户类别
+ *@param (NSInteger)m_PageNumber    页数
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getNearbyMerchantForSpecialBusinessWithLongitude:(NSString *)m_longitudeValue
+                                                         withLatitude:(NSString *)m_latitudeValue
+                                                        withStyleType:(NSInteger)m_styleType
+                                                       withPageNumber:(NSInteger)m_PageNumber
+                                                       withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+//适用商家
+- (AFHTTPRequestOperation *)getCarWelfareBusinessWithBusinessID:(NSString *)businessID WithLongitude:(NSString *)m_longitudeValue withLatitude:(NSString *)m_latitudeValue
+                                                 withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取单个特约商户详细信息
+ 
+ *@param (NSString *)m_inforID 商户ID
+ *@param (NSString *)m_Style    屏幕类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getNearbyMerchantDetailInformationWithId:(NSString *)m_inforID
+                                                     withScreenStyle:(NSString *)m_Style
+                                                      withCompletion:(WebAPIRequestCompletionBlock)completion;
+/** 获取我要曝光内容信息
+ 
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (NSInteger)m_type  信息类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getExposureFreshThingDataInforWithIntPage:(NSInteger)page
+                                                       withnumPerPage:(NSInteger)numPerPage
+                                                         withDataType:(NSInteger)m_type
+                                                       withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户添加我要曝光数据内容
+ 
+ *@param (SearchAndReceiveDataInfor *)m_AddItemData 添加的参数实体
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)userAddWithExposureFreshThingItemDataWithParamData:(SearchAndReceiveDataInfor *)m_AddItemData
+                                                                withcompletion:(WebAPIRequestCompletionBlock)completion;
+/** 用户删除单条我要曝光数据内容
+ 
+ *@param (NSString *)m_itemId 数据信息对应的ID参数
+ *@param (NSString *)m_userID 用户个人ID
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)operationWithUserDeleteExposureFreshThingItemDataWithItemID:(NSString *)m_itemId
+                                                                             withUserID:(NSString *)m_userID
+                                                                         withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+
+//
+/** 获取946幸运星通关密语
+ 
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getExploreMoreLuckUserCodewordsWithCompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - 信息网内容
+
+/** 获取信息网内容信息
+ 
+ *@param (NSInteger)page 当前页码
+ *@param (NSInteger)numPerPage 每页数据个数
+ *@param (NSInteger)m_type  信息类别
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getInforNetworkDataInforWithIntPage:(NSInteger)page
+                                                 withnumPerPage:(NSInteger)numPerPage
+                                                   withDataType:(NSInteger)m_type
+                                                 withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户添加信息网数据内容
+ 
+ *@param (SearchAndReceiveDataInfor *)m_AddItemData 添加的参数实体
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)userAddWithInforNetworkItemDataWithParamData:(SearchAndReceiveDataInfor *)m_AddItemData
+                                                          withcompletion:(WebAPIRequestCompletionBlock)completion;
+/** 用户删除单条信息网数据内容
+ 
+ *@param (NSString *)m_itemId 数据信息对应的ID参数
+ *@param (NSString *)m_userID 用户个人ID
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)operationWithUserDeleteInforNetworkItemDataWithItemID:(NSString *)m_itemId
+                                                                       withUserID:(NSString *)m_userID
+                                                                   withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - 随手拍模块
+// 随手拍
+- (AFHTTPRequestOperation *)getRandomPhotoDataInformationWithIntPage:(NSInteger)page
+                                                      withnumPerPage:(NSInteger)numPerPage
+                                                          completion:(WebAPIRequestCompletionBlock)completion;
+
+// 发布随手拍
+- (AFHTTPRequestOperation *)pulishNewRandomPhoto:(QuestionInfo *)questionInfo
+                                      completion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark - 交警留言板模块
+// 交警留言板
+- (AFHTTPRequestOperation *)publishNewPoliceMessage:(QuestionInfo *)questionInfo
+                                         completion:(WebAPIRequestCompletionBlock)completion;
+
+
+///获取摇一摇最新奖品剩余量
+- (AFHTTPRequestOperation *)getPrizesForUserShakeWithResidueTotalWithcompletion:(WebAPIRequestCompletionBlock)completion;
+
+
+#pragma mark -商户详情模块
+//获取详情网络数据
+-(AFHTTPRequestOperation *)getMerchantDetailInfoWithMerchant:(NSString *)merchantId WithWelfareMerchantStyle:(InitWebViewStyle)merchantStyle                                                     completion:(WebAPIRequestCompletionBlock)completion;
+
+
+-(AFHTTPRequestOperation *)getActivityDetailInfoWithMerchant:(NSString *)merchantId WithUserId:(NSString *)userId    WithWelfareMerchantStyle:(InitWebViewStyle)merchantStyle                                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+@end

@@ -1,0 +1,21 @@
+//
+//  HomePageViewController.h
+//  IMApp
+//
+//  Created by chen on 14/7/20.
+//  Copyright (c) 2014年 chen. All rights reserved.
+//
+
+// 版权属于原作者
+// http://code4app.com (cn) http://code4app.net (en)
+// 发布代码于最专业的源码分享网站: Code4App.com
+
+#import <UIKit/UIKit.h>
+#import "FMTabBarController.h"
+#define  FMMainViewController ((MainTabViewController* )[SliderViewController sharedSliderController].MainVC);
+@interface MainTabViewController : FMViewController
+@property (nonatomic , strong) FMTabBarController  *tabController;
+- (void)setTabRootControlItem;
+- (void)showHintPoint:(NSInteger)buttonIndex showOrHide:(BOOL)bShow;
+
+@end

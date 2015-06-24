@@ -1,0 +1,25 @@
+//
+//  UserAudioInfoViewController.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "FMAudioManager.h"
+
+typedef enum {
+    InitAudioNavigationStyle = 1,
+    InitAudioModalStyle = 2,
+}InitAudioFrameStyle;
+
+/** 用户语音介绍界面（包括录音、播放等）**/
+@interface UserAudioInfoViewController : FMViewController<FMAudioManagerDelegate,UIAlertViewDelegate, UIActionSheetDelegate>
+
+/** 初始化界面
+ 
+ *@param m_inforDictionary 语音参数内容
+ **/
+- (id)initWithUserVoiceFrameWithInitStyle:(InitAudioFrameStyle)m_initStyle;
+@end

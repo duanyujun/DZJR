@@ -1,0 +1,236 @@
+//
+//  FriendCirMemberViewController.m
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FriendCirMemberViewController.h"
+#import "HTTPClient.h"
+#import "HTTPClient+Friends.h"
+#import "FriendCirUserMemberCell.h"
+#import "FriendDetailedInforViewController.h"
+
+@interface FriendCirMemberViewController ()<UITableViewDataSource,UITableViewDelegate>
+@property (nonatomic , strong)          FriendCircleModel       *fcircleModer;
+@property (nonatomic , strong)          DataPage                *dataSource;
+@property (nonatomic , weak)            UITableView             *tableView;
+@property (nonatomic , strong)          AFHTTPRequestOperation  *requestOperation;
+@property (nonatomic,weak)              HUILoadMoreCell           *loadMoreCell;
+
+- (void)initWithFriendCirMemberViewFrame;
+
+- (void)initWithFriendCirMemberViewDataInfor;
+@end
+
+@implementation FriendCirMemberViewController
+
+
+- (id)initWithFriendCirMemberInfor:(FriendCircleModel *)fcModer{
+    self = [super init];
+    if (self) {
+        self.fcircleModer = fcModer;
+        self.dataSource = [DataPage page];
+    }
+    return self;
+}
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+
+- (void)viewDidLoad
+{
+    
+    [super viewDidLoad];
+    // Do any additional setup after loading the view.
+    [self settingNavTitle:[NSString stringWithFormat:@"圈内成员(%d)",self.fcircleModer.friendCirCurrentUsersCount]];
+    [self initWithFriendCirMemberViewFrame];
+    
+    [self initWithFriendCirMemberViewDataInfor];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (void)viewDidUnload{
+    [self.dataSource cleanAllData];
+    [self.tableView setDelegate:Nil];
+    [self.tableView setDataSource:Nil];
+    [self.requestOperation cancel];
+}
+
+- (void)initWithFriendCirMemberViewFrame{
+    UITableView *tbview = [[UITableView alloc]initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    tbview.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    tbview.separatorStyle = UITableViewCellSeparatorStyleNone;
+    tbview.backgroundColor = [UIColor clearColor];
+    tbview.dataSource = self;
+    tbview.delegate = self;
+    
+    [self.view addSubview:tbview];
+    self.tableView = tbview;
+    
+}
+
+- (void)initWithFriendCirMemberViewDataInfor{
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestOperation = [FMHTTPClient getFriendCircleUserMembersThisCircleWithCircleId:self.fcircleModer.friendCirId withPageNumber:[self.dataSource nextPageIndex] withNumberPerPage:15 withcompletion:^(WebAPIResponse *response) {
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            //关掉PullToRefreshView
+            if (weakSelf.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+            {
+                UpdateLastRefreshDataForPullToRefreshViewOnView([weakSelf tableView]);
+                [weakSelf.tableView.pullToRefreshView stopAnimating];
+            }
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                //车友信息
+                NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                
+                NSMutableArray* userList = [NSMutableArray array];
+                for (NSDictionary* dic in dataList) {
+                    UserInfo *itemObject = (UserInfo *)[UserInfo userWithUnserializedJSONDic:dic];
+                    itemObject.userID=StringForKeyInUnserializedJSONDic(dic, @"id");
+                    [userList addObject:itemObject];
+                }
+                [weakSelf.dataSource appendPage:userList];
+                //页数
+                weakSelf.dataSource.pageCount = IntForKeyInUnserializedJSONDic(response.responseObject,kDataKeyPageCount);
+                [weakSelf.tableView reloadData];
+                
+            }
+        });
+    }];
+}
+
+
+#pragma mark --刷新数据
+- (void) refreshListData
+{
+    //停掉当前未完成的请求操作
+    [self.requestOperation cancel];
+    //清空当前数据源中所有数据
+    [self.dataSource cleanAllData];
+    self.dataSource.pageCount = 1; //使loadmore可以自动加载数据
+    [self.tableView reloadData];
+    [self loadMoreListData];
+}
+
+- (void)loadMoreListData{
+    [self initWithFriendCirMemberViewDataInfor];
+}
+
+
+- (BOOL)_isLoadMoreCellAtIndexPath:(NSIndexPath *)indexPath
+{
+    return (indexPath.row == [self.dataSource count]);
+}
+
+#pragma mark - UITableViewDataSource
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    if([self _isLoadMoreCellAtIndexPath:indexPath])
+        return kSizeLoadMoreCellHeight;
+    if (indexPath.row < [self.dataSource.data count]) {
+        return 65.5f;
+    }
+    return 65.5f;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count] + 1; //添加一行显示“正在加载”或“加载完毕”;
+}
+
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+        
+    }
+    FriendCirUserMemberCell * cell = [[FriendCirUserMemberCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellIdentifier];
+    return cell;
+}
+
+
+- (void)_configureCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row >= [self.dataSource.data count]) {
+        return;
+    }
+    UserInfo *userInfor = [self.dataSource.data objectAtIndex:(indexPath.row)];
+    
+    FriendCirUserMemberCell* memberCell = (FriendCirUserMemberCell* )cell;
+    [memberCell initWithFriendCirUserMemberDataInfor:userInfor];
+    
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellIdentifier = @"UserMemberCell";
+    BOOL isLoadMoreCell = [self _isLoadMoreCellAtIndexPath:indexPath];
+    cellIdentifier = isLoadMoreCell? kHUILoadMoreCellIdentifier: cellIdentifier;
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (!cell) {
+        cell = [self createCellWithIdentifier:cellIdentifier];
+        
+    }
+    
+    if (!isLoadMoreCell)
+        [self _configureCell:cell forRowAtIndexPath:indexPath];
+    else
+    {
+        self.loadMoreCell = (HUILoadMoreCell*)cell;
+        if ([self.dataSource canLoadMore])
+        {
+            __weak __typeof(&*self)weakSelf = self;
+            [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                [weakSelf loadMoreListData];
+            }];
+            [(HUILoadMoreCell*)cell startLoadMore];
+        }
+        else
+        {
+            if (self.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+            }else{
+                cell.textLabel.text = LOADMORE_LOADOVER;
+            }
+        }
+    }
+    
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    if ([self _isLoadMoreCellAtIndexPath:indexPath]){
+        return;
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+    
+    UserInfo *userInfor = [self.dataSource.data objectAtIndex:(indexPath.row)];
+    
+    FriendDetailedInforViewController *viewController=[[FriendDetailedInforViewController alloc]initWithUserInfo:userInfor];
+    
+    [self.navigationController pushViewController:viewController animated:YES];
+    
+    
+}
+
+@end

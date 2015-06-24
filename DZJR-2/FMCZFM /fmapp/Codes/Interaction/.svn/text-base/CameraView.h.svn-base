@@ -1,0 +1,33 @@
+//
+//  CameraView.h
+//  CameraTest
+//
+//  Created by mac on 8/26/13.
+//  Copyright (c) 2013 mac. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import <AVFoundation/AVFoundation.h>
+
+@interface CameraView : UIImageView
+{
+    AVCaptureSession            * _captureSession;
+    AVCaptureDeviceInput        * _captureDeviceInput;
+    AVCaptureStillImageOutput   * _captureOutput;
+    AVCaptureVideoPreviewLayer  * _previewLayer;
+    
+    AVCaptureDevicePosition       _currentDevicePositon;
+}
+
+@property (nonatomic,retain)   UIImage * cameraImage;
+
+// 打开 camera -- 
+- (void)showCamera:(void(^)(BOOL success))complition;
+
+// 拍照 --
+- (void)captureImage:(void(^)(BOOL finished, UIImage * captureImage))cameraFinished;
+
+- (void)startCamera;
+
+- (void)stopCamera;
+@end

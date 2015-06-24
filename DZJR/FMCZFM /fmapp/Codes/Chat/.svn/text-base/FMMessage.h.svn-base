@@ -1,0 +1,88 @@
+//
+//  FMMessage.h
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "FMAudioManager.h"
+@class FMImage;
+
+#define IMMsgId           @"messageId"
+#define IMUserId          @"userId"
+#define IMUserName        @"userName"
+#define IMUserIconKey     @"userIconKey"
+#define IMContent         @"content"
+#define IMImageKey        @"imageKey"
+#define IMVoiceKey        @"voiceKey"
+#define IMVoiceLen        @"voiceLen"
+
+
+typedef enum {
+    MessageTypeText  = 1,       // 文本、表情
+    MessageTypeImage = 2,       // 图片
+    MessageTypeVoice            // 语音
+} MessageType;
+
+typedef enum{
+    MessageSend,                // 发送
+    MessageReceive              // 接收
+} SendOrReceive;
+
+
+typedef enum{
+    MessageStatusOk,            //接收/发送成功
+    MessageStatusSending,       //正在发送
+    MessageStatusAttachFailed,  //附件上传失败
+    MessageStatusSendFailed     //发送失败
+}IMMessageStatus;
+
+@interface FMMessage : NSObject
+
+@property (nonatomic)         NSInteger           flowno;                   //发送流水号
+@property (nonatomic)         NSInteger           messageId;                //消息id，全局唯一id
+@property (nonatomic)         NSInteger           msgNo;                    //消息编号，消息在会话显示列表的唯一编号
+
+///当前用户Id
+@property (nonatomic, copy)   NSString            *userId;
+////对方用户Id
+@property (nonatomic, copy)   NSString            *chatUserId;              // 聊天用户ID
+@property (nonatomic, copy)   NSString            *userName;
+@property (nonatomic, copy)   NSString            *userIconKey;             // 用户头像key
+// 文本、表情
+@property (nonatomic, copy)   NSString            *content;
+@property (nonatomic, strong) NSAttributedString  *attributedContent;
+//@property (nonatomic, copy)   NSString            *lastContent;
+// 图片
+@property (nonatomic, strong) UIImage             *imageData;       //发送数据时的图像缓存
+@property (nonatomic, assign) CGFloat             imageWidth;
+@property (nonatomic, assign) CGFloat             imageHeight;
+@property (nonatomic, copy)   NSString            *imageKey;
+
+// 语音
+@property (nonatomic, strong) AMRInfo             *voiceAMRInfo;
+@property (nonatomic, copy)   NSString            *voiceKey;
+@property (nonatomic, copy)   NSString            *voiceLen;
+
+@property (nonatomic, copy)   NSString            *time;
+@property (nonatomic)         int                 msgTime;
+@property (nonatomic, assign) BOOL                isShowTime;
+@property (nonatomic, assign) MessageType         messageType;
+@property (nonatomic, assign) SendOrReceive       sendOrReceive;
+@property (atomic, assign) IMMessageStatus        msgStatus;
+@property (nonatomic, assign) BOOL                isVoicePlaying;
+
++ (id)initMessageWithUnserializedJSONDic:(NSDictionary *)dic;
+
+// 获取消息高度
+- (CGFloat)getContentHeight:(CGFloat)containerWidth;
+
+//生成语音发送内容
+- (void)makeVoiceContent;
+
+//生成图片发送内容
+- (void)makeImageContent;
+
+@end

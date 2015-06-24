@@ -1,0 +1,91 @@
+﻿#ifndef _C2S_PROXY_H
+#define _C2S_PROXY_H
+
+#define		MIN_PKG_SIZE	sizeof(pkg_head_t)
+
+
+
+
+//===========消息类型定义================
+#define		C2S_HEART			0x01			//心跳数据
+#define		C2S_LOGIN			0x02			//用户登录鉴权
+#define		C2S_MESSAGE			0x03			//发送消息client->server, 接收消息 server->client
+#define		C2S_MESSAGE_SENDRSP	0x04			//发送消息结果回复
+#define		C2S_MESSAGE_RCVRSP	0x05			//接收消息回复
+#define		C2S_MESSAGE_SYNC	0x06			//设备之间同步消息(对于发送者)
+#define		C2S_TOKEN			0x07			//申请令牌
+
+//===========协议层结果返回定义==========
+#define		C2S_PROXY_INVALID	0xFF			//通信协议错误
+
+
+//===========应用层结果返回定义===========
+//鉴权结果定义
+#define		C2S_AUTH_OK			0x00			//鉴权成功
+#define		C2S_AUTH_PASSWORD	0x01			//用户名密码不正确
+#define		C2S_AUTH_SYSERROR	0x02			//系统错误
+
+
+//消息发送结果定义
+#define		C2S_MESSAGE_OK		0x00			//发送成功
+#define		C2S_MESSAGE_OFFLINE	0x01			//对方不在线,已推送(但推送不一定到达)
+#define		C2S_MESSAGE_RCVED	0x03			//对方已接收(对方在线或推送到达)
+#define		C2S_MESSAGE_FAILED	0x04			//发送失败(用户不存在,推送信息超时等）
+#define		C2S_MESSAGE_BAN		0x05			//禁止通信(黑名单)
+
+#pragma  pack(1)
+
+
+//包头
+typedef struct pkg_head_s
+{
+	U2		size;		//包总长度，包含包头，网络字节序，2 bytes
+	BYTE	cmd;		//命令类型 ，1 bytes
+	U4		seq;		//命令流水号 网络字节序 ，4 bytes
+}pkg_head_t;
+
+//登录包
+typedef struct pkg_login_s
+{
+	U4		userId;		//用户ID 网络字节序，4 bytes
+	BYTE	ter_id;		//0 pc, 1 android，2 ios ,3 ms
+    U2		version;
+	LV		authCode;	//使用密码对用户ID进行AES加密后的鉴权码 (暂时先传MD5密码值测试)
+	LV		ter_no;		//设备序列号
+
+}pkg_login_t;
+
+//消息包
+typedef struct pkg_message_s
+{
+	BYTE	encrypt;	//加密方式 0:不加密
+	U4		peer;		//对方用户ID 网络字节序 ，4 bytes
+	U4		msg_time;	//消息时间 网络字节序 ，4 bytes(unix时间)
+	U4		msg_id;		//接收到的消息id,发送方填0
+	LV		msg_content;//消息内容
+
+}pkg_message_t;
+
+//消息接收/发送回应
+typedef struct pkg_msgrsp_s
+{
+    U4		msg_id;		//接收到的消息id
+	U4		peer;		//对方用户ID 网络字节序 ，4 bytes
+	BYTE	ret;		//消息接受/发送结果
+}pkg_msgrsp_t;
+
+typedef struct c2s_pkg_s
+{
+	pkg_head_t head;
+	union{
+		pkg_login_t		login;
+		pkg_message_t	message;
+		pkg_msgrsp_t	msgrsp;
+		BYTE			result;
+	};
+}c2s_pkg_t;
+
+
+#pragma  pack()
+
+#endif

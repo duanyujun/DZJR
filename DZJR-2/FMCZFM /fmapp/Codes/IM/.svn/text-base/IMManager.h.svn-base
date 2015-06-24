@@ -1,0 +1,22 @@
+//
+//  IMManager.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-10-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "IMClient.h"
+
+@interface IMManager : NSObject
+
++ (IMManager *)sharedIMManager;
+
+@property (nonatomic,strong)IMClient*  Client;
+//进入后台后不在自动连接
+@property (nonatomic,assign)BOOL enableAutoConnect;
+
+- (void)setServerAddress:(NSString* )hostName hostPort:(NSInteger)port;
+
+@end

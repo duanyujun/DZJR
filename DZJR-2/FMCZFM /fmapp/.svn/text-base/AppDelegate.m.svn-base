@@ -1,0 +1,853 @@
+//
+//  AppDelegate.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-5.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KAdBgImageViewTag 198011        ///广告背景图
+
+#import "AppDelegate.h"
+#import "OpenUDID.h"
+#import "HTTPClient.h"
+#import "RadioPlayer.h"
+#import "MeViewController.h"
+#import "RoadViewController.h"
+#import "FMTabBarController.h"
+#import "LocalDataManagement.h"
+#import "ExploreViewController.h"
+#import "CurrentUserInformation.h"
+#import "InteractionViewController.h"
+#import "HTTPClient+UserLoginOrRegister.h"
+#import <AMapSearchKit/AMapSearchAPI.h>
+//#import "PushInformaionSetting.h"
+
+#import "ShareWebViewController.h"
+#import "FMSettings.h"
+#import "FMImageView.h"
+#import "FontAwesome.h"
+#import "IMManager.h"
+
+#import "WXApi.h"
+#import "MobClick.h"
+#import <ShareSDK/ShareSDK.h>
+#import "AttributedStringHelper.h"
+#import <AudioToolbox/AudioToolbox.h>
+
+
+#import "LeftViewController.h"
+#import "SliderViewController.h"
+#import "MainTabViewController.h"
+
+
+//#import "ViewController.h"
+//#import "AlixPayResult.h"
+//#import "DataVerifier.h"
+//#import "PayViewController.h"
+
+#import <AlipaySDK/AlipaySDK.h>
+
+@interface AppDelegate () <CLLocationManagerDelegate,AMapSearchDelegate,UITabBarControllerDelegate,WXApiDelegate>
+@property (nonatomic,strong) CLLocationManager      *mainLocationManager;           //定位管理器
+@property (nonatomic,strong) AMapSearchAPI          *mapSearch;                     //搜索管理器
+@property (nonatomic,assign) NSInteger              lastTabIndex;
+@end
+
+////1074车主服务模板内容
+@implementation AppDelegate
+
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+    
+    [MobClick startWithAppkey:kUmengKey];//AppStore
+//        [MobClick startWithAppkey:kUmengKey reportPolicy:REALTIME channelId:@"91AppsStore"]; //91手机助手
+    [MobClick checkUpdate];//检查更新
+    [MobClick setLogEnabled:NO];//是否打印Log
+    
+    //分享
+    [ShareSDK registerApp:kShareSDKAppKey];//参数为ShareSDK官网中添加应用后得到的AppKey
+    ////微信分享
+    [ShareSDK connectWeChatWithAppId:kWeiXinKey//此参数为申请的微信AppID
+                           wechatCls:[WXApi class]];
+    ////新浪微博分享
+    [ShareSDK connectSinaWeiboWithAppKey:kWeiboAppKey
+                               appSecret:kWeiboAppSecret
+                             redirectUri:kWeiboRedirectURL];
+    
+    BOOL isok = [WXApi registerApp:kWeiXinKey];
+    if (isok) {
+        Log(@"注册微信成功");
+    }else{
+        Log(@"注册微信失败");
+    }
+    
+    if(HUISystemVersionAboveOrIs(kHUISystemVersion_8_0)){
+        if ([[UIApplication sharedApplication] respondsToSelector:@selector(registerUserNotificationSettings:)]) {
+            UIUserNotificationSettings *settings = [UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeBadge|UIUserNotificationTypeSound|UIUserNotificationTypeAlert categories:nil];
+            [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
+        }  else {
+            UIRemoteNotificationType myTypes = UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeSound;
+            [[UIApplication sharedApplication] registerForRemoteNotificationTypes:myTypes];
+        }
+    }
+    else{
+        UIRemoteNotificationType myTypes = UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeSound;
+        [[UIApplication sharedApplication] registerForRemoteNotificationTypes:myTypes];
+    }
+    
+    ////根据用户名和密码进行自动登录
+    [self initWithUserAutoLogin];
+    
+    //初始化IM服务器
+    [[IMManager sharedIMManager] setServerAddress:kImServerAddress hostPort:kImServerPort];
+    
+    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    // Override point for customization after application launch.
+    //    [self setTabRootControl];
+    [self setSliderViewController];
+    [FMThemeManager applySkin:[FMThemeManager createSkinById:FMShareSetting.appProgramPersonalityThemeIndexInteger]];
+    
+    if (HUISystemVersionBelow(kHUISystemVersion_7_0)) {
+        self.window.backgroundColor = [UIColor whiteColor];
+    }else{
+        self.window.backgroundColor = [UIColor clearColor];
+    }
+    
+    [self.window makeKeyAndVisible];
+    
+    //判是不是断程序由推送服务完成的
+    if (launchOptions) {
+        NSDictionary *pushNotificationKey = [launchOptions objectForKey:UIApplicationLaunchOptionsRemoteNotificationKey];
+        if (pushNotificationKey) {
+            NSDictionary *pushDic = [[NSDictionary alloc]initWithDictionary: [pushNotificationKey objectForKey:@"aps"]];
+            [self dealAppNotification:pushDic];
+        }
+    }
+    ///启动页广告
+    [self initWithProgramAdvertisementInfor];
+    ///判断本地是否有广告内容
+    ///若存在图片，则直接显示
+    if (FMShareSetting.appDelegateAdvertisementBool) {
+        [self initWithProgramAdImageViewControlFrame];
+    }
+    
+    return YES;
+}
+
+- (void)applicationWillResignActive:(UIApplication *)application
+{
+    // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
+    // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
+}
+
+- (void)applicationDidEnterBackground:(UIApplication *)application
+{
+    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
+    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    //断开IM连接
+    [IMManager sharedIMManager].enableAutoConnect = FALSE;
+    [[IMManager sharedIMManager].Client disconnect];
+    
+    NSString    *documentString = [NSString stringWithFormat:@"%@", [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]];
+    ///所有图片地址内容
+    NSString *carImagesDirectory = [[NSString alloc] initWithFormat:@"%@/Images",documentString];
+    BOOL clearCarImagesSize = [[NSFileManager defaultManager] removeItemAtPath :carImagesDirectory error:nil] ;
+    
+    
+    
+}
+
+- (void)applicationWillEnterForeground:(UIApplication *)application
+{
+    
+    //设置状态栏
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+    
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:FMEnterForegroundNotificationn object:nil];
+    
+    
+    //初始化项目推送参数内容
+    [self initWithProgramPushInformaionWithFromAPI];
+    
+    //重新定位
+    [ShareAppDelegate startLocationUpdate];
+    
+#if !TARGET_IPHONE_SIMULATOR
+    RadioPlayer *radioPlayer =  [RadioPlayer sharedInstance];
+    [radioPlayer setRadioUrlString:kRadioURL];
+    BOOL isPlayed = [radioPlayer isPlayed];//正在播放
+    
+    if (isPlayed) {//正在播放
+        [radioPlayer play];
+    }else{
+        [radioPlayer stop];
+    }
+#endif
+    
+    [IMManager sharedIMManager].enableAutoConnect = TRUE;
+}
+///启动页内容设置
+- (void)initWithProgramAdImageViewControlFrame{
+    
+    //广告背景
+    UIImageView *defaultBgImageView = [[UIImageView alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    defaultBgImageView.tag = KAdBgImageViewTag;
+    
+    UIImage *defaultBgImage = [[UIImage imageNamed:AdBgImage]
+                               stretchableImageWithLeftCapWidth:0
+                               topCapHeight:25];
+    defaultBgImageView.image = defaultBgImage;
+    defaultBgImageView.userInteractionEnabled = YES;
+    
+    UIImageView *adImageView = [[UIImageView alloc]init];
+    [adImageView setBackgroundColor:KUIImageViewDefaultColor];
+    [adImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,FMShareSetting.appDelegateAdvertisementImageURL]]
+                placeholderImage:nil];
+    [adImageView setFrame:CGRectMake(0.0f, 0.0f, FMShareSetting.appDelegateAdvertisementImageSize.width, FMShareSetting.appDelegateAdvertisementImageSize.height)];
+    
+    [adImageView setUserInteractionEnabled:YES];
+    [defaultBgImageView addSubview:adImageView];
+    
+    //单击手势
+    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(initWithUserAdImageViewTapGestureRecognizer:)];
+    [adImageView addGestureRecognizer:tapGestureRecognizer];
+    
+    [self.window addSubview:defaultBgImageView];
+    
+    //移除背景视图
+    [NSTimer scheduledTimerWithTimeInterval:3.5f target:self selector:@selector(initWithRemoveAdBgImageView) userInfo:nil repeats:NO];
+    
+    
+}
+
+- (void)initWithUserAdImageViewTapGestureRecognizer:(UITapGestureRecognizer *) tapGestureRecognizer{
+    
+    ShareWebViewController *adWebView = [[ShareWebViewController alloc]initWithWebURLString:FMShareSetting.appDelegateAdvertisementIdentifier withTitle:@"详情" withStyle:InitModalWebStyle withImageInfor:nil withShareWebDataStyle:WebDataForDescriptionDataStyle withDataInforID:@""];
+    [adWebView setIsNeedShareWebInfor:NO];
+    
+    FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:adWebView];
+    UITabBarController *tabBarController = (UITabBarController *)self.window.rootViewController;
+    UINavigationController *roadConditionNavController = (UINavigationController *)[tabBarController.viewControllers objectAtIndex:0];
+    [roadConditionNavController presentModalViewController:navController animated:YES];
+}
+
+- (void)initWithRemoveAdBgImageView{
+    UIImageView *bgImageView = (UIImageView *)[self.window viewWithTag:KAdBgImageViewTag];
+    [bgImageView removeFromSuperview];
+    
+    [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationFade];//设置状态栏显示
+    [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:UIStatusBarAnimationFade];//设置状态栏显示
+    //设置状态栏
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+}
+
+- (void)applicationDidBecomeActive:(UIApplication *)application
+{
+    // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application
+{
+    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+}
+
+/*
+ #pragma mark -选项卡栏
+ - (void)setTabRootControlItem
+ {
+ FMTabBarController *tabBarController = (FMTabBarController* )self.window.rootViewController;
+ if ([tabBarController.viewControllers count] < 4) {
+ return;
+ }
+ FMNavigationController *roadConditionController = [tabBarController.viewControllers objectAtIndex:0];
+ roadConditionController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarTitleColor]
+ iconSize:kTableBarItemSize]
+ selectedImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarSelectColor]
+ iconSize:kTableBarItemSize]
+ title:@"路况"];
+ FMNavigationController *interactionController = [tabBarController.viewControllers objectAtIndex:1];
+ interactionController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarTitleColor]
+ iconSize:kTableBarItemSize]
+ selectedImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarSelectColor]
+ iconSize:kTableBarItemSize]
+ title:@"互动"];
+ FMNavigationController *exploreController  =  [tabBarController.viewControllers objectAtIndex:2];
+ exploreController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarTitleColor]
+ iconSize:kTableBarItemSize]
+ selectedImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarSelectColor]
+ iconSize:kTableBarItemSize]
+ title:@"探索"];
+ FMNavigationController *meNavController  =  [tabBarController.viewControllers objectAtIndex:3];
+ meNavController.tabBarItem = [FMTabBarController addButtonWithNormalImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarTitleColor]
+ iconSize:kTableBarItemSize]
+ selectedImage:[FontAwesome imageWithIcon:FMIconHome
+ iconColor:[FMThemeManager.skin tabBarSelectColor]
+ iconSize:kTableBarItemSize]
+ title:@"我"];
+ }
+ 
+ */
+
+- (void)setSliderViewController{
+    LeftViewController *leftVC = [[LeftViewController alloc] init];
+    [SliderViewController sharedSliderController].LeftVC = leftVC;
+    [SliderViewController sharedSliderController].MainVC = [[MainTabViewController alloc] init];
+    [SliderViewController sharedSliderController].LeftSContentOffset=275;
+    [SliderViewController sharedSliderController].LeftContentViewSContentOffset = 90;
+    [SliderViewController sharedSliderController].LeftSContentScale=0.77;
+    [SliderViewController sharedSliderController].LeftSJudgeOffset=160;
+    [SliderViewController sharedSliderController].changeLeftView = ^(CGFloat sca, CGFloat transX)
+    {
+        //        leftVC.contentView.layer.anchorPoint = CGPointMake(1, 1);
+        CGAffineTransform ltransS = CGAffineTransformMakeScale(sca, sca);
+        CGAffineTransform ltransT = CGAffineTransformMakeTranslation(transX, 0);
+        CGAffineTransform lconT = CGAffineTransformConcat(ltransT, ltransS);
+        leftVC.contentView.transform = lconT;
+    };
+    
+    // [UIViewController validatePanPackWithMLTransitionGestureRecognizerType:MLTransitionGestureRecognizerTypeScreenEdgePan];
+    
+    FMNavigationController *naviC = [[FMNavigationController alloc] initWithRootViewController:[SliderViewController sharedSliderController]];
+    
+    self.window.rootViewController = naviC;
+}
+
+/*
+ - (void)setTabRootControl
+ {
+ NSMutableArray *controllersArray = [[NSMutableArray alloc] init];//控制器数组
+ //路况
+ RoadViewController *roadConditionController = [[RoadViewController alloc] init];
+ UINavigationController *roadConditionNavController = [[FMNavigationController alloc] initWithRootViewController:roadConditionController];
+ [controllersArray addObject:roadConditionNavController];
+ 
+ 
+ //互动
+ InteractionViewController *interactionController = [[InteractionViewController alloc] init];
+ UINavigationController *interactionNavController = [[FMNavigationController alloc] initWithRootViewController:interactionController];
+ interactionNavController.navigationBar.translucent = NO;
+ [controllersArray addObject:interactionNavController];
+ 
+ //探索
+ ExploreViewController *exploreController = [[ExploreViewController alloc] init];
+ UINavigationController *exploreNavController = [[FMNavigationController alloc] initWithRootViewController:exploreController];
+ exploreNavController.navigationBar.translucent = NO;
+ [controllersArray addObject:exploreNavController];
+ 
+ 
+ //我
+ MeViewController *meController = [[MeViewController alloc] init];
+ UINavigationController *meNavController = [[FMNavigationController alloc] initWithRootViewController:meController];
+ 
+ 
+ //登录通知
+ [[NSNotificationCenter defaultCenter] addObserver: meController
+ selector: @selector(loginNotification:)
+ name: FMUserLoginNotification
+ object: nil];
+ //退出登录通知
+ [[NSNotificationCenter defaultCenter] addObserver: meController
+ selector: @selector(loginOutNotification:)
+ name: FMUserLogoutNotification
+ object: nil];
+ [controllersArray addObject:meNavController];
+ 
+ //选项卡控制器
+ FMTabBarController *tabBarController = [[FMTabBarController alloc] init];
+ [tabBarController setViewControllers:controllersArray];
+ 
+ tabBarController.delegate = self;
+ self.window.rootViewController = tabBarController;
+ [self setTabRootControlItem];
+ self.lastTabIndex = tabBarController.selectedIndex;
+ }
+ - (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+ {
+ if (self.lastTabIndex == tabBarController.selectedIndex && tabBarController.selectedIndex == 1) {
+ //触发问题通知
+ [[NSNotificationCenter defaultCenter] postNotificationName:FMInteractionNotification object:nil];
+ }
+ self.lastTabIndex = tabBarController.selectedIndex;
+ }
+ 
+ */
+
+#ifdef __IPHONE_8_0
+- (void)application:(UIApplication *)application didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings
+{
+    [application registerForRemoteNotifications];
+}
+#endif
+
+#pragma mark -注册通知
+- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken{
+    
+    NSString   *deviceTokenString = [[NSString alloc]initWithFormat:@"%@",deviceToken];
+    
+    if ([deviceTokenString length] >= 71) {
+        if ([deviceTokenString hasPrefix:@"<"] && [deviceTokenString hasSuffix:@">"]) {
+            deviceTokenString = [deviceTokenString substringFromIndex:1];
+            deviceTokenString = [deviceTokenString substringToIndex:[deviceTokenString length]-1];
+        }
+    }
+    
+    [[NSUserDefaults standardUserDefaults] setValue:deviceTokenString forKey:@"DeviceToken"];
+    Log(@"%@",deviceTokenString);
+}
+
+-(void)dealAppNotification:(NSDictionary* )apsDic
+{
+    
+    
+    //    /*
+    //     typedef enum {
+    //     /** FMPushAnnouncementStyle = 1, 公告推送类别*/
+    //    FMPushAnnouncementStyle = 1,
+    //    /** FMPushInteractiveStyle = 2, 互动推送类别*/
+    //    FMPushInteractiveStyle = 2,
+    //    /** FMPushViolationOfLawsStyle = 3, 违章提醒推送类别*/
+    //    FMPushViolationOfLawsStyle = 3,
+    //    /** FMPUshUsedCarResultStyle = 4, 二手车评估结果推送类别*/
+    //    FMPushUsedCarResultStyle = 4,
+    //    /** FMPushCarNumberReviewStyle = 5, 上传车牌审核结果推送类别*/
+    //    FMPushCarNumberReviewStyle = 5,
+    //    /** FMPushNewRadioActivityStyle = 6, 新电台活动推送类别*/
+    //    FMPushNewRadioActivityStyle = 6,
+    //    /** FMPushNewRadioActivityStyle = 7, 参与电台活动，并获得相应资格推送类别*/
+    //    FMPushParticipationActivityStyle = 7,
+    //}FMPushTypeStyle;
+    //
+    //     */
+    NSString *typeStr = [NSString stringWithFormat:@"%@",[apsDic objectForKey:@"type"]];
+    NSInteger type = [typeStr intValue];//类型 1:公告推送 2:互动推送 3:违章推送
+    NSString *identity = [NSString stringWithFormat:@"%@",[apsDic objectForKey:@"id"]];
+    
+//    FMTabBarController* tabControl = (FMTabBarController* )self.window.rootViewController;
+    MainTabViewController *tabControl = FMMainViewController;
+    
+    //公告推送类别
+    if (type == FMPushAnnouncementStyle) {//公告推送
+        [NSTimer scheduledTimerWithTimeInterval:1
+                                         target:self
+                                       selector:@selector(pushedToAnnouncementController:)
+                                       userInfo:identity repeats:NO];
+        
+    }
+    //互动推送类别
+    else if (type == FMPushInteractiveStyle){//互动推送
+        NSString *badgeStr = [NSString stringWithFormat:@"%@",[apsDic objectForKey:@"badge"]];
+        [[UIApplication sharedApplication] setApplicationIconBadgeNumber:[badgeStr integerValue]];
+        //触发问题通知
+        [[NSNotificationCenter defaultCenter] postNotificationName:FMInteractionNotification object:nil];
+        
+    }
+    //违章提醒推送类别
+    else if (type == FMPushViolationOfLawsStyle){//违章推送
+        NSString *msg = [NSString stringWithFormat:@"%@",[apsDic objectForKey:@"alert"]];//车牌号
+        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示" message:msg delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+        [alertView show];
+        [FMShareSetting setAppPushMePersonalViolationMsgInforBool:YES];
+        
+        [[NSNotificationCenter defaultCenter] postNotificationName:FMHomeModulePushNotification
+                                                            object:nil];
+    }
+    //二手车评估结果推送类别
+    else if (type == FMPushUsedCarResultStyle){
+        [FMShareSetting setAppPushExploreSecondCarResultInforBool:YES];
+    }
+    //上传车牌审核结果推送类别
+    else if (type == FMPushCarNumberReviewStyle){//数据库中没有车牌对应的发动机号 但用户上传驾驶证图片并通过审核
+        NSString *msg = [NSString stringWithFormat:@"%@",[apsDic objectForKey:@"alert"]];//车牌号
+        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示" message:msg delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+        [alertView show];
+    }
+    ///电台新活动设置
+    else if (type == FMPushNewRadioActivityStyle){
+        ///最新电台活动内容
+        NSInteger newactivityID = [identity intValue];
+        if (newactivityID > 0) {
+            [FMShareSetting setAppPushRadioActivityLatestIdentifier:newactivityID];
+        }
+        if (FMShareSetting.appPushRadioActivityBool == YES) {
+            [tabControl showHintPoint:0 showOrHide:YES];
+            [[NSNotificationCenter defaultCenter] postNotificationName:FMHomeModulePushNotification
+                                                                object:nil];
+        }else{
+            [tabControl showHintPoint:0 showOrHide:NO];
+        }
+    }
+    //参与电台活动
+    else if (type == FMPushParticipationActivityStyle){
+        NSString *badgeStr = [NSString stringWithFormat:@"%@",[apsDic objectForKey:@"badge"]];
+        [[UIApplication sharedApplication] setApplicationIconBadgeNumber:[badgeStr integerValue]];
+        //触发问题通知
+        [[NSNotificationCenter defaultCenter] postNotificationName:FMInteractionNotification object:nil];
+    }
+    /// 新增特约商户
+    else if (type == FMPushExploreSpecialBusinessStyle){
+        ///最新电台活动内容
+        NSInteger newactivityID = [identity intValue];
+        if (newactivityID > 0) {
+            [FMShareSetting setAppPushExploreSpecialBusinessLatestIdentifier:newactivityID];
+        }
+    }
+    else if (type == FMPushSysMessageStyle){
+        
+        [[NSNotificationCenter defaultCenter] postNotificationName:FMEnterForegroundNotificationn object:nil];
+        [tabControl showHintPoint:2 showOrHide:YES];
+    }
+}
+//进入公告页面
+- (void) pushedToAnnouncementController:(NSTimer *) timer
+{
+    NSString *urlString = [NSString stringWithFormat:@"%@Announce/detail/?id=%@&uid=%@&source=%@",kBaseAPIURL,timer.userInfo,[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ?@"":[CurrentUserInformation sharedCurrentUserInfo].userID,KProjectCityCodeString];
+    ShareWebViewController *webViewController = [[ShareWebViewController alloc] initWithWebURLString:urlString withTitle:@"详情" withStyle:InitModalWebStyle withImageInfor:nil withShareWebDataStyle:WebDataForAnnouncementStyle withDataInforID:timer.userInfo ];
+    [webViewController setIsNeedShareWebInfor:NO];
+    FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:webViewController];
+    [self.window.rootViewController presentModalViewController:navController animated:YES];
+}
+//获取到远程通知
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
+{
+    //Show(@"userInfo:%@",userInfo);
+    
+    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);//震动
+    
+    NSDictionary *pushDic = [[NSDictionary alloc] initWithDictionary:[userInfo objectForKey:@"aps"]];
+    [self dealAppNotification:pushDic];
+}
+
+/** 根据用户名和密码进行自动登录
+ 
+ *@return void
+ **/
+- (void)initWithUserAutoLogin{
+    LocalDataManagement *dataManagement = [[LocalDataManagement alloc] init];
+    if ([dataManagement getUserFileWithUserFileType:CYHUserLoginInfoFile]) {//用户登录文件存在
+        //用户登录字典
+        NSDictionary *userLoginDic = [[NSDictionary alloc] initWithDictionary:[dataManagement getUserFileWithUserFileType:CYHUserLoginInfoFile]];
+        NSString *userName = [NSString stringWithFormat:@"%@",[userLoginDic objectForKey:@"UserName"]];//用户名
+        NSString *password = [NSString stringWithFormat:@"%@",[userLoginDic objectForKey:@"Password"]];//密码
+        NSString *userCoordLatitude = [[NSString alloc]initWithFormat:@"%lf",[[CurrentUserInformation sharedCurrentUserInfo] userCoordinate].latitude];//当前用户的纬度
+        NSString *userCoordLongitude = [[NSString alloc]initWithFormat:@"%lf",[[CurrentUserInformation sharedCurrentUserInfo] userCoordinate].longitude];//当前用户的经度
+        ///设备唯一识别号
+        NSString    *openUDIDString = [[NSString alloc]initWithFormat:@"%@",[OpenUDID value]];
+        //获取用户TokenKey
+        NSString *deviceToken = [[NSString alloc] initWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] valueForKey:@"DeviceToken"]];
+        AFHTTPRequestOperation      *requestDataOperation = [FMHTTPClient getUserLoginInforWithUser:userName
+                                                                                   withUserPassword:password
+                                                                                   withUserLatitude:userCoordLatitude
+                                                                                  withUserLongitude:userCoordLongitude
+                                                                                    withDeviceToken:deviceToken
+                                                                               withUserdeviceNumber:openUDIDString
+                                                                               withUserLogin_client:2
+                                                                                         completion:^(WebAPIResponse *response){
+                                                                                             // Log(@"%@",response.responseObject);
+                                                                                             dispatch_async(dispatch_get_main_queue(), ^(void){
+                                                                                                 if(response.code == WebAPIResponseCodeSuccess){
+                                                                                                     //初始化登录信息
+                                                                                                     [CurrentUserInformation initializaionUserInformation:[response.responseObject objectForKey:@"data"]];
+                                                                                                     //保存登录信息 用户名 密码
+                                                                                                     [[NSNotificationCenter defaultCenter] postNotificationName:FMUserLoginNotification
+                                                                                                                                                         object:nil];//触发登录通知
+                                                                                                     
+                                                                                                     //初始化项目推送参数内容
+                                                                                                     [self initWithProgramPushInformaionWithFromAPI];
+                                                                                                 }
+                                                                                             });
+                                                                                         }];
+        Log(@"%@",requestDataOperation);
+    }
+    else{
+        //初始化项目推送参数内容
+        [self initWithProgramPushInformaionWithFromAPI];
+        
+    }
+}
+////根据设备类型获取广告图片内容
+- (void)initWithProgramAdvertisementInfor{
+    
+    NSInteger   number = HUIIsIPhone5() ? 1: 2;
+    AFHTTPRequestOperation      *requestDataOperation = [FMHTTPClient getProgramAdvertisementInforWithDeviceStyle:number withCompletion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            Log(@"data is %@",response.responseObject);
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                
+                if ([[response.responseObject objectForKey:kDataKeyData] isKindOfClass:[NSArray class]]) {
+                    NSArray *advertisementArray = [[NSArray alloc]initWithArray:[response.responseObject objectForKey:kDataKeyData]];
+                    
+                    if (advertisementArray.count > 0) {
+                        NSDictionary    *adDictionaryParam = [NSDictionary dictionaryWithDictionary:[advertisementArray objectAtIndex:0]];
+                        [FMShareSetting setAppDelegateAdvertisementIdentifier:[NSString stringWithFormat:@"%@StartAd/Detail?id=%@&source=%@",kBaseAPIURL, StringForKeyInUnserializedJSONDic(adDictionaryParam, kDataKeyId),KProjectCityCodeString]];
+                        if ([ObjForKeyInUnserializedJSONDic(adDictionaryParam, @"url") isKindOfClass:[NSArray class]]) {
+                            
+                            NSArray *imageArray = [NSArray arrayWithArray:ObjForKeyInUnserializedJSONDic(adDictionaryParam, @"url")];
+                            if (imageArray.count > 0) {
+                                NSDictionary    *imageDicionaryParam = [NSDictionary dictionaryWithDictionary:[imageArray objectAtIndex:0]];
+                                if (imageDicionaryParam.count > 0) {
+                                    
+                                    
+                                    [FMShareSetting setAppDelegateAdvertisementBool:YES];
+                                    //                                    ///设置图片大小
+                                    [FMShareSetting setAppDelegateAdvertisementImageURL:StringForKeyInUnserializedJSONDic(imageDicionaryParam, @"pic_url")];
+                                    
+                                }
+                            }
+                            
+                        }
+                    }
+                }
+            }
+        });
+    }];
+    
+    Log(@"%@",requestDataOperation);
+}
+#pragma mark --定位管理
+- (CLLocationManager *)mainLocationManager
+{
+    if (_mainLocationManager != nil)
+        return _mainLocationManager;
+    
+    _mainLocationManager = [[CLLocationManager alloc] init];
+    _mainLocationManager.delegate = self;
+    
+    if (HUISystemVersionAboveOrIs(kHUISystemVersion_8_0)) {
+        
+        [self.mainLocationManager requestAlwaysAuthorization];
+        //    [self.mainLocationManager requestWhenInUseAuthorization];
+    }
+    _mainLocationManager.desiredAccuracy = kCLLocationAccuracyBest;//精度设定
+    _mainLocationManager.distanceFilter = 70.0f;
+    
+    return _mainLocationManager;
+}
+-(void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status
+{
+    switch (status)
+    {
+        case kCLAuthorizationStatusNotDetermined:
+            if ([self.mainLocationManager respondsToSelector:@selector(requestAlwaysAuthorization)])
+            {
+                [self.mainLocationManager requestAlwaysAuthorization];
+            }
+            break;
+        default:
+            break;
+    }
+}
+- (AMapSearchAPI *)mapSearch
+{
+    if (_mapSearch != nil)
+        return _mapSearch;
+    _mapSearch = [[AMapSearchAPI alloc] initWithSearchKey:kMapKey Delegate:nil];
+    _mapSearch.delegate = self;
+    return _mapSearch;
+}
+#pragma mark -CLLocationManagerDelegate
+- (void) locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation{
+    if (signbit(newLocation.horizontalAccuracy)) {
+        return;
+    }
+    
+    if (ABS([newLocation.timestamp timeIntervalSinceNow]) > 3600) {
+        return;
+    }
+    
+    [manager stopUpdatingLocation];//停止定位
+    
+    //加偏操作
+    CLLocationCoordinate2D currentUserCoordinate2D = WGS84toGCJ(newLocation.coordinate);
+    [[CurrentUserInformation sharedCurrentUserInfo] setUserCoordinate:currentUserCoordinate2D];//设置当前用户经纬度
+    
+    
+    //逆地理编码
+    AMapReGeocodeSearchRequest *regeo = [[AMapReGeocodeSearchRequest alloc] init];
+    
+    regeo.location = [AMapGeoPoint locationWithLatitude:currentUserCoordinate2D.latitude
+                                              longitude:currentUserCoordinate2D.longitude];
+    regeo.requireExtension = YES;
+    
+    [self.mapSearch AMapReGoecodeSearch:regeo];
+    
+}
+
+#pragma mark -
+#pragma mark -MAReverseGeocoderDelegate
+- (void)onReGeocodeSearchDone:(AMapReGeocodeSearchRequest *)request response:(AMapReGeocodeSearchResponse *)response
+{
+    //获取道路信息
+    if (response.regeocode != nil) {
+        
+        NSString *roadName = nil;
+        NSString* locName = nil;
+        locName = response.regeocode.addressComponent.district;//区 如：历下区
+        if (response.regeocode.roads.count > 0) {
+            AMapRoad* revRoad = [response.regeocode.roads objectAtIndex:0];
+            locName = [NSString stringWithFormat:@"%@%@",locName,revRoad.name];
+            if (response.regeocode.roads.count > 1) {
+                AMapRoad* revRoad2 = [response.regeocode.roads objectAtIndex:1];
+                roadName = [NSString stringWithFormat:@"%@和%@交叉口",revRoad.name,revRoad2.name];
+            }else{
+                roadName = [NSString stringWithFormat:@"%@",revRoad.name];
+            }
+            
+        }
+        [[NSUserDefaults standardUserDefaults] setValue:locName forKey:@"FMUserLocationInfo"];
+        [[NSUserDefaults standardUserDefaults] setValue:roadName forKey:@"FMUserRoadInfo"];
+        
+        [[NSNotificationCenter defaultCenter] postNotificationName:FMLocationSuccessNotification
+                                                            object:nil];
+        
+    }else{
+        [[NSUserDefaults standardUserDefaults] setValue:nil forKey:@"FMUserLocationInfo"];
+    }
+}
+- (void) startLocationUpdate
+{
+    [self.mainLocationManager startUpdatingLocation];
+}
+
+///获取小红点参数内容
+- (void)initWithProgramPushInformaionWithFromAPI{
+    [FMHTTPClient getProgramRedHintPointInformationWithUserID:[CurrentUserInformation sharedCurrentUserInfo].userLoginState != 0?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"
+                                               withCompletion:^(WebAPIResponse *response) {
+                                                   dispatch_async(dispatch_get_main_queue(), ^(void){
+                                                       
+                                                       
+                                                       Log(@"data is %@",response.responseObject);
+                                                       if (response.code == WebAPIResponseCodeSuccess) {
+                                                           
+                                                           MainTabViewController *main = FMMainViewController;
+                                                           
+                                                           NSDictionary *paramDictionary = [NSDictionary dictionaryWithDictionary:ObjForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData)];
+                                                           
+                                                           if (paramDictionary.count > 0) {
+                                                               [FMLocalManager writeUserDataToFileWithDictionary:paramDictionary andUserDataType:FMAPPPushDataFile];
+                                                           }
+                                                           
+                                                           ///版本号内容
+                                                           CGFloat versionNumber = FloatForKeyInUnserializedJSONDic(paramDictionary, @"iPhoneVersion");
+                                                           if (versionNumber > 0) {
+                                                               [FMShareSetting setAppProgramiPhoneVersionNumber:versionNumber];
+                                                           }
+                                                           
+                                                           //判断用户是否登录，若登录则进行我的奖品及未读消息提示操作
+                                                           if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState != 0) {
+                                                               
+                                                               ///未读消息数目
+                                                               NSInteger    userUnReadMessage = IntForKeyInUnserializedJSONDic(paramDictionary, @"message");
+                                                               if (userUnReadMessage > 0) {
+                                                                   [main showHintPoint:1 showOrHide:YES];
+                                                                   ///更新本地Logo下标内容
+                                                                   [[UIApplication sharedApplication] setApplicationIconBadgeNumber:userUnReadMessage];
+                                                                   ///刷新本地互动内容_通知刷新界面
+                                                                   [[NSNotificationCenter defaultCenter] postNotificationName:FMPublishNewQuestionNotification object:nil];
+                                                               }
+                                                           }
+                                                           
+                                                           ///最新奖品列表内容
+                                                           NSInteger newPrizeID = IntForKeyInUnserializedJSONDic(paramDictionary, @"new_prize");
+                                                           if (newPrizeID > 0) {
+                                                               [FMShareSetting setAppPushPrizeListInforLatestIdentifier:newPrizeID];
+                                                           }
+                                                           if (FMShareSetting.appPushPrizeListInforBool == YES) {
+                                                               [main showHintPoint:0 showOrHide:YES];
+                                                               [[NSNotificationCenter defaultCenter] postNotificationName:FMHomeModulePushNotification
+                                                                                                                   object:nil];
+                                                           }else{
+                                                               [main showHintPoint:0 showOrHide:NO];
+                                                           }
+                                                           
+                                                           ///最新电台活动内容
+                                                           NSInteger newactivityID = IntForKeyInUnserializedJSONDic(paramDictionary, @"activity");
+                                                           if (newactivityID > 0) {
+                                                               [FMShareSetting setAppPushRadioActivityLatestIdentifier:newactivityID];
+                                                           }
+                                                           if (FMShareSetting.appPushRadioActivityBool == YES) {
+                                                               [main showHintPoint:0 showOrHide:YES];
+                                                               [[NSNotificationCenter defaultCenter] postNotificationName:FMHomeModulePushNotification
+                                                                                                                   object:nil];
+                                                           }else{
+                                                               [main showHintPoint:0 showOrHide:NO];
+                                                           }
+                                                           
+                                                           ///最新电台公告
+                                                           NSInteger    newAnnounceID = IntForKeyInUnserializedJSONDic(paramDictionary, @"announce");
+                                                           if (newAnnounceID > 0) {
+                                                               [FMShareSetting setAppPushRadioAnnouncementLatestIdentifier:newAnnounceID];
+                                                           }
+                                                           
+                                                           ///特约商户内容
+                                                           NSInteger specialBusinessID =  IntForKeyInUnserializedJSONDic(paramDictionary, @"business");
+                                                           if (specialBusinessID > 0) {
+                                                               [FMShareSetting setAppPushExploreSpecialBusinessLatestIdentifier:specialBusinessID];
+                                                           }
+                                                       }
+                                                   });
+                                               }];
+}
+
+
+- (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url{
+    if (url != nil && [[url host] compare:@"safepay"] == 0) {
+    }
+    
+    
+    return YES;
+}
+
+- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation{
+    //如果极简SDK不可用，会跳转支付宝钱包进行支付，需要将支付宝钱包的支付结果回传给SDK
+    if ([url.host isEqualToString:@"safepay"]) {
+        [[AlipaySDK defaultService] processOderWithPaymentResult:url standbyCallback:^(NSDictionary *resultDic) {
+            Log(@"-----fffresult = %@",resultDic);
+            
+            if([[resultDic objectForKey:@"resultStatus"] isEqualToString:@"9000"]){
+                [[NSNotificationCenter defaultCenter] postNotificationName:FMAliPayOperationNotification
+                                                                    object:nil];
+            }
+        }];
+    }
+    if ([url.host isEqualToString:@"platformapi"]){//支付宝钱包快登授权返回authCode
+        [[AlipaySDK defaultService] processAuthResult:url standbyCallback:^(NSDictionary *resultDic) {
+            Log(@"result fffffffff= %@",resultDic);
+            if([[resultDic objectForKey:@"resultStatus"] isEqualToString:@"9000"]){
+                [[NSNotificationCenter defaultCenter] postNotificationName:FMAliPayOperationNotification
+                                                                    object:nil];
+            }
+        }];
+    }
+    
+    if ([sourceApplication isEqualToString:@"com.tencent.xin"]) {
+        return [WXApi handleOpenURL:url delegate:self];
+    }
+    return YES;
+    
+}
+
+- (void)onResp:(BaseResp *)resp
+{
+    Log(@"%@",resp);
+    Log(@" resp.errCode is %dd\n resp.errStris %@ \nresp.type is %d \n",resp.errCode,resp.errStr,resp.type)
+    if ([resp isKindOfClass:[PayResp class]]) {
+        
+        if (resp.errCode == 0) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:FMAliPayOperationNotification
+                                                                object:nil];
+        }
+    }
+}
+
+@end

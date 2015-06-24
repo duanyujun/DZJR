@@ -1,0 +1,26 @@
+//
+//  PushInformaionSetting.h
+//  fmapp
+//
+//  Created by 张利广 on 14-7-10.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+
+@protocol PushSettingDelegate <NSObject>
+
+- (void)initWithTheServerPushInforManagerFor:(NSMutableDictionary *)m_pushInforDictionary;
+
+@end
+
+/** 单例设计推送请求设置，并将请求结果反馈到使用界面
+ *@See 程序每次唤醒到当前使用状态就启动一次该界面
+ **/
+@interface PushInformaionSetting : NSObject
+
+/** 初始化项目推送参数内容**/
++(void)initWithProgramPushInformaionWithFromAPI;
+
+@end

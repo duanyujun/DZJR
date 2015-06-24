@@ -1,0 +1,78 @@
+//
+//  HTTPClient+Interaction.h
+//  FM_CZFW
+//
+//  Created by liyuhui on 14-4-14.
+//  Copyright (c) 2014年 ETelecom. All rights reserved.
+//
+
+#import "HTTPClient.h"
+#import <MapKit/MapKit.h>
+#import "RoadConditionInfo.h"
+#import "WelfareMerchantInfor.h"
+
+/** 路况模块数据内容信息
+ 
+ *
+ *
+ **/
+@interface HTTPClient (RoadCondition)
+
+//获取周边路况信息
+- (AFHTTPRequestOperation *)getRoadConditionAround:(CLLocationCoordinate2D)location
+                                        completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取地理提示信息
+- (AFHTTPRequestOperation *)getGeoInfoTips:(NSString* )keyWord
+                                completion:(WebAPIRequestCompletionBlock)completion;
+
+//发布路况信息
+- (AFHTTPRequestOperation *)publishRoadCondition:(RoadConditionInfo* )roadConditionInfo
+                                       shareType:(NSInteger)shareType
+                                      completion:(WebAPIRequestCompletionBlock)completion;
+/** 获取周边路况内容
+ 
+ *location 当前经纬度
+ **/
+- (AFHTTPRequestOperation *)getRoadConditionForAudioInforLocationCoordinate:(CLLocationCoordinate2D)location
+                                                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 用户删除自己上报的路况内容
+ 
+ *@param roadID 路况ID
+ *@param userID 用户ID
+ */
+
+- (AFHTTPRequestOperation *)userOperationDeleteRoadConditionItemInforForRoadId:(NSString *)roadID
+                                                                    withUserId:(NSString *)userID
+                                                                withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 根据双经纬获取周边路况内容
+ 
+ *@param leftLocation 左上角经纬度
+ *@param rightLocation 右下角经纬度
+ **/
+- (AFHTTPRequestOperation *)getRoadConditionInforForDoubleLocationCoordinateWithLeftLocationCoordinate:(CLLocationCoordinate2D)leftLocation
+                                                                           withRightLocationCoordinate:(CLLocationCoordinate2D)rightLocation
+                                                                                        withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取路况主界面**/
+- (AFHTTPRequestOperation *)getRoadMainControllerBusinessInformationDataWithcompletion:(WebAPIRequestCompletionBlock)completion;
+/** 提交购买订单内容
+ 
+ *@See 实现客户端与自己服务器进行交互处理
+ */
+- (AFHTTPRequestOperation *)getTransactionParameterToServiceForPayBusinessWithParam:(WelfareMerchantInfor *)businessParameter withcompletion:(WebAPIRequestCompletionBlock)completion;
+
+- (AFHTTPRequestOperation *)userPaySuccessWithAlipayResponseData:(NSString *)responseStr
+                                                  purchaseAmount:(NSString *)number
+                                                          userId:(NSString *)userId
+                                                 withTradeNumber:(NSString *)tradeNumber
+                                                      completion:(WebAPIRequestCompletionBlock)completion;
+/** 获取微信支付参数内容
+ 
+ *@See 根据城市ID获取微信支付参数内容
+ **/
+- (AFHTTPRequestOperation *)getWeiXinChatParamForPayWithCompletion:(WebAPIRequestCompletionBlock)completion;
+
+@end

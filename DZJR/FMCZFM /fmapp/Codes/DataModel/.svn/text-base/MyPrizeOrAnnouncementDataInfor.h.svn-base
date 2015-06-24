@@ -1,0 +1,128 @@
+//
+//  MyPrizeOrAnnouncementDataInfor.h
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "UserInfo.h"
+
+/** 我的奖品或者电台公告数据内容****/
+@interface MyPrizeOrAnnouncementDataInfor : NSObject
+///评论者的信息
+@property (nonatomic , strong) UserInfo     *commentUserInfor;
+
+
+
+/*!
+ *@breif 用户个人GUID
+ */
+@property (nonatomic , copy)NSString        *dataForUserID;
+
+/*!
+ *@breif 数据信息ID
+ */
+@property (nonatomic , copy)NSString        *dataSelfDataID;
+
+@property (nonatomic , assign)NSInteger      SelfDataID;
+
+
+/*!
+ *@breif 数据信息标题
+ */
+@property (nonatomic , copy)NSString        *dataTitleContentInfor;
+
+/*!
+ *@breif 数据副标题内容
+ **/
+@property (nonatomic , copy)NSString        *dataSubtitleContentInfor;
+/*!
+ *@breif 数据信息发生时间
+ */
+@property (nonatomic , copy)NSString        *dataCreateDateInfor;
+
+/*!
+ *@breif 数据信息对应的图片地址
+ */
+@property (nonatomic , copy)NSString        *dataForItsImageURL;
+
+/*!
+ *@breif WevView地址
+ */
+@property (nonatomic , copy)NSString        *dataURL;
+
+@property (nonatomic,copy)NSString         *dataShareUrl;
+
+
+/*!
+ *@breif 数据状态信息
+ *@See 若为其他的则为数据状态，若为奖品则为奖品剩余份数内容
+ */
+@property (nonatomic , copy)NSString        *dataForStateStyle;
+
+/*!
+ *@breif 电台活动预参加人数及单位
+ *@See 参加活动时为参加的总人数和单位 若为奖品时，表示总份数
+ */
+@property (nonatomic , copy)NSString        *dataForJoinNumberOrUnit;
+
+@property (nonatomic , assign)NSInteger      stop_sign;
+
+///消费状态
+@property (nonatomic,assign) NSInteger       status;
+
+@property (nonatomic,copy)NSString          *card_no;
+/*!
+ *@brief 奖品需要的金币数量
+ **/
+@property (nonatomic , copy)NSString        *dataForShakePirzeGoldCoinCount;
+
+/** 序列化电台公告Item内容
+ 
+ *@param (NSDictionary *)dicInfor 单条数据内容
+ *@param id 返回数据实例对象
+ **/
++(id)initAnnouncementWithInforWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+/** 序列化用户奖品数据Item内容
+ 
+ *@param (NSDictionary *)dicInfor 单条数据内容
+ *@param id 返回数据实例对象
+ **/
++(id)initWithMyPrizeInforithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+/** 序列化电台活动数据Item实例对象
+ 
+ *@param (NSDictionary *)dicInfor 单条数据内容
+ *@param id 返回数据实例对象
+ **/
++(id)initWithBroadcastinStationActivityUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+/** 序列化摇一摇奖品列表内容
+ 
+ *@param (NSDictionary *)dicInfor 单条数据内容
+ *@param id 返回数据实例对象
+ **/
++ (id)initWithUserShakeAndShakePrizeListInformationForItemUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+/** 序列化交通资讯列表内容
+ *@param (NSDictionary *)dicInfor 单条数据内容
+ *@param id 返回数据实例对象
+ **/
+
++(id)initWithTransportInformationUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+
+/** 序列化消费券列表内容
+ *@param (NSDictionary *)dicInfor 单条数据内容
+ *@param id 返回数据实例对象
+ **/
+
+-(id)initWithCustomTicketUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+
+
+
+@end

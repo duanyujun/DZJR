@@ -1,0 +1,42 @@
+//
+//  RoadConditionInfo.h
+//  FM_CheZhuFuWu
+//
+//  Created by Ma Yiming on 13-5-27.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import <CoreLocation/CoreLocation.h>
+#import "UserInfo.h"
+#import "FMImageView.h"
+
+@interface RoadConditionInfo : NSObject
+
+@property (nonatomic,copy) NSString *roadConditionID;
+@property (nonatomic,copy) NSString *roadConditionContent;          //路况内容
+@property (nonatomic,copy) NSArray  *images;                        //图片信息FMImage
+@property (nonatomic,assign) NSUInteger roadConditionType;          //路况类型 （1:拥堵、2:缓慢、3:畅行、4:曝光）
+@property (nonatomic,assign) CLLocationCoordinate2D roadConditionCoordinate;//路况经纬度
+@property (nonatomic,strong) UserInfo *reportUserInfo;              //上报者信息
+@property (nonatomic,copy) NSString *reportTime;                    //上报时间
+@property (nonatomic , assign)NSInteger roadDirectionStyle;         //方向内容
+@property (nonatomic,strong)NSData              *amrData;
+@property (nonatomic,assign)NSInteger           amrLength;     //语音长度(单位s)
+@property (nonatomic,copy)NSURL                 *amrURL;
+
+///用户上报的语音路况KEY值
+@property (nonatomic , copy)NSString  *roadContentWithAudio;
+
+/*!
+ *@brief 设置带属性的数据内容
+ **/
+@property (nonatomic,strong) NSAttributedString *attributedRoadConditionContent;
+
+//反序列化路况信息
++ (id)roadConditionWithUnserializedJSONDic:(NSDictionary *)dic;
+
+////生成发布路况参数表
+- (NSDictionary *)generateRoadConditionJSONDic;
+
+@end

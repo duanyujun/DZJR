@@ -1,0 +1,53 @@
+//
+//  FMAudioManager.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+@interface AMRInfo : NSObject
+@property (nonatomic,strong)NSData              *amrData;
+@property (nonatomic,assign)NSInteger           amrLength;     //语音长度(单位s)
+@property (nonatomic,copy)NSURL                 *amrURL;
+@end
+
+@protocol FMAudioManagerDelegate <NSObject>
+@optional
+
+
+/** 语音播放事件触发
+
+ *@param status (0 播放 1 播放完成 2出错)
+ *@Warning 注意：此事件并不是在主线程触发，请注意多线程处理
+ **/
+- (void)audioPlayStatus:(NSInteger)status ;
+@end
+
+@interface FMAudioManager : NSObject
+
+@property (nonatomic,weak) id<FMAudioManagerDelegate> delegate;
+@property (nonatomic,assign) NSInteger tag;
+
+//播放远程语音，url返回AMR数据
+-(void) playURL:(NSString* ) url;
+
+//播放内存中AMR数据
+-(void) playAMR:(AMRInfo*) amrInfo;
+
+//停止播放
+-(void) stopPlay;
+
+//结束录音，返回AMR格式数据
+- (AMRInfo *) stopRecord ;
+
+//开始录音
+- (void) startRecord;
+
+//返回录音时麦克风音量百分比0.0-1.0
+- (CGFloat)getRecordMeters;
+
+
+
+@end

@@ -1,0 +1,43 @@
+//
+//  SystemMessageInforObject.h
+//  fmapp
+//
+//  Created by 张利广 on 14-10-14.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+typedef NS_ENUM(NSInteger, SystemMessageStyle){
+    SystemMsgForSharkWinningStyle = 1,  /**< 摇一摇获奖通知*/
+    SystemMsgForActivitySelected,       /**< 活动选中通知*/
+    SystemMsgForPayStyle ,              /**< 购买成功通知*/
+    SystemMsgForConsumeStyle,           /**< 消费验证通知*/
+    SystemMsgForUserRefundStyle,        /**< 用户退款操作通知*/
+};
+
+/** 消息通知数据模型*/
+@interface SystemMessageInforObject : NSObject
+
+///系统消息ID
+@property (nonatomic , copy) NSString           *systemMsgId;
+///系统消息类别副标题
+@property (nonatomic , copy) NSString           *systemMsgStyleSubtitleString;
+///系统消息类别标题
+@property (nonatomic , copy) NSString           *systemMsgStyleTitleString;
+///系统消息项目名或者活动主题或摇一摇奖品内容
+@property (nonatomic , copy) NSString           *systemMsgProjectNameContent;
+///系统消息商家劵号编码
+@property (nonatomic , copy) NSString           *systemMsgVoucherNumberString;
+///系统消息验证者或者截止日期
+@property (nonatomic , copy) NSString           *systemMsgVerificationOrEffectiveDate;
+///消息发送或者产生时间
+@property (nonatomic , copy) NSString           *systemMsgCreateDateString;
+///消息发送或者产生时间
+@property (nonatomic , copy) NSString           *systemActivityId;
+
+///系统消息类别
+@property (nonatomic , assign) SystemMessageStyle systemMsgInforStyle;
+
++(id)initSystemMessageItemInformationWithUnserializedJSONDic:(NSDictionary *)dictionary;
+@end

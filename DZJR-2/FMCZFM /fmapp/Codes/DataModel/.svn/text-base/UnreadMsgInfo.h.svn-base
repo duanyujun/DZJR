@@ -1,0 +1,32 @@
+//
+//  UnreadMsgInfo.h
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-12-23.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "UserInfo.h"
+
+@interface UnreadMsgInfo : NSObject
+
+@property (nonatomic,copy)   NSString *identity;                    //ID
+@property (nonatomic,strong) UserInfo *publishUserInfo;             //发布者
+@property (nonatomic,copy) NSString *content;                       //发布内容
+@property (nonatomic,copy) NSAttributedString *attributedContent;   //发布内容
+@property (nonatomic,copy) NSString *questionID;                    //问题ID
+@property (nonatomic,copy) NSString *createTime;                    //创建时间
+@property (nonatomic,copy) NSString *commentedContent;              //被回复的内容
+@property (nonatomic,copy) NSAttributedString *attributedCommentedContent;//被回复的内容
+@property (nonatomic,copy) NSString *atUserName;                    //被回复用户名
+@property (nonatomic,assign) NSInteger is_publicInfor;
+
+//反序列化未读信息
++ (id)unreadMsgWithUnserializedJSONDic:(NSDictionary *)dic;
+
+#pragma mark - 获取高度
+- (GLfloat)getContentHeight:(GLfloat)containerWidth;
+- (GLfloat)getCommentHeight:(GLfloat)containerWidth;
+
+@end

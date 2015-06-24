@@ -1,0 +1,30 @@
+//
+//  FriendCircleModel.h
+//  fmapp
+//
+//  Created by 张利广 on 14-11-1.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface FriendCircleModel : NSObject
+///朋友圈ID
+@property (nonatomic , copy)        NSString        *friendCirId;
+///朋友圈名字
+@property (nonatomic , copy)        NSString        *friendCirName;
+///朋友圈创建者ID
+@property (nonatomic , copy)        NSString        *friendCirCreateUserId;
+///朋友圈创建者名字
+@property (nonatomic , copy)        NSString        *friendCirCreateUserName;
+///朋友圈当前总人数
+@property (nonatomic , assign)      NSInteger       friendCirCurrentUsersCount;
+///朋友圈当前话题内容
+@property (nonatomic , copy)        NSString        *friendCirCurrentThemeContent;
+
++(id)initWithFriendCircleModelWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+- (NSMutableDictionary *)getUserCreateFriendCircleParamInfor;
+@end
+
+

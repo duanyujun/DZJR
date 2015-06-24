@@ -1,0 +1,50 @@
+//
+//  SearchOrCityOrInformationTableViewCell.h
+//  fmapp
+//
+//  Created by 张利广 on 14-6-11.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+
+#define KHeightWithCellForSpacing 12.0f     ///单元格之间的间隙
+#define KHeightWithDeleteButton 30.0f       ///删除按键的高度
+#import <UIKit/UIKit.h>
+#import "SearchAndReceiveDataInfor.h"
+typedef enum {
+    ButtonForCallPhoneStyle = 1,            /**< 拨打电话操作*/
+    ButtonForDeleteOperationStyle = 2,      /**< 删除当前信息内容*/
+}ButtonOperationTypeStyle;
+typedef enum {
+    InitWithSearchStyle = 1,                /**< 找到了Cell*/
+    InitWithCityFreeStyle = 2,              /**< 顺风车Cell*/
+    InitWithInformationStyle = 3,           /**< 信息网Cell*/
+}InitWithTableViewCellStyle;
+
+@protocol UserSelectedDelegate <NSObject>
+
+/** 用户在单个Cell操作协议设置
+ 
+ *@para (ButtonOperationTypeStyle)m_ButtonStyle 操作类别设置
+ *@para (NSIndexPath *)m_IndexPath 操作Cell内容定位
+ @return void
+ ***/
+- (void)initWithUserOperationButtonTypeStyle:(ButtonOperationTypeStyle)m_ButtonStyle withIndexPath:(NSIndexPath *)m_IndexPath;
+
+@end
+@interface SearchOrCityOrInformationTableViewCell : UITableViewCell
+@property (nonatomic , assign) id<UserSelectedDelegate>         userSelectedCellDelegate;
+@property (nonatomic , strong) NSIndexPath                      *selectedCellIndexPath;
+
+/** 初始化单个单元格信息，及显示方式
+ 
+ *
+ *@param (SearchAndReceiveDataInfor *)m_itemDataInfor 数据信息
+ *@param (InitWithTableViewCellStyle)m_Style 数据排版形式
+ *@return void
+ **/
+- (void)initWithTableViewCellDataInformation:(SearchAndReceiveDataInfor *)m_itemDataInfor
+                           withInitCellStyle:(InitWithTableViewCellStyle)m_Style withDataStyle:(NSInteger)m_dataStyle;
+
+//- (void)initWithTableViewCellData
+@end

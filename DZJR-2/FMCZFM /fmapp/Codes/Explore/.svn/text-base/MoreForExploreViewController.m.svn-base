@@ -1,0 +1,632 @@
+//
+//  MoreForExploreViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-6-9.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+
+#define KSizeWidthLike (KProjectScreenWidth-1)/3                     //横线的位置
+#define KButtonBaseParamTag 1190111                 //各个按键的Tag基数
+
+#define KSecondHandCarResultImageViewTag    193153 //推送的二手车苹果结果内容
+#import "MoreForExploreViewController.h"
+#import "SearchAndReceiveViewController.h"
+#import "DisclaimerStatementController.h"
+#import "RadioPlayerInforViewController.h"
+#import "MultipleBreakRulesMainView.h"
+#import "CityFreeRideMainListView.h"
+#import "CurrentUserInformation.h"
+#import "AnnualSurveyViewController.h"
+#import "ShareWebViewController.h"
+#import "UsedCarMainController.h"
+#import "InsteadOfDrivingView.h"
+#import "RadioPlayController.h"
+#import "LoginController.h"
+#import "FMSettings.h"
+#import "InformationNetWorkViewController.h"
+#import "QuickDealWithAccidentController.h"
+#import "LuckUserGetCodewordsViewController.h"
+#import "NearbyMerchantList.h"
+#import "RadioPlayerInforViewController.h"
+
+
+@interface MoreForExploreViewController ()
+
+
+/** 初始化界面布局内容
+ 
+ *@param return void
+ **/
+- (void)initWithMoreForExploreViewFrame;
+
+/** 初始化用户界面操作方法
+ 
+ *@param return void
+ **/
+- (void)initWithUserButtonOprationEvent:(id)sender;
+
+/** 初始化按键内容**/
+- (void)initWithButton:(CGRect)buttonCGRect
+           withContent:(NSString *)titlConetn
+               withTag:(NSInteger)buttonTag
+         withImageName:(NSString *)imageName
+          withBaseView:(UIView *)baseView;
+
+- (void)initWithUserSecondHandCarResultNotification:(NSNotification *)notification;
+///重新设置了吗？
+@end
+
+@implementation MoreForExploreViewController
+
+-(id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+
+- (void)viewDidLoad
+{
+    [self settingNavTitle:@"更多"];
+    [self initWithMoreForExploreViewFrame];
+    [super viewDidLoad];
+//	// Do any additional setup after loading the view.
+//    [[NSNotificationCenter defaultCenter] addObserver:self
+//                                             selector:@selector(initWithUserSecondHandCarResultNotification:)
+//                                                 name:FMUserSecondHandCarResultNotification
+//                                               object:nil];
+}
+
+
+- (void)viewWillAppear:(BOOL)animated{
+    
+    
+    UIButton    *secondhandCarButon = (UIButton *)[self.view viewWithTag: KButtonBaseParamTag + 3];
+    UIImageView *secondHandCarImageView = (UIImageView *)[secondhandCarButon viewWithTag:KSecondHandCarResultImageViewTag];
+    if (FMShareSetting.appPushExploreSecondCarResultInforBool == YES) {
+        if (!secondHandCarImageView) {
+            secondHandCarImageView = [[UIImageView alloc]init];
+            [secondHandCarImageView setFrame:CGRectMake(107 - 25, 15, 9.0f, 9.0f)];
+            [secondHandCarImageView setTag:KSecondHandCarResultImageViewTag];
+            [secondHandCarImageView setImage:kImgHintPointImage];
+            [secondhandCarButon addSubview:secondHandCarImageView];
+        }
+    }else {
+        [secondHandCarImageView setHidden:YES];
+    }
+}
+- (void)viewDidUnload{
+
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+#pragma mark - 初始化界面布局内容
+- (void) initWithMoreForExploreViewFrame{
+    
+    //滚动视图
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:
+                                    CGRectMake(0.0f, 0.0f, KProjectScreenWidth,
+                                               416+(HUIIsIPhone5() ? 88.0f:0.0f))];
+    mainScrollView.backgroundColor = KDefaultOrNightScrollViewColor;
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    mainScrollView.contentSize = CGSizeMake(KProjectScreenWidth,416+(HUIIsIPhone5() ? 100:20));
+    
+    ///白色背景
+    UIView  *backGroundWhiteView = [[UIView alloc]initWithFrame:
+                                    CGRectMake(0.0f, 0.0f,
+                                               KProjectScreenWidth, 107*2+0.5f)];
+    //[backGroundWhiteView setBackgroundColor:[UIColor whiteColor]];
+    [backGroundWhiteView setBackgroundColor:KDefaultOrNightBackGroundColor];
+    [backGroundWhiteView.layer setBorderWidth:0.5f];
+    [backGroundWhiteView.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+    
+    /** 四条分割线**/
+    UIView  *seperatorVerticalFrist = [[UIView alloc]initWithFrame:
+                                       CGRectMake(KSizeWidthLike, 0.0f, 0.5,
+                                                  backGroundWhiteView.frame.size.height)];
+    [seperatorVerticalFrist setBackgroundColor:KDefaultOrNightSepratorColor];
+    [backGroundWhiteView addSubview:seperatorVerticalFrist];
+    UIView  *seperatorVerticalSecond = [[UIView alloc]initWithFrame:
+                                        CGRectMake(KSizeWidthLike*2+0.5, 0.0f, 0.5,
+                                                   backGroundWhiteView.frame.size.height)];
+    [seperatorVerticalSecond setBackgroundColor:KDefaultOrNightSepratorColor];
+    [backGroundWhiteView addSubview:seperatorVerticalSecond];
+    
+    
+    UIView  *seperatorHorizontalFrist = [[UIView alloc]initWithFrame:
+                                         CGRectMake(0.0, 107,
+                                                    backGroundWhiteView.frame.size.width,
+                                                    0.5)];
+    [seperatorHorizontalFrist setBackgroundColor:KDefaultOrNightSepratorColor];
+    [backGroundWhiteView addSubview:seperatorHorizontalFrist];
+    
+    NSArray *contentArray=[[NSArray alloc]init];
+    NSArray *contentImageArray=[[NSArray alloc]init];
+#if defined (WF)
+    contentArray = @[@"959找到了", @"都市顺风车",
+                              @"959信息网", @"二手车评估",];
+    
+    contentImageArray=@[@"More_SearchImage.png",@"More_CityFreeRide.png",
+                                 @"More_Information.png",@"More_UsedCar.png",];
+    
+#endif
+#if defined (NN)||(WH)||(LY)||(CS)
+
+    contentArray = @[@"电台直播",@"都市顺风车",
+                                 @"二手车评估",@"代驾",
+                              @"年检代办"];
+    
+    contentImageArray=@[@"More_RadioImage.png",@"More_CityFreeRide.png"
+                                 ,@"More_UsedCar.png",@"More_InsteadOfDriving.png",
+                                 @"More_ MultipleImage.png"];
+ #endif
+  //石家庄
+#if defined (SJC)
+    
+    contentArray = @[@"946找到啦",@"都市顺风车",
+                              @"946信息网",@"淘淘二手车",@"代驾",
+                              @"946幸运星",];
+    
+    contentImageArray=@[@"More_SearchImage.png",@"More_CityFreeRide.png",
+                                 @"More_Information.png",@"More_UsedCar.png",
+                                 @"More_InsteadOfDriving.png",@"More_LuckyStar.png",];
+
+#endif
+    
+#if defined (JN)
+    contentArray = @[@"电台直播",@"都市顺风车",
+                              @"违章多发",@"二手车评估",@"代驾",
+                              @"年检代办",];
+    
+    contentImageArray=@[@"More_RadioImage.png",@"More_CityFreeRide.png",
+                                 @"More_Commission.png",@"More_UsedCar.png",@"More_InsteadOfDriving.png",
+                                 @"More_ MultipleImage.png",];
+#endif
+#if defined (YT)
+    contentArray = @[@"电台直播",@"103找到了",@"都市顺风车",
+                              @"二手车评估",@"特约商户",];
+    
+    contentImageArray=@[@"More_RadioImage.png",@"More_SearchImage.png",
+                                 @"More_CityFreeRide.png",@"More_UsedCar.png",
+                                 @"More_NearbyShop.png",];
+#endif
+    NSInteger indeKey = 0;
+    ///竖着三个
+    for (int horIndex = 0; horIndex < 2; horIndex ++) {
+        ///横着三个
+        for (int verInde = 0; verInde < 3; verInde ++) {
+            if(indeKey==contentArray.count)
+            {
+                break;
+            }
+            ///做异常处理
+            if (indeKey < contentArray.count) {
+                [self initWithButton:CGRectMake(KSizeWidthLike*verInde+0.5*verInde, 107*horIndex+0.5*horIndex, KSizeWidthLike, 107)
+                         withContent:[contentArray objectAtIndex:indeKey]
+                             withTag:KButtonBaseParamTag + indeKey
+                       withImageName:[contentImageArray objectAtIndex:indeKey]
+                        withBaseView:backGroundWhiteView];
+            }
+            indeKey+= 1;
+        }
+    }
+//    [backGroundWhiteView addSubview:seperatorHorizontalSecond];
+    [mainScrollView addSubview:backGroundWhiteView];
+    
+    
+    [self.view addSubview:mainScrollView];
+    
+}
+#pragma mark - 烟台初始化用户界面操作方法
+- (void) initWithYTUserButtonOprationEvent:(id)sender {
+    
+    UIButton *operationButton = (UIButton *)sender;
+    ///电台直播
+    if (operationButton.tag == KButtonBaseParamTag) {
+        RadioPlayController *radioPlayController = [[RadioPlayController alloc]init];
+        [self presentModalViewController:radioPlayController animated:YES];
+    }
+    ///103找到啦
+    if (operationButton.tag == KButtonBaseParamTag + 1) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            
+            SearchAndReceiveViewController *searchReceiveView = [[SearchAndReceiveViewController alloc]init];
+            [searchReceiveView setHidesBottomBarWhenPushed:YES];
+            [self.navigationController pushViewController:searchReceiveView animated:YES];
+        }
+    }
+    ///都市顺风车
+    if (operationButton.tag == KButtonBaseParamTag + 2) {
+        if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DisclaimerDeclaration"]) {
+            
+            //免责协议控制器
+            DisclaimerStatementController *viewController = [[DisclaimerStatementController alloc]init];
+            viewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }else {
+            CityFreeRideMainListView *mainListView = [[CityFreeRideMainListView alloc]init];
+            mainListView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:mainListView animated:YES];
+        }
+    }
+    
+    ///二手车评估
+    if (operationButton.tag == KButtonBaseParamTag + 3) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            UsedCarMainController *usedCarViewContrller = [[UsedCarMainController alloc]init];
+            usedCarViewContrller.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:usedCarViewContrller animated:YES];
+        }
+        
+    }
+    ///特约商户
+    if (operationButton.tag == KButtonBaseParamTag + 4) {
+        NearbyMerchantList *viewController = [[NearbyMerchantList alloc]init];
+        viewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+    
+}
+
+#pragma mark - 济南初始化用户界面操作方法
+- (void) initWithJNUserButtonOprationEvent:(id)sender {
+    
+    UIButton *operationButton = (UIButton *)sender;
+    ///电台直播
+    if (operationButton.tag == KButtonBaseParamTag) {
+        RadioPlayController *radioPlayController = [[RadioPlayController alloc]init];
+        [self presentModalViewController:radioPlayController animated:YES];
+    }
+    ///都市顺风车
+    if (operationButton.tag == KButtonBaseParamTag + 1) {
+        if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DisclaimerDeclaration"]) {
+            
+            //免责协议控制器
+            DisclaimerStatementController *viewController = [[DisclaimerStatementController alloc]init];
+            viewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }else {
+            CityFreeRideMainListView *mainListView = [[CityFreeRideMainListView alloc]init];
+            mainListView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:mainListView animated:YES];
+        }
+    }
+    ///违章多发
+    if (operationButton.tag == KButtonBaseParamTag + 2) {
+        MultipleBreakRulesMainView  *rulesMainView = [[MultipleBreakRulesMainView alloc]init];
+        [rulesMainView setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:rulesMainView animated:YES];
+    }
+    ///二手车评估
+    if (operationButton.tag == KButtonBaseParamTag + 3) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            UsedCarMainController *usedCarViewContrller = [[UsedCarMainController alloc]init];
+            usedCarViewContrller.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:usedCarViewContrller animated:YES];
+        }
+        
+    }
+    ///代驾
+    if (operationButton.tag == KButtonBaseParamTag + 4) {
+        InsteadOfDrivingView *instreadView = [[InsteadOfDrivingView alloc]init];
+        instreadView.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:instreadView animated:YES];
+    }
+    ///年检代办
+    if (operationButton.tag == KButtonBaseParamTag + 5) {
+        
+        UIImage *imageInfor = [UIImage imageNamed:@"FMCZFWLogoImage.png"];
+        ShareWebViewController *shareWebView = [[ShareWebViewController alloc]initWithWebURLString:[NSString stringWithFormat:@"%@Driver/AnnualCheckDetail?source=%@",kBaseAPIURL,KProjectCityCodeString] withTitle:@"年检代办" withStyle:InitNavigationWebStyle withImageInfor:imageInfor withShareWebDataStyle:WebDataForAnnualCheckStyle withDataInforID:@""];
+        //        [shareWebView setIsNeedShareWebInfor:NO];
+        [self.navigationController pushViewController:shareWebView animated:YES];
+    }
+}
+
+
+#pragma mark - 南宁初始化用户界面操作方法
+- (void) initWithUserButtonOprationEvent:(id)sender {
+    
+    UIButton *operationButton = (UIButton *)sender;
+    ///电台直播
+    if (operationButton.tag == KButtonBaseParamTag) {
+        if ([KProjectCityCodeString isEqualToString:@"420100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"371300"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+
+        RadioPlayController *radioPlayController = [[RadioPlayController alloc]init];
+        [self presentModalViewController:radioPlayController animated:YES];
+    }
+    ///都市顺风车
+    if (operationButton.tag == KButtonBaseParamTag + 1) {
+        if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DisclaimerDeclaration"]) {
+            
+            //免责协议控制器
+            DisclaimerStatementController *viewController = [[DisclaimerStatementController alloc]init];
+            viewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }else {
+            CityFreeRideMainListView *mainListView = [[CityFreeRideMainListView alloc]init];
+            mainListView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:mainListView animated:YES];
+        }
+    }
+    ///二手车评估
+    if (operationButton.tag == KButtonBaseParamTag + 2) {
+        
+        if ([KProjectCityCodeString isEqualToString:@"371300"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"450100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            UsedCarMainController *usedCarViewContrller = [[UsedCarMainController alloc]init];
+            usedCarViewContrller.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:usedCarViewContrller animated:YES];
+        }
+    }
+    ///代驾
+    if (operationButton.tag == KButtonBaseParamTag + 3) {
+       
+        if ([KProjectCityCodeString isEqualToString:@"420100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"450100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"371300"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+
+        InsteadOfDrivingView *instreadView = [[InsteadOfDrivingView alloc]init];
+        instreadView.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:instreadView animated:YES];
+    }
+    ///年检代办
+    if (operationButton.tag == KButtonBaseParamTag + 4) {
+        
+        if ([KProjectCityCodeString isEqualToString:@"420100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"450100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        if ([KProjectCityCodeString isEqualToString:@"371300"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        
+        if ([KProjectCityCodeString isEqualToString:@"430100"]) {
+            ShowImportErrorAlertView(@"该地区暂未开通本服务");
+            return;
+        }
+        UIImage *imageInfor = [UIImage imageNamed:FMCZFWLogoImage];
+        ShareWebViewController *shareWebView = [[ShareWebViewController alloc]initWithWebURLString:[NSString stringWithFormat:@"%@Driver/AnnualCheckDetail?source=%@",kBaseAPIURL,KProjectCityCodeString] withTitle:@"年检代办" withStyle:InitNavigationWebStyle withImageInfor:imageInfor withShareWebDataStyle:WebDataForAnnualCheckStyle withDataInforID:@""];
+        //        [shareWebView setIsNeedShareWebInfor:NO];
+        [self.navigationController pushViewController:shareWebView animated:YES];
+    }
+    
+    ///违章多发
+    if (operationButton.tag == KButtonBaseParamTag + 5) {
+
+        QuickDealWithAccidentController *accidentViewController = [[QuickDealWithAccidentController alloc]init];
+        [accidentViewController setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:accidentViewController animated:YES];
+    }
+    
+    
+}
+#pragma mark - 石家庄初始化用户界面操作方法
+- (void)initWithSJCUserButtonOprationEvent:(id)sender {
+    
+//    
+//    NSArray *contentArray = @[@"946找到啦",@"都市顺风车",
+//                              @"946信息网",@"淘淘车评估",
+//                              @"代驾",@"946幸运星"];
+    UIButton *operationButton = (UIButton *)sender;
+    ///946找到啦
+    if (operationButton.tag == KButtonBaseParamTag) {
+        
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            SearchAndReceiveViewController *viewController = [[SearchAndReceiveViewController alloc]init];
+            [self.navigationController pushViewController:viewController animated:YES];
+        }
+    }
+    ///都市顺风车
+    else if (operationButton.tag == KButtonBaseParamTag + 1) {
+        if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DisclaimerDeclaration"]) {
+            
+            //免责协议控制器
+            DisclaimerStatementController *viewController = [[DisclaimerStatementController alloc]init];
+            viewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }else {
+            CityFreeRideMainListView *mainListView = [[CityFreeRideMainListView alloc]init];
+            mainListView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:mainListView animated:YES];
+            
+        }
+    }
+    ///946信息网
+    else if (operationButton.tag == KButtonBaseParamTag + 2) {
+        InformationNetWorkViewController *viewController = [[InformationNetWorkViewController alloc]init];
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+    ///二手车评估
+    else if (operationButton.tag == KButtonBaseParamTag + 3) {
+        
+        
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            UsedCarMainController *usedCarViewContrller = [[UsedCarMainController alloc]init];
+            usedCarViewContrller.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:usedCarViewContrller animated:YES];
+        }
+        
+    }
+    ///代驾
+    else if (operationButton.tag == KButtonBaseParamTag + 4) {
+        
+        InsteadOfDrivingView *instreadView = [[InsteadOfDrivingView alloc]init];
+        instreadView.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:instreadView animated:YES];
+    }
+    ///946幸运星
+    else if (operationButton.tag == KButtonBaseParamTag + 5) {
+        
+        LuckUserGetCodewordsViewController  *viewController = [[LuckUserGetCodewordsViewController alloc]init];
+        [self.navigationController pushViewController:viewController animated:YES];
+        
+    }}
+
+- (void)initWithButton:(CGRect)buttonCGRect
+           withContent:(NSString *)titlConetn
+               withTag:(NSInteger)buttonTag
+         withImageName:(NSString *)imageName
+          withBaseView:(UIView *)baseView{
+    ///第一部分 摇一摇
+    UIButton *userShakeButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    userShakeButton.tag = buttonTag;
+//    [userShakeButton setBackgroundImage:createImageWithColor([UIColor whiteColor])
+//                               forState:UIControlStateNormal];
+    [userShakeButton setBackgroundImage:createImageWithColor(KDefaultOrNightBackGroundColor)
+                               forState:UIControlStateNormal];
+
+    [userShakeButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                               forState:UIControlStateHighlighted];
+    [userShakeButton setFrame:buttonCGRect];
+    [userShakeButton setTag:buttonTag];
+#if defined (NN)||(WH)||(LY)||(CS)
+
+    [userShakeButton addTarget:self action:@selector(initWithUserButtonOprationEvent:)
+              forControlEvents:UIControlEventTouchUpInside];
+#endif
+#if defined (SJC)||(WF)
+    [userShakeButton addTarget:self action:@selector(initWithSJCUserButtonOprationEvent:)
+              forControlEvents:UIControlEventTouchUpInside];
+    
+#endif
+#if defined (JN)
+    [userShakeButton addTarget:self action:@selector(initWithJNUserButtonOprationEvent:)
+              forControlEvents:UIControlEventTouchUpInside];
+    
+#endif
+#if defined (YT)
+    [userShakeButton addTarget:self action:@selector(initWithYTUserButtonOprationEvent:)
+              forControlEvents:UIControlEventTouchUpInside];
+    
+#endif
+
+    
+    UIImageView *headerImageView = [[UIImageView alloc]init];
+//    [headerImageView setFrame:CGRectMake(40.0f, 21.5f, 27.0f, 27.0f)];
+    [headerImageView setFrame:CGRectMake((KSizeWidthLike-27)/2, 21.5f, 27.0f, 27.0f)];
+
+    [headerImageView setImage:[UIImage imageNamed:imageName]];
+    [userShakeButton addSubview:headerImageView];
+    ////名称
+//    UILabel *userShakeLabel = [[UILabel alloc] initWithFrame:CGRectMake(10,70, 89.3, 20.0f)];
+    UILabel *userShakeLabel = [[UILabel alloc] initWithFrame:CGRectMake((KSizeWidthLike-89.3)/2,70, 89.3, 20.0f)];
+
+    userShakeLabel.font = [UIFont systemFontOfSize:14.0f];
+    //userShakeLabel.textColor = KDefaultOrNightTextColor;
+    userShakeLabel.textColor=KDefaultOrNightTextColor;
+
+    [userShakeLabel setTextAlignment:NSTextAlignmentCenter];
+    userShakeLabel.backgroundColor = [UIColor clearColor];
+    userShakeLabel.text = titlConetn;
+    [userShakeButton addSubview:userShakeLabel];
+    
+    if(ThemeCategory==5)
+    {
+        headerImageView.alpha=0.6;
+    }
+
+    [baseView addSubview:userShakeButton];
+}
+
+- (void)initWithUserSecondHandCarResultNotification:(NSNotification *)notification{
+    /*
+    UIButton    *secondhandCarButon = (UIButton *)[self.view viewWithTag: KButtonBaseParamTag + 3];
+    UIImageView *secondHandCarImageView = (UIImageView *)[secondhandCarButon viewWithTag:KSecondHandCarResultImageViewTag];
+        if (secondHandCarImageView) {
+        [secondHandCarImageView setHidden:YES];
+    }
+     */
+//    [FMShareSetting setAppPushExploreSecondCarResultInforBool:NO];
+}
+@end

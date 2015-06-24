@@ -1,0 +1,1034 @@
+//
+//  UserSendInformationViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-6-20.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KMainScrollViewTag                  173051
+#define KUserSendInformationButton          173052                  ///用户发送信息按键
+#define KUserSearchStyleButtonTag           173053                  ///用户选择上传数据类别
+#define KUserSelectedExpressionButtonTag    173054                  ///用户选择发送表情按键
+#define KUserSelectedKeyBoardButtonTag      173064                  ///用户选择键盘按键
+#define KUserSelectedImageButtonTag         173055                  ///用户选择上传图片按键
+#define kTakePictureActionSheetTag          173056                  ///用户拍照按键提示框
+#define KUserInputCarNumberBGViewTag        178011
+
+
+#define kPublishCommandBarHeight        40.5            //按钮工具条高度
+#define KPublishAddressHeight           15              //地址区高度
+#define KPublishExpressHeight           216             //表情键盘高度
+#define KPublishImageGap                5               //图片间的缝隙
+#define KPublishContentGap              5               //文本框边距
+
+#import "UserSendInformationViewController.h"
+#import "HTTPClient+ExploreModules.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient.h"
+#import "FMSettings.h"
+#import "FMImageView.h"
+
+
+
+@interface UserSendInformationViewController ()
+
+///数据操作协议
+@property (nonatomic , assign)      id<SendInformationDelegate>         initWithSendDelegate;
+///初始化界面类别
+@property (nonatomic , assign)      InitWithControlerStyle              setupInitWithController;
+///用户选择的上传数据类别
+@property (nonatomic , assign)      NSInteger                           userSearchUploadDataStyle;
+@property (nonatomic , weak)        UIView                              *inputContentBackGroundView;
+//用户编辑信息内容
+@property (nonatomic , weak)        UITextView                          *userInputContentTextView;
+///头部标签内容
+@property (nonatomic , weak)        UILabel                             *userInputHeaderLabel;
+///类别内容
+@property (nonatomic , weak)        UILabel                             *userSearchStyleContentLabel;
+///用户个人手机号
+@property (nonatomic , weak)        UITextField                         *userPersonalPhoneTextFied;
+///用户个人手机号输入框
+@property (nonatomic , weak)        UITextField                         *userPersonalCarText;
+///提示信息内容
+@property (nonatomic , weak)        UILabel                             *alertFooterContentLabel;
+
+////分割线
+@property (nonatomic , weak)        UIView                              *firstSeperatorView;
+@property (nonatomic , weak)        UIView                              *secondSeperatorView;
+@property (nonatomic , strong)      AFHTTPRequestOperation              *requestOperation;
+
+///表情标签
+@property (nonatomic , weak)        UIButton                            *expressButton;
+@property (nonatomic , weak)        UIButton                            *imagesButton;
+//表情视图
+@property (nonatomic,weak)          ExpressView                         *expressionView;
+
+@property (nonatomic , assign)        BOOL                              userhasPhotoImage;
+@property (nonatomic , strong)      SearchAndReceiveDataInfor           *userSendItemInfor;
+@property (nonatomic , strong)      UIImage                             *userSendImageDataInfor;
+
+
+/** 初始化发送界面
+ 
+ *@return void
+ **/
+- (void)initWithUserSendInformationViewControllerFrame;
+
+
+/** 初始化用户操作按键触发事件
+ 
+ *@return void
+ **/
+- (void)initWithUserOperationButtonEvent:(id)sender;
+
+/** 初始化用户取消发送按键操作
+ 
+ *@return void
+ **/
+- (void)initWithUserCancelSendInforButtonEvent;
+
+/** 初始化用户发送数据请求设置
+ 
+ *@return void
+ **/
+- (void)initWithUserSendDataRequestOperation;
+
+/** 初始化用户发送文本数据请求设置
+ 
+ *@return void
+ **/
+- (void)initWithUserSendContentDataRequestOperation;
+@end
+
+@implementation UserSendInformationViewController
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+- (id)initWithUserSendFinishDelegate:(id<SendInformationDelegate>)m_delegate
+                       withInitStyle:(InitWithControlerStyle)m_initStyle{
+    self = [super init];
+    if (self) {
+        self.setupInitWithController = m_initStyle;
+        self.initWithSendDelegate = m_delegate;
+    }
+    return self;
+}
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    [self settingNavTitle:@"新建"];
+    
+    
+    self.navButtonSize=KNavSize;
+    //取消
+    [self setLeftNavButtonFA:FMIconCancelCross
+                   withFrame:kNavButtonRect
+                actionTarget:self
+                      action:@selector(initWithUserCancelSendInforButtonEvent)];
+    
+    [self setRightNavButtonFA:FMIconSubmitSend
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(initPublicInformation)];
+    
+	[self initWithUserSendInformationViewControllerFrame];
+    
+    self.userhasPhotoImage = NO;
+    //添加键盘通知
+    [self addKeyboardNotification];
+}
+
+
+- (void)initPublicInformation{
+    if ([self.userSearchStyleContentLabel.text isEqualToString:@"请选择"]) {
+        ShowImportErrorAlertView(@"请选择发布类型");
+        return;
+    }
+    
+    ///找到了信息设置
+    if (self.setupInitWithController == InitWithSearchReceiveStyle) {
+        if ([self.userPersonalPhoneTextFied.text length] > 0){
+            
+            if (!IsNormalMobileNum(self.userPersonalPhoneTextFied.text)){
+                ShowImportErrorAlertView(@"请输入正确的手机号");
+                return;
+            }
+        }
+    }
+    
+    ///顺风车信息设置
+    else if (self.setupInitWithController == InitWithFreeRideStyle) {
+        ///车主
+        if ([self.userSearchStyleContentLabel.text isEqualToString:@"车主"]) {
+            
+            if ([self.userPersonalPhoneTextFied.text length] > 0){
+                
+                if (!IsNormalMobileNum(self.userPersonalPhoneTextFied.text)){
+                    
+                    ShowImportErrorAlertView(@"请输入正确的手机号");
+                    return;
+                }
+            }
+            
+            if ([self.userPersonalCarText.text  length] != 7){
+                ShowImportErrorAlertView(@"请输入正确格式的车牌号");
+                return;
+            }
+        }
+    }
+    
+    ///信息网信息设置
+    else if (self.setupInitWithController == InitWithInforNetWorkStyle){
+        if ([self.userPersonalPhoneTextFied.text length] > 0){
+            if (!IsNormalMobileNum(self.userPersonalPhoneTextFied.text)){
+                ShowImportErrorAlertView(@"请输入正确的手机号");
+                return;
+            }
+        }
+    }
+    
+    [self.view endEditing:YES];
+    
+    ////开始加载数据内容了啊
+    [self initWithUserSendDataRequestOperation];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+#pragma mark -
+#pragma mark - 初始化用户取消发送按键操作
+- (void)initWithUserCancelSendInforButtonEvent{
+    [self RecoveryKeyboardView];
+    [self dismissModalViewControllerAnimated:YES];
+}
+#pragma mark -
+#pragma mark - 初始化发送界面
+- (void)initWithUserSendInformationViewControllerFrame{
+    
+    self.userSendItemInfor = [[SearchAndReceiveDataInfor alloc]init];
+    self.userSendImageDataInfor = [[UIImage alloc]init];
+    //滚动视图
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    mainScrollView.backgroundColor = [UIColor clearColor];
+    [mainScrollView setDelegate:self];
+    [mainScrollView setTag:KMainScrollViewTag];
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    mainScrollView.contentSize = CGSizeMake(KProjectScreenWidth,660);
+    
+    /// 物品类别信息选择
+    UIButton *searchStyleButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    searchStyleButton.tag = KUserSearchStyleButtonTag;
+    [searchStyleButton setBackgroundImage:createImageWithColor(KDefaultOrNightBackGroundColor)
+                                 forState:UIControlStateNormal];
+    [searchStyleButton setBackgroundImage:createImageWithColor(KButtonBackgroundImageColor)
+                                 forState:UIControlStateHighlighted];
+    [searchStyleButton setFrame:CGRectMake(0, 15.0f, KProjectScreenWidth, 47.0f)];
+    [searchStyleButton setTag: KUserSearchStyleButtonTag];
+    [searchStyleButton addTarget:self action:@selector(initWithUserOperationButtonEvent:) forControlEvents:UIControlEventTouchUpInside];
+    [searchStyleButton.layer setBorderWidth:0.5f];
+    [searchStyleButton.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+    
+    ////名称
+    UILabel *searchStyleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 5, 50, 37)];
+    searchStyleLabel.textColor = KDefaultOrNightTextColor;
+    searchStyleLabel.font = [UIFont systemFontOfSize:16.0f];
+    [searchStyleLabel setTextAlignment:NSTextAlignmentLeft];
+    searchStyleLabel.backgroundColor = [UIColor clearColor];
+    
+    if (self.setupInitWithController == InitWithFreeRideStyle) {
+        searchStyleLabel.text = @"身份";
+    }else {
+        searchStyleLabel.text = @"类型";
+    }
+    [searchStyleButton addSubview:searchStyleLabel];
+    ///类别内容
+    UILabel *searchStyleContentLabel = [[UILabel alloc]initWithFrame:CGRectMake(KProjectScreenWidth-30-170, 1.5f, 170.0f, 44.0f)];
+    [searchStyleContentLabel setTextAlignment:NSTextAlignmentRight];
+    
+    [searchStyleContentLabel setText:@"请选择"];
+    if (self.setupInitWithController == InitWithFreshThingStyle) {
+        [searchStyleContentLabel setText:@"啄木鸟在行动"];
+    }
+    [searchStyleContentLabel setTextColor:KContentTextCanEditColor];
+    [searchStyleContentLabel setFont:[UIFont systemFontOfSize:18.0f]];
+    [searchStyleContentLabel setBackgroundColor:[UIColor clearColor]];
+    self.userSearchStyleContentLabel = searchStyleContentLabel;
+    [searchStyleButton addSubview:self.userSearchStyleContentLabel];
+    ///指示箭头
+    UIImageView *calculationImageView = [[UIImageView alloc]initWithFrame:CGRectMake(KProjectScreenWidth-25, 17.0f, 8.5f, 13.0f)];
+    [calculationImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [searchStyleButton addSubview:calculationImageView];
+    [mainScrollView addSubview:searchStyleButton];
+    
+    ///用户输入内容背景
+    UIView  *inputBGView = [[UIView alloc]initWithFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 271.0f)];
+    [inputBGView.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+    [inputBGView setBackgroundColor:KDefaultOrNightBackGroundColor];
+    [inputBGView setUserInteractionEnabled:YES];
+    [inputBGView.layer setBorderWidth:0.5f];
+    
+    ///头部标题
+    UILabel *phoneHeaderLabel = [[UILabel alloc]init];
+    [phoneHeaderLabel setBackgroundColor:[UIColor clearColor]];
+    [phoneHeaderLabel setFrame:CGRectMake(20.0f, 1.5f, 80.0f, 44.0f)];
+    phoneHeaderLabel.textColor = KDefaultOrNightTextColor;
+    phoneHeaderLabel.font = [UIFont systemFontOfSize:16.0f];
+    [phoneHeaderLabel setTextAlignment:NSTextAlignmentLeft];
+    phoneHeaderLabel.text = @"联系电话";
+    [inputBGView addSubview:phoneHeaderLabel];
+    
+    ///用户个人手机号输入框
+    UITextField *userPersonalPhoneText = [[UITextField alloc]initWithFrame:CGRectMake(90.0f,0.0f, KProjectScreenWidth-20-90, 47.0f)];
+    [userPersonalPhoneText setContentVerticalAlignment:UIControlContentVerticalAlignmentCenter];
+    [userPersonalPhoneText setClearButtonMode:UITextFieldViewModeWhileEditing];
+    [userPersonalPhoneText setKeyboardType:UIKeyboardTypeNumbersAndPunctuation];
+    [userPersonalPhoneText setFont:[UIFont systemFontOfSize:18.0f]];
+    [userPersonalPhoneText setTextAlignment:NSTextAlignmentRight];
+    [userPersonalPhoneText setReturnKeyType:UIReturnKeySend];
+    if ([[CurrentUserInformation sharedCurrentUserInfo].userMobile length] == 11) {
+        [userPersonalPhoneText setText:[CurrentUserInformation sharedCurrentUserInfo].userMobile];
+    }
+    if (self.setupInitWithController == InitWithFreeRideStyle) {
+        [userPersonalPhoneText setReturnKeyType:UIReturnKeyNext];
+    }
+    [userPersonalPhoneText setDelegate:self];
+    [userPersonalPhoneText setTextColor:KContentTextColor];
+    self.userPersonalPhoneTextFied = userPersonalPhoneText;
+    [inputBGView addSubview:userPersonalPhoneText];
+    
+    ////分割线
+    UIView *usedMobileSeperatorView = [[UIView alloc] initWithFrame:CGRectMake(20,47.0f, KProjectScreenWidth-20, 0.5f)];
+    usedMobileSeperatorView.backgroundColor = KDefaultOrNightSepratorColor;
+    self.firstSeperatorView = usedMobileSeperatorView;
+    [inputBGView addSubview:self.firstSeperatorView];
+    
+    
+    ///头部标题
+    UILabel *carHeaderLabel = [[UILabel alloc]init];
+    [carHeaderLabel setBackgroundColor:[UIColor clearColor]];
+    [carHeaderLabel setFrame:CGRectMake(20.0f, 1.5f +47.5 , 80.0f, 44.0f)];
+    carHeaderLabel.textColor = KDefaultOrNightTextColor;
+    carHeaderLabel.font = [UIFont systemFontOfSize:16.0f];
+    [carHeaderLabel setTextAlignment:NSTextAlignmentLeft];
+    carHeaderLabel.text = @"车牌号";
+    [inputBGView addSubview:carHeaderLabel];
+    
+    ///用户个人手机号输入框
+    UITextField *userPersonalCarTextField = [[UITextField alloc]initWithFrame:CGRectMake(90.0f,47.5, KProjectScreenWidth-20-90, 47.0f)];
+    [userPersonalCarTextField setTextAlignment:NSTextAlignmentRight];
+    [userPersonalCarTextField setFont:[UIFont systemFontOfSize:18.0f]];
+    [userPersonalCarTextField setContentVerticalAlignment:UIControlContentVerticalAlignmentCenter];
+    [userPersonalCarTextField setClearButtonMode:UITextFieldViewModeWhileEditing];
+    [userPersonalCarTextField setKeyboardType:UIKeyboardTypeASCIICapable];
+    if ([[CurrentUserInformation sharedCurrentUserInfo].userCarNo length] == 7) {
+        [userPersonalCarTextField setText:[CurrentUserInformation sharedCurrentUserInfo].userCarNo];
+    }else{
+        [userPersonalCarTextField setText:KProjectProvinceShortName];
+        
+    }
+    [userPersonalCarTextField setDelegate:self];
+    [userPersonalCarTextField setTextColor:KDefaultOrNightTextColor];
+    [userPersonalCarTextField setReturnKeyType:UIReturnKeySend];
+    self.userPersonalCarText = userPersonalCarTextField;
+    [inputBGView addSubview:self.userPersonalCarText];
+    
+    ////分割线
+    UIView *usedCarSeperatorView = [[UIView alloc] initWithFrame:CGRectMake(20,95.0f, KProjectScreenWidth-20, 0.5f)];
+//    usedCarSeperatorView.backgroundColor = KBorderColorSetup;
+    usedCarSeperatorView.backgroundColor =KDefaultOrNightSepratorColor;
+    self.secondSeperatorView = usedCarSeperatorView;
+    [inputBGView addSubview:self.secondSeperatorView];
+    
+    
+    ///用户输入编辑内容
+    UITextView  *userInputTextView = [[UITextView alloc]initWithFrame:CGRectMake(15.0f, 100.0f, KProjectScreenWidth-30, 130.0f)];
+    userInputTextView.backgroundColor=KDefaultOrNightBackGroundColor;
+    [userInputTextView setTextAlignment:NSTextAlignmentLeft];
+    userInputTextView.delegate = self;
+    [userInputTextView setTextColor:KContentTextColor];
+    userInputTextView.font = [UIFont systemFontOfSize:16.0f];
+    if ([userInputTextView respondsToSelector:@selector(textContainerInset)]){
+        userInputTextView.textContainerInset = UIEdgeInsetsMake(10, 4, 0, 0);
+    }else{
+        [userInputTextView setValue:@"10" forKey:@"m_marginTop"];
+    }
+    ///头部标签内容
+    UILabel     *headerLabel = [[UILabel alloc]init];
+    [headerLabel setFrame:CGRectMake(10.0f, 10.0f, KProjectScreenWidth-10, 20.0f)];
+    [headerLabel setTextColor:[UIColor clearColor]];
+    [headerLabel setBackgroundColor:[UIColor clearColor]];
+    [headerLabel setFont:[UIFont systemFontOfSize:16.0f]];
+    [headerLabel setNumberOfLines:2];
+    [headerLabel setTextColor:[UIColor clearColor]];
+    self.userInputHeaderLabel = headerLabel;
+    [userInputTextView addSubview:self.userInputHeaderLabel];
+    self.userInputContentTextView = userInputTextView;
+    [inputBGView addSubview:self.userInputContentTextView];
+    self.inputContentBackGroundView = inputBGView;
+    
+    
+    //键盘或是表情按钮
+    UIButton *expressionOrKeyboardButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    expressionOrKeyboardButton.tag = KUserSelectedExpressionButtonTag;
+    [expressionOrKeyboardButton setImage:[UIImage imageNamed:@"Search_ExpressionImage.png"] forState:UIControlStateNormal];
+    expressionOrKeyboardButton.titleLabel.text = @"Search_ExpressionImage.png";
+    [expressionOrKeyboardButton addTarget:self action:@selector(initWithUserOperationButtonEvent:) forControlEvents:UIControlEventTouchUpInside];
+    [expressionOrKeyboardButton setFrame:CGRectMake(KProjectScreenWidth-140, 100+130.0f, 80, 40)];
+    self.expressButton = expressionOrKeyboardButton;
+    [self.inputContentBackGroundView addSubview:expressionOrKeyboardButton];
+    
+    //照片按钮
+    UIButton *imageButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    imageButton.tag = KUserSelectedImageButtonTag;
+    [imageButton setImage:[UIImage imageNamed:@"Search_CameraImage.png"] forState:UIControlStateNormal];
+    [imageButton addTarget:self action:@selector(initWithUserOperationButtonEvent:) forControlEvents:UIControlEventTouchUpInside];
+    [imageButton setFrame:CGRectMake(KProjectScreenWidth-60, 100+130.0f, 80, 40)];
+    self.imagesButton = imageButton;
+    [self.inputContentBackGroundView addSubview:self.imagesButton];
+    
+    [mainScrollView addSubview:self.inputContentBackGroundView];
+    
+    ///提示信息内容
+    UILabel *alertContentLabel = [[UILabel alloc]initWithFrame:CGRectMake(0.0f, 368.0f, KProjectScreenWidth, 20.0f)];
+    [alertContentLabel setTextColor:[UIColor colorWithRed:163/255.0f green:163/255.0f blue:163/255.0f alpha:1.0f]];
+    [alertContentLabel setBackgroundColor:[UIColor clearColor]];
+    [alertContentLabel setFont:[UIFont systemFontOfSize:12.0f]];
+    [alertContentLabel setTextAlignment:NSTextAlignmentCenter];
+    self.alertFooterContentLabel = alertContentLabel;
+    
+    [mainScrollView addSubview:self.alertFooterContentLabel];
+    
+    ///设置坐标
+    if (self.setupInitWithController != InitWithFreeRideStyle) {
+        [self.secondSeperatorView setHidden:YES];
+        [self.expressButton setFrame:CGRectMake(KProjectScreenWidth-140, 52.5+130.0f, 80, 40)];
+        [self.imagesButton setFrame:CGRectMake(KProjectScreenWidth-60, 52.5+130.0f, 80, 40)];
+        [self.userInputContentTextView  setFrame:CGRectMake(15.0f,52.5, KProjectScreenWidth-30, 130.0f)];
+        [self.inputContentBackGroundView setFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 223.0f)];
+    }
+
+    [self.view addSubview:mainScrollView];
+    
+    
+    CGRect rc = self.view.bounds;
+    
+    //表情视图
+    CGRect rcExpress = CGRectMake(0, rc.size.height , rc.size.width, KPublishExpressHeight);    //默认隐藏到底部
+    ExpressView* expressionView = [[ExpressView alloc] initWithFrame:rcExpress];
+    expressionView.delegate = self;
+    [self.view addSubview:expressionView];
+    self.expressionView = expressionView;
+    
+    
+    if (self.setupInitWithController == InitWithFreshThingStyle) {
+        ///头部标题
+        [self.userInputHeaderLabel setText:@"曝光路上不文明行车行为"];
+        self.userInputHeaderLabel.textColor = KDefaultOrNightTextColor;
+        
+        ///底部提示
+        [self.alertFooterContentLabel setText:@""];
+        [self.alertFooterContentLabel setFrame:CGRectMake(0.0f, 320.0f, KProjectScreenWidth, 20.0f)];
+    }
+    
+}
+
+#pragma mark -
+#pragma mark - 根据用户初始化内容初始化是否需要编辑车牌号
+- (void)initwithUserPersonalCarNumberInPutViewWithIndentityStyle:(NSInteger)m_style{
+    ///界面主视图内容
+    UIScrollView    *mainScrollView = (UIScrollView *)[self.view viewWithTag:KMainScrollViewTag];
+    
+    ////车牌号主视图
+    UIView *carBGView = (UIView *)[mainScrollView viewWithTag:KUserInputCarNumberBGViewTag];
+    
+    if (m_style == 1) {
+        
+        if (!carBGView) {
+            ///个人车牌号
+            UIView  *userCarNumberBGView = [[UIView alloc]initWithFrame:CGRectMake(0.0f, 159.0f, KProjectScreenWidth, 47.0f)];
+            [userCarNumberBGView.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+            [userCarNumberBGView setBackgroundColor:KDefaultOrNightBackGroundColor];
+            [userCarNumberBGView setTag:KUserInputCarNumberBGViewTag];
+            [userCarNumberBGView setUserInteractionEnabled:YES];
+            [userCarNumberBGView.layer setBorderWidth:0.5f];
+            ///头部标题
+            UILabel *carHeaderLabel = [[UILabel alloc]init];
+            [carHeaderLabel setBackgroundColor:[UIColor clearColor]];
+            [carHeaderLabel setFrame:CGRectMake(15.0f, 1.5f, 80.0f, 44.0f)];
+            carHeaderLabel.textColor = [UIColor colorWithRed:81/255.0f green:81/255.0f blue:81/255.0f alpha:1.0f];
+            carHeaderLabel.font = [UIFont systemFontOfSize:16.0f];
+            [carHeaderLabel setTextAlignment:NSTextAlignmentLeft];
+            carHeaderLabel.text = @"车牌号";
+            [userCarNumberBGView addSubview:carHeaderLabel];
+            
+            ///用户个人手机号输入框
+            UITextField *userPersonalCarTextField = [[UITextField alloc]initWithFrame:CGRectMake(100.0f,0.0f, KProjectScreenWidth-10-100, 47.0f)];
+            [userPersonalCarTextField setTextAlignment:NSTextAlignmentRight];
+            [userPersonalCarTextField setFont:[UIFont systemFontOfSize:18.0f]];
+            [userPersonalCarTextField setContentVerticalAlignment:UIControlContentVerticalAlignmentCenter];
+            [userPersonalCarTextField setClearButtonMode:UITextFieldViewModeWhileEditing];
+            [userPersonalCarTextField setKeyboardType:UIKeyboardTypeASCIICapable];
+            mainScrollView.contentSize = CGSizeMake(KProjectScreenWidth,650);
+            if ([[CurrentUserInformation sharedCurrentUserInfo].userCarNo length] == 7) {
+                [userPersonalCarTextField setText:[CurrentUserInformation sharedCurrentUserInfo].userCarNo];
+            }else{
+                [userPersonalCarTextField setText:KProjectProvinceShortName];
+                
+            }
+            [userPersonalCarTextField setDelegate:self];
+            [userPersonalCarTextField setReturnKeyType:UIReturnKeySend];
+            self.userPersonalCarText = userPersonalCarTextField;
+            [userCarNumberBGView addSubview:self.userPersonalCarText];
+            [mainScrollView addSubview:userCarNumberBGView];
+        }else {
+            [carBGView setHidden:NO];
+            mainScrollView.contentSize = CGSizeMake(KProjectScreenWidth,650);
+        }
+        
+        [self.inputContentBackGroundView setFrame:CGRectMake(0.0f, 231.0f, KProjectScreenWidth, 185.0f)];
+        [self.alertFooterContentLabel setFrame:CGRectMake(0.0f,408.0f, KProjectScreenWidth, 20.0f)];
+        
+    }else if (m_style == 2){
+        [carBGView setHidden:YES];
+        [self.inputContentBackGroundView setFrame:CGRectMake(0.0f, 159.0f, KProjectScreenWidth, 185.0f)];
+        [self.alertFooterContentLabel setFrame:CGRectMake(0.0f, 336.0f, KProjectScreenWidth, 20.0f)];
+        mainScrollView.contentSize = CGSizeMake(KProjectScreenWidth,630);
+    }
+}
+
+#pragma mark -
+#pragma mark - 初始化用户操作按键触发事件
+- (void)initWithUserOperationButtonEvent:(id)sender{
+    UIButton    *button = (UIButton *)sender;
+    
+    CGRect rc = self.view.bounds;
+    ///选择的上传类别
+    if (button.tag == KUserSearchStyleButtonTag) {
+        
+        if (self.setupInitWithController == InitWithSearchReceiveStyle) {
+            NSMutableArray *btnArray = [[NSMutableArray alloc]init];
+            [btnArray addObject:@"寻找"];
+            [btnArray addObject:@"招领"];
+            [btnArray addObject:@"鸣谢"];
+            UserPutoutDataParameterController *paramView = [[UserPutoutDataParameterController alloc]initWithWithParameterInfor:self.userSearchStyleContentLabel.text withParamArray:btnArray withDelegate:self withParamStyleTyle:ParameterForSearchAndReceiveStyle withTitle:@"类别"];
+            [self.navigationController pushViewController:paramView animated:YES];
+        }else if(self.setupInitWithController == InitWithFreeRideStyle){
+            NSMutableArray *btnArray = [[NSMutableArray alloc]init];
+            [btnArray addObject:@"车主"];
+            [btnArray addObject:@"乘客"];
+            
+            UserPutoutDataParameterController *paramView = [[UserPutoutDataParameterController alloc]initWithWithParameterInfor:self.userSearchStyleContentLabel.text withParamArray:btnArray withDelegate:self withParamStyleTyle:ParameterForFreeRideStyle withTitle:@"身份"];
+            [self.navigationController pushViewController:paramView animated:YES];
+        }else if (self.setupInitWithController == InitWithInforNetWorkStyle){
+            NSMutableArray *inforStyleArray = [[NSMutableArray alloc]initWithObjects:@"及时求助",@"问题咨询",@"问路导航",@"求职招聘", nil];
+            
+            UserPutoutDataParameterController *paramView = [[UserPutoutDataParameterController alloc]initWithWithParameterInfor:self.userSearchStyleContentLabel.text withParamArray:inforStyleArray withDelegate:self withParamStyleTyle:ParameterForInforNetWorkStyle withTitle:@"类别"];
+            [self.navigationController pushViewController:paramView animated:YES];
+        }else if (self.setupInitWithController == InitWithFreshThingStyle){
+            return;
+        }
+        
+    }
+    
+    ///用户发送按键
+    else if (button.tag == KUserSendInformationButton){
+        if ([self.userSearchStyleContentLabel.text isEqualToString:@"请选择"]) {
+            ShowImportErrorAlertView(@"请选择发布类型");
+            return;
+        }
+        
+        
+        ///找到了信息设置
+        if (self.setupInitWithController == InitWithSearchReceiveStyle) {
+            if ([self.userPersonalPhoneTextFied.text length] > 0){
+                
+                if (!IsNormalMobileNum(self.userPersonalPhoneTextFied.text)){
+                    ShowImportErrorAlertView(@"请输入正确的手机号");
+                    return;
+                }
+            }
+        }
+        
+        ///顺风车信息设置
+        else if (self.setupInitWithController == InitWithFreeRideStyle) {
+            ///车主
+            if ([self.userSearchStyleContentLabel.text isEqualToString:@"车主"]) {
+                
+                if ([self.userPersonalPhoneTextFied.text length] > 0){
+                    
+                    if (!IsNormalMobileNum(self.userPersonalPhoneTextFied.text)){
+                        
+                        ShowImportErrorAlertView(@"请输入正确的手机号");
+                        return;
+                    }
+                }
+                
+                if ([self.userPersonalCarText.text  length] != 7){
+                    ShowImportErrorAlertView(@"请输入正确格式的车牌号");
+                    return;
+                }
+            }
+        }
+        
+        ///信息网信息设置
+        else if (self.setupInitWithController == InitWithInforNetWorkStyle){
+            if ([self.userPersonalPhoneTextFied.text length] > 0){
+                if (!IsNormalMobileNum(self.userPersonalPhoneTextFied.text)){
+                    ShowImportErrorAlertView(@"请输入正确的手机号");
+                    return;
+                }
+            }
+        }
+        
+        [self.view endEditing:YES];
+        
+        ////开始加载数据内容了啊
+        [self initWithUserSendDataRequestOperation];
+        
+    }
+    
+    ///用户发送表情或者键盘
+    else if (button.tag == KUserSelectedExpressionButtonTag
+             ||button.tag == KUserSelectedKeyBoardButtonTag){
+        
+        //获取键盘视图
+        UIView *keyboardView = GetKeyBoardView();
+        
+        CGFloat keyboardHeight = 0;//键盘高度
+        NSString* buttonImageName;
+        if(button.tag == KUserSelectedExpressionButtonTag){//显示表情
+            [UIView beginAnimations:@"HiddenKeyboard" context:nil];
+            [UIView setAnimationDuration:0.3f];
+            //隐藏键盘
+            CGRect keyboardFrame = keyboardView.frame;
+            keyboardFrame.origin.y = [UIScreen mainScreen].bounds.size.height;
+            keyboardView.frame = keyboardFrame;
+            //显示表情
+            self.expressionView.frame = CGRectMake(0,rc.size.height - KPublishExpressHeight, rc.size.width, KPublishExpressHeight);
+            [UIView commitAnimations];
+            
+            keyboardHeight = KPublishExpressHeight;
+            button.tag = KUserSelectedKeyBoardButtonTag;
+            buttonImageName = @"Search_KeyBoardImage.png";
+        }else{//显示键盘
+            [UIView beginAnimations:@"ShowKeyboard" context:nil];
+            [UIView setAnimationDuration:0.3f];
+            //显示键盘
+            CGRect keyboardFrame = keyboardView.frame;
+            keyboardFrame.origin.y = [UIScreen mainScreen].bounds.size.height - keyboardView.frame.size.height;
+            keyboardView.frame = keyboardFrame;
+            //隐藏表情
+            self.expressionView.frame = CGRectMake(0, rc.size.height, KProjectScreenWidth, KPublishExpressHeight);
+            
+            [UIView commitAnimations];
+            
+            keyboardHeight = keyboardFrame.size.height;
+            button.tag = KUserSelectedExpressionButtonTag;
+            buttonImageName = @"Search_ExpressionImage.png";
+        }
+        
+        [button setImage:[UIImage imageNamed:buttonImageName] forState:UIControlStateNormal];
+        
+        [UIView beginAnimations:@"Animation" context:nil];
+        [UIView setAnimationDuration:0.3f];
+        [UIView commitAnimations];
+        
+        
+    }
+    ///用户上传图片设置
+    else if (button.tag == KUserSelectedImageButtonTag){
+        UIActionSheet *takePictureActionSheet = [[UIActionSheet alloc] initWithTitle:@"" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍照",@"从相册选择", nil];
+        takePictureActionSheet.tag = kTakePictureActionSheetTag;
+        [takePictureActionSheet showInView:self.view];
+    }
+}
+
+
+#pragma mark -
+#pragma mark - 用户选择参数结束后操作
+- (void)userSearchFinishUsedCarParameterInfor:(NSString *)_paraInfor withParameterStyleType:(PutoutDataParameterStyleType)_paraStyleType{
+    
+    [self.userSearchStyleContentLabel setText:_paraInfor];
+    if (_paraStyleType == ParameterForFreeRideStyle) {
+        
+        if ([self.userSearchStyleContentLabel.text isEqualToString:@"车主"]) {
+            self.userSearchUploadDataStyle = 1;
+            [self.alertFooterContentLabel setText:@"建议附上你的爱车照片，以便车友搭乘"];
+            [self.userInputHeaderLabel setText:@"请简述发车时间、地点、行驶路线和可搭载人数等"];
+            
+            [self.secondSeperatorView setHidden:NO];
+            [self.userInputContentTextView  setFrame:CGRectMake(15.0f,100, KProjectScreenWidth-30, 130.0f)];
+            [self.inputContentBackGroundView setFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 271.0f)];
+            
+            [self.alertFooterContentLabel setFrame: CGRectMake(0.0f, 368.0f, KProjectScreenWidth, 20.0f)];
+        }
+        else if ([self.userSearchStyleContentLabel.text isEqualToString:@"乘客"]){
+            self.userSearchUploadDataStyle = 2;
+            [self.alertFooterContentLabel setText:@"建议附上你的靓照，以便车友辨认"];
+            [self.userInputHeaderLabel setText:@"请简述你想要搭车的时间、地点和目的地"];
+            
+            [self.secondSeperatorView setHidden:YES];
+            [self.expressButton setFrame:CGRectMake(KProjectScreenWidth-140, 52.5+130.0f, 80, 40)];
+            [self.imagesButton setFrame:CGRectMake(KProjectScreenWidth-60, 52.5+130.0f, self.userhasPhotoImage ?40 : 80, 40)];
+            [self.userInputContentTextView  setFrame:CGRectMake(15.0f,52.5, KProjectScreenWidth-30, 130.0f)];
+            [self.inputContentBackGroundView setFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 223.0f)];
+            [self.alertFooterContentLabel setFrame: CGRectMake(0.0f, 368.0f - 48, KProjectScreenWidth, 20.0f)];
+        }
+    }
+    else if (_paraStyleType == ParameterForSearchAndReceiveStyle) {
+        
+        if ([self.userSearchStyleContentLabel.text isEqualToString:@"寻找"]) {
+            self.userSearchUploadDataStyle = 1;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"简述丢失物品(或人走失)的时间、地点等详细情况"];
+            
+            [self.firstSeperatorView setHidden:NO];
+            [self.expressButton setFrame:CGRectMake(KProjectScreenWidth-140, 52.5+130.0f, 80, 40)];
+            [self.imagesButton setFrame:CGRectMake(KProjectScreenWidth-60, 52.5+130.0f, self.userhasPhotoImage ?40 :80, 40)];
+            [self.userInputContentTextView  setFrame:CGRectMake(15.0f,52.5, KProjectScreenWidth-30, 130.0f)];
+            [self.inputContentBackGroundView setFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 223.0f)];
+        }
+        else if ([self.userSearchStyleContentLabel.text isEqualToString:@"招领"]){
+            self.userSearchUploadDataStyle = 2;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"简述拾到物品的时间、地点等大体情况"];
+            
+            [self.firstSeperatorView setHidden:NO];
+            [self.expressButton setFrame:CGRectMake(KProjectScreenWidth-140, 52.5+130.0f, 80, 40)];
+            [self.imagesButton setFrame:CGRectMake(KProjectScreenWidth-60, 52.5+130.0f,self.userhasPhotoImage ?40 : 80, 40)];
+            [self.userInputContentTextView  setFrame:CGRectMake(15.0f,52.5, KProjectScreenWidth-30, 130.0f)];
+            [self.inputContentBackGroundView setFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 223.0f)];
+        }else if ([self.userSearchStyleContentLabel.text isEqualToString:@"鸣谢"]){
+            self.userSearchUploadDataStyle = 3;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"找到后，可以在这里报个喜"];
+            
+            [self.firstSeperatorView setHidden:YES];
+            [self.expressButton setFrame:CGRectMake(KProjectScreenWidth-140, 5+130.0f, 80, 40)];
+            [self.imagesButton setFrame:CGRectMake(KProjectScreenWidth-60, 5+130.0f, self.userhasPhotoImage ?40 :80, 40)];
+            [self.userInputContentTextView  setFrame:CGRectMake(15.0f,5,KProjectScreenWidth-30, 130.0f)];
+            [self.inputContentBackGroundView setFrame:CGRectMake(0.0f,87.0f, KProjectScreenWidth, 185.0f)];
+        }
+    }else if (_paraStyleType == ParameterForInforNetWorkStyle) {
+        
+        [self.alertFooterContentLabel setFrame: CGRectMake(0.0f, 320.0f, KProjectScreenWidth, 20.0f)];
+        
+//        @"及时求助",@"问题咨询",@"问路导航",@"求职招聘"
+        
+        if ([self.userSearchStyleContentLabel.text isEqualToString:@"及时求助"]) {
+            self.userSearchUploadDataStyle =6;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"请简述你的求助事由"];
+        }
+        else if ([self.userSearchStyleContentLabel.text isEqualToString:@"问题咨询"]){
+            self.userSearchUploadDataStyle = 7;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"请简述你想要咨询的问题"];
+        }else if ([self.userSearchStyleContentLabel.text isEqualToString:@"问路导航"]){
+            self.userSearchUploadDataStyle = 8;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"请描述清楚你的当前位置和目的地"];
+        }else if ([self.userSearchStyleContentLabel.text isEqualToString:@"求职招聘"]){
+            self.userSearchUploadDataStyle = 9;
+            [self.alertFooterContentLabel setText:@""];
+            [self.userInputHeaderLabel setText:@"请简述你的求职或招聘的岗位要求"];
+        }
+    }
+    
+    if ([self.userInputContentTextView.text length] >0) {
+        return;
+    }
+    [self.userInputHeaderLabel setTextColor:[UIColor colorWithRed:163/255.0f green:163/255.0f blue:163/255.0f alpha:1.0f]];
+    
+    CGSize  headerSize = [self.userInputHeaderLabel.text sizeWithFont:self.userInputHeaderLabel.font constrainedToSize:CGSizeMake(270, MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping];
+    [self.userInputHeaderLabel setFrame:CGRectMake(10.0f, 10.0f, KProjectScreenWidth-50, headerSize.height)];
+}
+
+#pragma mark -
+#pragma mark - 数据发送成功刷新协议方法
+- (void)userSendDataFinishWithUserSendStyle:(NSInteger)m_sendStyle{
+    if (self.initWithSendDelegate) {
+        if ([self.initWithSendDelegate respondsToSelector:@selector(userSendDataFinishWithUserSendStyle:)]) {
+            [self.initWithSendDelegate userSendDataFinishWithUserSendStyle:m_sendStyle];
+        }
+    }
+}
+
+#pragma mark - Method For UITextViewDelegate
+
+- (void)textViewDidChange:(UITextView *)textView{
+    
+    NSString *content = [NSString stringWithFormat:@"%@",[textView text]];
+    if ([content length] == 0) {
+        if (![self.userSearchStyleContentLabel.text isEqualToString:@"请选择"]){
+            self.userInputHeaderLabel.textColor = [UIColor colorWithRed:163/255.0f green:163/255.0f blue:163/255.0f alpha:1.0f];
+            self.navigationItem.rightBarButtonItem.enabled = NO;
+        }
+    }else {
+        self.userInputHeaderLabel.textColor = [UIColor clearColor];
+        self.navigationItem.rightBarButtonItem.enabled = YES;
+    }
+}
+
+#pragma mark -
+#pragma mark - 初始化用户发送数据请求设置
+- (void)initWithUserSendDataRequestOperation{
+    
+    
+    NSString *locationInfo = [NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] valueForKey:@"FMUserLocationInfo"]];//位置信息
+    ///用户ID
+    [self.userSendItemInfor setUserPersonalId:[CurrentUserInformation sharedCurrentUserInfo].userID];
+    ///内容
+    [self.userSendItemInfor setUserPersonalSendContentString:self.userInputContentTextView.text];
+    ///城市编号
+    [self.userSendItemInfor setUserPersonalCityInforString:[CurrentUserInformation sharedCurrentUserInfo].userCityCode];
+    ///详细地址
+    [self.userSendItemInfor setUserPersonalDetailedAddressString:locationInfo];
+    ///用户上报的类别内容
+    [self.userSendItemInfor setUserPersonalSendStyleType:self.userSearchUploadDataStyle];
+    ///个人电话
+    [self.userSendItemInfor setUserPersonalPhoneNumber:self.userPersonalPhoneTextFied.text];
+    
+    
+    WaittingMBProgressHUD(HUIKeyWindow, @"上传中....");
+    if (self.userhasPhotoImage == YES) {
+        [FMImageClient imageUpload:self.userSendImageDataInfor
+                         imageType:@"1"
+                        completion:^(WebAPIResponse* response){
+                            
+                            dispatch_async(dispatch_get_main_queue(), ^(void){
+                                
+                                if (response.code == WebAPIResponseCodeSuccess) {
+                                    
+                                    NSMutableDictionary *imageDic = [[NSMutableDictionary alloc]initWithDictionary:ObjForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData)];
+                                    if (imageDic.count > 0) {
+                                        [self.userSendItemInfor setUserPersonalImageParamDictionary:imageDic];
+                                        [self initWithUserSendContentDataRequestOperation];
+                                    }
+                                }
+                                else if (response.code == WebAPIResponseCodeFailed){
+                                    FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                                }
+                            });
+                        }];
+    }
+    //无图片内容
+    else{
+        [self initWithUserSendContentDataRequestOperation];
+    }
+}
+
+#pragma mark -
+#pragma mark - 初始化用户发送文本数据请求设置
+- (void)initWithUserSendContentDataRequestOperation{
+    
+    if (self.setupInitWithController == InitWithSearchReceiveStyle) {
+        
+        self.requestOperation = [[HTTPClient sharedHTTPClient] userAddWithSearchOrRecevieItemDataWithParamData:self.userSendItemInfor withcompletion:^(WebAPIResponse *response) {
+            
+            dispatch_async(dispatch_get_main_queue(), ^(void){
+                if (response.code == WebAPIResponseCodeSuccess) {
+                    FinishMBProgressHUD(HUIKeyWindow);
+                    [self RecoveryKeyboardView];
+                    [self dismissModalViewControllerAnimated:YES];
+                }else if (response.code == WebAPIResponseCodeFailed){
+                    FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                }
+            });
+        }];
+    }
+    
+    else if (self.setupInitWithController == InitWithFreeRideStyle){
+        ///经度内容
+        NSString    *longitudeString = [[NSString alloc]initWithFormat:@"%lf",[CurrentUserInformation sharedCurrentUserInfo].userCoordinate.longitude];
+        NSString    *latitudeString = [[NSString alloc]initWithFormat:@"%lf",[CurrentUserInformation sharedCurrentUserInfo].userCoordinate.latitude];
+        [self.userSendItemInfor setUserPersonalLatitudeString:latitudeString];
+        [self.userSendItemInfor setUserPersonalLongitudeString:longitudeString];
+        [self.userSendItemInfor setUserPersonalCarNumberString:self.userPersonalCarText.text];
+        
+        self.requestOperation = [[HTTPClient sharedHTTPClient] userAddWithCityFreeRideDataWithCityFreeRideItemInfor:self.userSendItemInfor withcompletion:^(WebAPIResponse *response) {
+            Log(@"%@",response.responseObject);
+
+            dispatch_async(dispatch_get_main_queue(), ^(void){
+                if (response.code == WebAPIResponseCodeSuccess) {
+                    FinishMBProgressHUD(HUIKeyWindow);
+                    [self RecoveryKeyboardView];
+                    [self dismissModalViewControllerAnimated:YES];
+                }else if (response.code == WebAPIResponseCodeFailed){
+                    FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                }
+            });
+        }];
+    }
+    
+    else if (self.setupInitWithController == InitWithInforNetWorkStyle){
+        self.requestOperation = [[HTTPClient sharedHTTPClient] userAddWithInforNetworkItemDataWithParamData:self.userSendItemInfor withcompletion:^(WebAPIResponse *response) {
+            dispatch_async(dispatch_get_main_queue(), ^(void){
+                
+                Log(@"上传信息网数据时，或许的返回内容:%@",response.responseObject);
+                
+                if (response.code == WebAPIResponseCodeSuccess) {
+                    FinishMBProgressHUD(HUIKeyWindow);
+                    [self RecoveryKeyboardView];
+                    [self dismissModalViewControllerAnimated:YES];
+                }else if (response.code == WebAPIResponseCodeFailed){
+                    FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                }
+            });
+        }];
+    }
+    
+    else if (self.setupInitWithController == InitWithFreshThingStyle){
+        self.requestOperation = [[HTTPClient sharedHTTPClient] userAddWithExposureFreshThingItemDataWithParamData:self.userSendItemInfor withcompletion:^(WebAPIResponse *response) {
+            dispatch_async(dispatch_get_main_queue(), ^(void){
+                
+                Log(@"上传信息网数据时，或许的返回内容:%@",response.responseObject);
+                
+                if (response.code == WebAPIResponseCodeSuccess) {
+                    FinishMBProgressHUD(HUIKeyWindow);
+                    [self RecoveryKeyboardView];
+                    [self dismissModalViewControllerAnimated:YES];
+                }else if (response.code == WebAPIResponseCodeFailed){
+                    
+//                    ShowImportErrorAlertView([response.responseObject objectForKey:@"msg"]);
+                    FailedMBProgressHUD(HUIKeyWindow, @"上传失败");
+                }
+            });
+        }];
+    }
+}
+
+-(void)RecoveryKeyboardView
+{
+    [self.view endEditing:YES];
+    
+    UIView *keyboardView = GetKeyBoardView();
+    
+    CGRect keyboardFrame = keyboardView.frame;
+    keyboardFrame.origin.y = [UIScreen mainScreen].bounds.size.height - keyboardView.frame.size.height;
+    keyboardView.frame = keyboardFrame;
+}
+
+#pragma mark -添加键盘出现或消失时的通知
+- (void) addKeyboardNotification{
+    //添加键盘出现通知
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillAppear:) name:UIKeyboardWillShowNotification object:nil];
+}
+
+#pragma mark -移除键盘通知
+- (void) removeKeyboardNotification
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillShowNotification object:nil];
+}
+
+
+#pragma mark -键盘出现时的通知
+- (void) keyboardWillAppear:(NSNotification*)notification
+{
+    
+    CGRect rc = self.view.bounds;
+    //
+    //    //隐藏表情
+    self.expressionView.frame = CGRectMake(0, rc.size.height, KProjectScreenWidth, KPublishExpressHeight);
+    //Search_KeyBoardImage.png
+    self.expressButton.tag = KUserSelectedExpressionButtonTag;
+    [self.expressButton setImage:[UIImage imageNamed:@"Search_ExpressionImage.png"]
+                        forState:UIControlStateNormal];
+}
+
+- (void)didExpressViewSelected:(NSInteger)tag isDelete:(BOOL)bDelete{
+    if (!bDelete) {//不是删除按钮
+        
+        NSString *contentText = [[NSString alloc] initWithFormat:@"%@[%@]",self.userInputContentTextView.text,
+                                 [[FMSettings sharedSettings].expressionNameArray objectAtIndex:tag - 1]];
+        self.userInputContentTextView.text = contentText;
+        
+    }else{//是删除按钮
+        NSString* strText = self.userInputContentTextView.text;
+        if (strText.length > 0) {
+            if ([[strText substringFromIndex:strText.length - 1] isEqualToString:@"]"]) {
+                //正则表达式
+                NSRegularExpression *textRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\w*\\]" options:NSRegularExpressionCaseInsensitive error:nil];
+                ////符合正则表达式的结果
+                NSArray *textArrayOfAllMatches = [textRegex matchesInString:strText options:0 range:NSMakeRange(0, [strText length])];
+                
+                if (textArrayOfAllMatches.count > 0) {
+                    NSTextCheckingResult *checkingResult = textArrayOfAllMatches.lastObject;
+                    self.userInputContentTextView.text = [strText substringWithRange:NSMakeRange(0,checkingResult.range.location)];
+                }
+            }else{
+                self.userInputContentTextView.text = [strText substringWithRange:NSMakeRange(0, strText.length - 1)];
+            }
+        }
+    }
+    [self textViewDidChange:self.userInputContentTextView];
+}
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if (actionSheet.tag == kTakePictureActionSheetTag) {
+        //取消
+        if (buttonIndex != 2) {
+            UIImagePickerController *imagePickerController = [[UIImagePickerController alloc] init];
+            imagePickerController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+            imagePickerController.delegate = self;
+            
+            if(buttonIndex == 0){//拍照
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+                imagePickerController.allowsEditing = NO;
+            }else if(buttonIndex == 1){//相册
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+                imagePickerController.allowsEditing = NO;
+            }
+            [self presentModalViewController:imagePickerController animated:YES];
+        }
+    }
+}
+
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info{
+    @autoreleasepool {
+        UIImage *imageinfo = [info objectForKey:@"UIImagePickerControllerOriginalImage"];
+        CGSize imageSize = imageinfo.size;
+        
+        CGFloat imageHeight = imageSize.height * 640 /imageSize.width;
+        imageSize.width = 640;
+        imageSize.height = imageHeight;
+        
+        UIGraphicsBeginImageContext(imageSize);
+        [imageinfo drawInRect: CGRectMake(0, 0, imageSize.width,imageSize.height)];
+        UIImage *smallImage = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        self.userhasPhotoImage = YES;
+//        self.user
+        self.userSendImageDataInfor = imageinfo;
+        //设置相机按钮图片
+        [self.imagesButton setImage:smallImage forState:UIControlStateNormal];
+        [self.imagesButton setFrame:CGRectMake(self.imagesButton.frame.origin.x,self.imagesButton.frame.origin.y, 40, 40)];
+        [picker dismissModalViewControllerAnimated:YES];
+        [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+
+    }
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker{
+    [picker dismissModalViewControllerAnimated:YES];
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+
+}
+@end

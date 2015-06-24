@@ -1,0 +1,27 @@
+//
+//  FriendCirclePushView.h
+//  fmapp
+//
+//  Created by apple on 14/11/5.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "ExpressView.h"
+
+@protocol FriendCirclePushDelegate <NSObject>
+- (void)didPublishViewLayoutChanged:(CGFloat)bottom withHeight:(CGFloat)height;
+@end
+
+@interface FriendCirclePushView : UIView
+
+
+@property (nonatomic,weak)UITextView        *commentView;
+@property (nonatomic,weak)ExpressView       *expressView;
+//delegate
+@property (nonatomic, weak) id<FriendCirclePushDelegate> delegate;
+
+
+- (void)resetButton;
+
+@end

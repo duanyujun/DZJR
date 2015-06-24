@@ -1,0 +1,700 @@
+//
+//  ShareWebViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-5-21.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "ShareWebViewController.h"
+//#import <QuartzCore/QuartzCore.h>
+#import "NJKWebViewProgressView.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient+ExploreModules.h"
+#import "HTTPClient.h"
+
+//分享
+#import <AGCommon/UINavigationBar+Common.h>
+#import <AGCommon/UIImage+Common.h>
+#import <AGCommon/UIDevice+Common.h>
+#import <ShareSDK/ShareSDK.h>
+#import <AGCommon/NSString+Common.h>
+
+#define kLeftItemButtonTag 10001
+#define kRightItemButtonTag 10002
+
+#define KAnnualInspectionShareURL kBaseAPIURL@"Driver/AnnualCheckShake/?id=0&"
+
+@interface ShareWebViewController ()
+@property (nonatomic , weak)    UIWebView           *webShareWebView;
+///网页链接URL
+@property (nonatomic , copy)    NSURL               *webShareURLInfor;
+///网页链接URL字符串
+@property (nonatomic , copy)    NSString            *webShareURLString;
+///网页标题
+@property (nonatomic , copy)    NSString            *webShareTtitleString;
+///网页展示类型
+@property (nonatomic , assign)  InitWebShareStyle   webShareInitStytle;
+///网页需要分享的图片
+@property (nonatomic , strong)    NSData              *webShareContentImageData;
+@property (nonatomic , strong)  UIImage             *webShareContentImageInfor;
+///进度条内容
+@property (nonatomic , copy)    NJKWebViewProgress  *progressProxy;
+@property (nonatomic , copy)    NJKWebViewProgressView *progressView;
+
+@property (nonatomic , assign)  ShareWebDataStyle   thisWebShareDataStyle;
+@property (nonatomic , strong)  NSString            *stringWebDataInforID;
+@property (nonatomic ,strong)   NSString              *shareUrlString;
+
+- (void)initWithUserDismissModalViewControllerAnimated;
+@end
+
+@implementation ShareWebViewController
+{
+    CALayer  *_backLayer;
+}
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    
+    return self;
+}
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+- (id)initWithWebURLString:(NSString *)m_URLString withTitle:(NSString *)m_titleString withStyle:(InitWebShareStyle)m_shareStyle withImageInfor:(UIImage *)imageToShare withShareWebDataStyle:(ShareWebDataStyle)m_webDataStyle withDataInforID:(NSString *)m_dataInforId{
+    self = [super init];
+    if (self) {
+        
+        self.isNeedShareWebInfor = YES;
+        self.webShareURLInfor = [[NSURL alloc]initWithString:m_URLString];
+        
+        self.webShareURLString = m_URLString;
+        self.webShareTtitleString = m_titleString;
+        self.webShareInitStytle = m_shareStyle;
+        self.webShareContentImageInfor = imageToShare;
+        if (self.webShareInitStytle == InitModalWebStyle) {
+            self.enableCustomNavbarBackButton = FALSE;
+            
+        }
+        self.thisWebShareDataStyle = m_webDataStyle;
+        self.stringWebDataInforID = [[NSString alloc]initWithFormat:@"%@",m_dataInforId];
+        
+        
+    }
+    return self;
+}
+
+
+- (id)initWithWebURLString:(NSString *)m_URLString
+                 withTitle:(NSString *)m_titleString
+                 withStyle:(InitWebShareStyle )m_shareStyle
+            withImageInfor:(UIImage *)imageToShare
+     withShareWebDataStyle:(ShareWebDataStyle )m_webDataStyle
+           withDataInforID:(NSString *)m_dataInforId
+        withshareURLString:(NSString *)share_url
+{
+    self = [super init];
+    if (self) {
+        
+        self.isNeedShareWebInfor = YES;
+        self.webShareURLInfor = [[NSURL alloc]initWithString:m_URLString];
+        
+        self.webShareURLString = m_URLString;
+        self.webShareTtitleString = m_titleString;
+        self.webShareInitStytle = m_shareStyle;
+        self.webShareContentImageInfor = imageToShare;
+        if (self.webShareInitStytle == InitModalWebStyle) {
+            self.enableCustomNavbarBackButton = FALSE;
+            
+        }
+        self.thisWebShareDataStyle = m_webDataStyle;
+        self.stringWebDataInforID = [[NSString alloc]initWithFormat:@"%@",m_dataInforId];
+        self.shareUrlString=share_url;
+        
+        
+    }
+    return self;
+    
+}
+
+//夜间模式
+-(void)createView
+{
+    
+    _backLayer.frame=self.view.bounds;//设置layer的区域
+    
+    [self.view.layer addSublayer:_backLayer];
+    
+    NSString *info=[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]];
+    NSInteger m=[info integerValue];
+    
+    if(m==5)
+    {
+        _backLayer.backgroundColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:0.3].CGColor;
+    }
+    else
+    {
+        _backLayer.backgroundColor = [UIColor colorWithRed:1 green:1 blue:1 alpha:0].CGColor;
+        
+    }
+    
+}
+- (void)viewDidLoad
+{
+    
+    [super viewDidLoad];
+    _backLayer= [CALayer layer];
+    [self settingNavTitle:self.webShareTtitleString];
+    //添加WebView
+    UIWebView *mainWebView = [[UIWebView alloc] initWithFrame:self.view.bounds];
+    mainWebView.opaque = NO;
+    [mainWebView setOpaque:YES];
+    mainWebView.scalesPageToFit = YES;
+    [mainWebView setUserInteractionEnabled:YES];
+    mainWebView.backgroundColor = [UIColor colorWithRed:240/255.0f green:240/255.0f blue:240/255.0f alpha:1.0f];
+    for (UIView *subView in [mainWebView subviews]) {
+        if ([subView isKindOfClass:[UIScrollView class]]) {
+            for (UIView *shadowView in [subView subviews]) {
+                if ([shadowView isKindOfClass:[UIImageView class]]) {
+                    shadowView.hidden = YES;
+                }
+            }
+        }
+    }
+    [mainWebView setBackgroundColor:[UIColor clearColor]];
+    self.webShareWebView = mainWebView ;
+    [self.view addSubview:self.webShareWebView];
+    
+    _progressProxy = [[NJKWebViewProgress alloc] init];
+    self.webShareWebView.delegate = _progressProxy;
+    _progressProxy.webViewProxyDelegate = self;
+    _progressProxy.progressDelegate = self;
+    
+    CGFloat progressBarHeight = 2.f;
+    CGRect navigaitonBarBounds = self.navigationController.navigationBar.bounds;
+    CGRect barFrame = CGRectMake(0, navigaitonBarBounds.size.height - progressBarHeight, navigaitonBarBounds.size.width, progressBarHeight);
+    _progressView = [[NJKWebViewProgressView alloc] initWithFrame:barFrame];
+    _progressView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
+    
+    Log(@"web Url is %@",self.webShareURLInfor);
+    NSURLRequest *urlRequest = [[NSURLRequest alloc] initWithURL:self.webShareURLInfor];
+    [self.webShareWebView loadRequest:urlRequest];
+    
+    if (self.webShareInitStytle == InitModalWebStyle) {
+        
+        /*
+         [self setLeftNavButton:kImgNavCancelItem withFrame:CGRectMake(0.0f, 0.0f, 55.0f, 44.0f) actionTarget:self action:@selector(initWithUserDismissModalViewControllerAnimated)];
+         
+         */
+        self.navButtonSize=KNavSize;
+        //取消
+        [self setLeftNavButtonFA:FMIconCancelCross
+                       withFrame:kNavButtonRect
+                    actionTarget:self
+                          action:@selector(initWithUserDismissModalViewControllerAnimated)];
+    }
+}
+
+- (void)initWithUserDismissModalViewControllerAnimated{
+    [self dismissModalViewControllerAnimated:YES];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    [self createView];
+    [self.navigationController.navigationBar addSubview:_progressView];
+}
+
+-(void)viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+    [_progressView removeFromSuperview];
+}
+- (void)viewWillLayoutSubviews
+{
+    CGRect rc = self.view.bounds;
+    self.webShareWebView.frame = rc;
+    
+}
+#pragma mark -导航栏Item点击时
+- (void) navigationBarItemClicked:(id) sender
+{
+    UIButton *itemButton = (UIButton *)sender;
+    
+    if (itemButton.tag == kLeftItemButtonTag){
+        [self dismissModalViewControllerAnimated:YES];//销毁模态控制器
+    }else if (itemButton.tag == kRightItemButtonTag) {
+        //TODO: 1.构造一个Container（iPhone可省略）
+        id<ISSContainer> container = [ShareSDK container];
+        [container setIPhoneContainerWithViewController:self];
+        
+        //TODO: 3.使用customShareList构造shareList，项目的顺序也会反映在菜单顺序之中
+        NSArray *shareList = [ShareSDK customShareListWithType:
+                              SHARE_TYPE_NUMBER(ShareTypeSinaWeibo),
+                              SHARE_TYPE_NUMBER(ShareTypeWeixiSession),
+                              SHARE_TYPE_NUMBER(ShareTypeWeixiTimeline),
+                              SHARE_TYPE_NUMBER(ShareTypeSMS),
+                              SHARE_TYPE_NUMBER(ShareTypeMail),
+                              SHARE_TYPE_NUMBER(ShareTypeCopy),
+                              nil];
+        
+        id<ISSContent> publishContent = nil;
+        
+        NSString *urlString = [NSString stringWithFormat:@"%@",self.webShareURLString];
+        NSString *titleString = nil;
+        NSString *contentString = nil;
+        NSString *description = nil;
+        ///高速路况
+        if (self.thisWebShareDataStyle == WebDataForHighSpeedRoadStyle) {
+            
+            NSString *msgStr = @"包含省内所有高速公路和主要干道的出入口状态、高速事故、护养施工等实时信息";
+            titleString   = [NSString  stringWithFormat:@"%@",@"最便捷好用的高速实时路况，出行必备！"];
+            contentString = [NSString  stringWithFormat:@"%@",msgStr];
+            description   = msgStr;
+        }
+        
+        ///年检代办
+        else if (self.thisWebShareDataStyle == WebDataForAnnualCheckStyle) {
+            titleString   = [NSString  stringWithFormat:@"免费预约，专享绿色检车通道，省时更省力！"];
+            contentString = [NSString  stringWithFormat:@"免费预约，专享绿色检车通道，省时更省力！"];
+            description   = self.webShareTtitleString;
+            urlString = [NSString stringWithFormat:@"%@source=%@&uid=%@",KAnnualInspectionShareURL,KProjectCityCodeString,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"];
+            Log(@"年检代办分享地址%@",urlString);
+        }
+        
+        ///商家内容分享
+        else if (self.thisWebShareDataStyle == WebDataForMerchantStyle) {
+            
+            if (self.selfMechantItemInfor) {
+                //                NSString *msgStr = @"1031优享卡特约商户-";
+                NSString *msgStr =[NSString stringWithFormat:@"%@优享卡特约商户-",KProjectRadioFMNumber];
+                
+                //                titleString   = [NSString  stringWithFormat:@"1031优享卡特约商户-%@",self.webShareTtitleString];
+                titleString   = [NSString  stringWithFormat:@"%@优享卡特约商户-%@",KProjectRadioFMNumber,self.webShareTtitleString];
+                
+                contentString = [NSString  stringWithFormat:@"%@%@",msgStr,self.webShareTtitleString];
+                description   = titleString;
+                urlString = [NSString stringWithFormat:@"%@BusinessUser/BusinessDetailShare/?uid=%@&id=%@&source=%@",kBaseAPIURL,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0",self.selfMechantItemInfor.infoIdentity,KProjectCityCodeString];
+            }else{
+                Log(@"不是特约商户内容");
+            }
+        }
+        
+        else if (self.thisWebShareDataStyle == WebDataForAnnouncementStyle){
+            Log(@"电台公告内容啊");
+            
+            urlString = [NSString stringWithFormat:@"%@Announce/detailShare/?id=%@&uid=%@&source=%@",kBaseAPIURL,self.stringWebDataInforID,[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ?@"":[CurrentUserInformation sharedCurrentUserInfo].userID,KProjectCityCodeString];
+            titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            description   = self.webShareTtitleString;
+        }
+        
+        else if (self.thisWebShareDataStyle == webDataForWonderfulRecommendation){
+            Log(@"精彩推荐");
+            
+            urlString = [NSString stringWithFormat:@"%@&uid=%@",self.shareUrlString,[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ?@"":[CurrentUserInformation sharedCurrentUserInfo].userID];
+            titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            description   = self.webShareTtitleString;
+            
+            
+            
+        }
+        
+        ///车险购买
+        else if (self.thisWebShareDataStyle == WebDataForAutoEstimationStyle){
+            titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            description   = self.webShareTtitleString;
+        }
+        
+        ///其他的内容操作
+        else if(self.thisWebShareDataStyle == WebDataForDescriptionDataStyle){
+            
+            titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            description   = self.webShareTtitleString;
+        }
+        
+        
+        
+        if (self.webShareInitStytle == InitModalWebStyle) {
+            titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+            description   = self.webShareTtitleString;
+        }
+        
+        
+        NSData *imageData = UIImagePNGRepresentation(self.webShareContentImageInfor);
+        
+        NSData *contentImageData = [[NSData alloc] initWithBytes:[imageData bytes] length:imageData.length];
+        //        id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:@"1031.jpg"];
+        NSString *fileName=[NSString stringWithFormat:@"%@.jpg",KProjectRadioFMNumber];
+        id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:fileName];
+        
+        
+        
+        publishContent = [ShareSDK content:contentString
+                            defaultContent:@""
+                                     image:attachment
+                                     title:titleString
+                                       url:urlString
+                               description:description
+                                 mediaType:SSPublishContentMediaTypeNews];
+        
+        
+        
+        ///高速路况内容
+        if (self.thisWebShareDataStyle == WebDataForHighSpeedRoadStyle) {
+            
+            NSString *msgStr = @"包含省内所有高速公路和主要干道的出入口状态、高速事故、护养施工等实时信息";
+            
+            [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"最便捷好用的高速实时路况，出行必备！--%@ %@",msgStr,urlString]];
+            [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"最便捷好用的高速实时路况，出行必备！--%@ %@",msgStr,urlString] image:nil];
+            //[publishContent addMailUnitWithSubject:@"1031高速路况分享"
+            [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@高速路况分享",KProjectRadioFMNumber] content:[NSString stringWithFormat:@"最便捷好用的高速实时路况，出行必备！--%@ %@",msgStr,urlString]
+                                            isHTML:nil
+                                       attachments:nil
+                                                to:nil
+                                                cc:nil
+                                               bcc:nil];
+        }
+        
+        ///年检代办
+        else if (self.thisWebShareDataStyle == WebDataForAnnualCheckStyle) {
+            
+            [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"年检代办--%@ %@",titleString,urlString]];
+            [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"年检代办--%@ %@",titleString,urlString] image:nil];
+            [publishContent addMailUnitWithSubject:@"年检代办"
+                                           content:[NSString stringWithFormat:@"年检代办--%@ %@",titleString,urlString]
+                                            isHTML:nil
+                                       attachments:nil
+                                                to:nil
+                                                cc:nil
+                                               bcc:nil];
+        }
+        
+        else if (self.thisWebShareDataStyle == WebDataForAnnouncementStyle){
+            Log(@"电台公告内容啊 2222");
+            [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+            [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+            [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                           content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                            isHTML:nil
+                                       attachments:nil
+                                                to:nil
+                                                cc:nil
+                                               bcc:nil];
+        }
+        
+        ///商家内容
+        else if(self.thisWebShareDataStyle == WebDataForMerchantStyle){
+            if (self.selfMechantItemInfor) {
+                [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+                [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+                [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                               content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                                isHTML:nil
+                                           attachments:nil
+                                                    to:nil
+                                                    cc:nil
+                                                   bcc:nil];
+            }else{
+                Log(@"不是特约商户内容");
+            }
+        }
+        
+        ///其他说明信息
+        else if(self.thisWebShareDataStyle == WebDataForDescriptionDataStyle || self.thisWebShareDataStyle == WebDataForAutoEstimationStyle){
+            [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+            [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+            [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                           content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                            isHTML:nil
+                                       attachments:nil
+                                                to:nil
+                                                cc:nil
+                                               bcc:nil];
+        }
+        
+        id<ISSShareOptions> shareOptions =
+        [ShareSDK simpleShareOptionsWithTitle:@"分享内容"
+                            shareViewDelegate:nil];
+        
+        //TODO: 4.将container（iPhone上可为nil）和shareList传入 showShareActionSheet 方法
+        [ShareSDK showShareActionSheet:container
+                             shareList:shareList
+                               content:publishContent
+                         statusBarTips:NO
+                           authOptions:nil
+                          shareOptions:shareOptions
+                                result:nil];
+    }
+}
+
+- (void)webViewProgress:(NJKWebViewProgress *)webViewProgress updateProgress:(float)progress{
+    [_progressView setProgress:progress animated:YES];
+    
+    if (self.isNeedShareWebInfor == NO) {
+        return;
+    }
+    
+    if (progress == 1.0f) {
+        self.navButtonSize = KNavSize;
+        [self setRightNavButtonFA:FMIconShare withFrame:kNavButtonRect actionTarget:self action:@selector(setRightShareButtonEvent)];
+    }
+}
+
+- (void)setRightShareButtonEvent{
+    //    else if (itemButton.tag == kRightItemButtonTag) {
+    //TODO: 1.构造一个Container（iPhone可省略）
+    id<ISSContainer> container = [ShareSDK container];
+    [container setIPhoneContainerWithViewController:self];
+    
+    //TODO: 3.使用customShareList构造shareList，项目的顺序也会反映在菜单顺序之中
+    NSArray *shareList = [ShareSDK customShareListWithType:
+                          SHARE_TYPE_NUMBER(ShareTypeSinaWeibo),
+                          SHARE_TYPE_NUMBER(ShareTypeWeixiSession),
+                          SHARE_TYPE_NUMBER(ShareTypeWeixiTimeline),
+                          SHARE_TYPE_NUMBER(ShareTypeSMS),
+                          SHARE_TYPE_NUMBER(ShareTypeMail),
+                          SHARE_TYPE_NUMBER(ShareTypeCopy),
+                          nil];
+    
+    id<ISSContent> publishContent = nil;
+    
+    
+    NSString *urlString = [NSString stringWithFormat:@"%@",self.webShareURLString];
+    NSString *titleString = nil;
+    NSString *contentString = nil;
+    NSString *description = nil;
+    
+    
+    ///高速路况
+    if (self.thisWebShareDataStyle == WebDataForHighSpeedRoadStyle) {
+        
+        NSString *msgStr = @"包含省内所有高速公路和主要干道的出入口状态、高速事故、护养施工等实时信息";
+        titleString   = [NSString  stringWithFormat:@"%@",@"最便捷好用的高速实时路况，出行必备！"];
+        contentString = [NSString  stringWithFormat:@"%@",msgStr];
+        description   = msgStr;
+    }
+    
+    ///年检代办
+    else if (self.thisWebShareDataStyle == WebDataForAnnualCheckStyle) {
+        titleString   = [NSString  stringWithFormat:@"免费预约，专享绿色检车通道，省时更省力！"];
+        contentString = [NSString  stringWithFormat:@"免费预约，专享绿色检车通道，省时更省力！"];
+        description   = self.webShareTtitleString;
+        urlString = [NSString stringWithFormat:@"%@source=%@&uid=%@",KAnnualInspectionShareURL,KProjectCityCodeString,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"];
+        Log(@"年检代办分享地址%@",urlString);
+    }
+    ///商家内容分享
+    else if (self.thisWebShareDataStyle == WebDataForMerchantStyle) {
+        
+        if (self.selfMechantItemInfor) {
+            //                NSString *msgStr = @"1031优享卡特约商户-";
+            NSString *msgStr =[NSString stringWithFormat:@"%@优享卡特约商户-",KProjectRadioFMNumber];
+            titleString   = [NSString  stringWithFormat:@"%@优享卡特约商户-%@",KProjectRadioFMNumber,self.webShareTtitleString];
+            contentString = [NSString  stringWithFormat:@"%@%@",msgStr,self.webShareTtitleString];
+            description   = titleString;
+            urlString = [NSString stringWithFormat:@"%@BusinessUser/BusinessDetailShare/?uid=%@&id=%@&source=%@",kBaseAPIURL,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0",self.selfMechantItemInfor.infoIdentity,KProjectCityCodeString];
+        }else{
+            Log(@"不是特约商户内容");
+        }
+    }
+    else if (self.thisWebShareDataStyle == WebDataForAnnouncementStyle){
+        Log(@"电台公告内容啊");
+        
+        urlString = [NSString stringWithFormat:@"%@Announce/detailShare/?id=%@&uid=%@&source=%@",kBaseAPIURL,self.stringWebDataInforID,[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ?@"":[CurrentUserInformation sharedCurrentUserInfo].userID,KProjectCityCodeString];
+        titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        description   = self.webShareTtitleString;
+    }
+    else if (self.thisWebShareDataStyle == webDataForWonderfulRecommendation){
+        Log(@"精彩推荐内容");
+        
+        urlString = self.shareUrlString;
+        titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        description   = self.webShareTtitleString;
+        
+    }
+    ///车险购买
+    else if (self.thisWebShareDataStyle == WebDataForAutoEstimationStyle){
+        titleString   = [NSString  stringWithFormat:@"车险购买 %@",self.webShareTtitleString];
+        contentString = [NSString  stringWithFormat:@"车险购买 %@",self.webShareTtitleString];
+        description   = self.webShareTtitleString;
+    }
+    ///其他的内容操作
+    else if(self.thisWebShareDataStyle == WebDataForDescriptionDataStyle){
+        
+        titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        description   = self.webShareTtitleString;
+    }
+    
+    if (self.webShareInitStytle == InitModalWebStyle) {
+        titleString   = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        contentString = [NSString  stringWithFormat:@"%@",self.webShareTtitleString];
+        description   = self.webShareTtitleString;
+    }
+    
+    NSData *imageData = UIImagePNGRepresentation(self.webShareContentImageInfor);
+    NSData *contentImageData = [[NSData alloc] initWithBytes:[imageData bytes] length:imageData.length];
+    //        id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:@"1031.jpg"];
+    NSString *fileName=[NSString stringWithFormat:@"%@.jpg",KProjectRadioFMNumber];
+    id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:fileName];
+    
+    NSString *contentString1=[NSString stringWithFormat:@"%@%@",contentString,urlString];
+    NSString *titleString1=[NSString stringWithFormat:@"%@%@",titleString,urlString];
+    
+    publishContent = [ShareSDK content:contentString
+                        defaultContent:@""
+                                 image:attachment
+                                 title:titleString
+                                   url:urlString
+                           description:description
+                             mediaType:SSPublishContentMediaTypeNews];
+    
+    ///高速路况内容
+    if (self.thisWebShareDataStyle == WebDataForHighSpeedRoadStyle) {
+        
+        NSString *msgStr = @"包含省内所有高速公路和主要干道的出入口状态、高速事故、护养施工等实时信息";
+        
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"最便捷好用的高速实时路况，出行必备！--%@ %@",msgStr,urlString]];
+        [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"最便捷好用的高速实时路况，出行必备！--%@ %@",msgStr,urlString] image:nil];
+        [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@高速路况分享",KProjectRadioFMNumber]  content:[NSString stringWithFormat:@"最便捷好用的高速实时路况，出行必备！--%@ %@",msgStr,urlString]
+                                        isHTML:nil
+                                   attachments:nil
+                                            to:nil
+                                            cc:nil
+                                           bcc:nil];
+    }
+    ///年检代办
+    else if (self.thisWebShareDataStyle == WebDataForAnnualCheckStyle) {
+        
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"年检代办--%@ %@",titleString,urlString]];
+        [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"年检代办--%@ %@",titleString,urlString] image:nil];
+        [publishContent addMailUnitWithSubject:@"年检代办"
+                                       content:[NSString stringWithFormat:@"年检代办--%@ %@",titleString,urlString]
+                                        isHTML:nil
+                                   attachments:nil
+                                            to:nil
+                                            cc:nil
+                                           bcc:nil];
+    }
+    
+    
+    else if (self.thisWebShareDataStyle == WebDataForAnnouncementStyle){
+        Log(@"电台公告内容啊");
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+        [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+        [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                       content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                        isHTML:nil
+                                   attachments:nil
+                                            to:nil
+                                            cc:nil
+                                           bcc:nil];
+    }
+    else if (self.thisWebShareDataStyle == webDataForWonderfulRecommendation){
+        Log(@"精彩推荐内容啊");
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+        
+        [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+        [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                       content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                        isHTML:nil
+                                   attachments:nil
+                                            to:nil
+                                            cc:nil
+                                           bcc:nil];
+    }
+    ///商家内容
+    else if(self.thisWebShareDataStyle == WebDataForMerchantStyle){
+        if (self.selfMechantItemInfor) {
+            [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+            [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+            [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                           content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                            isHTML:nil
+                                       attachments:nil
+                                                to:nil
+                                                cc:nil
+                                               bcc:nil];
+        }else{
+            Log(@"不是特约商户内容");
+        }
+    }
+    else if (self.thisWebShareDataStyle == WebDataForAutoEstimationStyle){
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"车险购买--%@ %@",titleString,urlString]];
+        [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"车险购买--%@ %@",titleString,urlString] image:nil];
+        [publishContent addMailUnitWithSubject:@"车险购买"
+                                       content:[NSString stringWithFormat:@"车险购买--%@ %@",titleString,urlString]
+                                        isHTML:nil
+                                   attachments:nil
+                                            to:nil
+                                            cc:nil
+                                           bcc:nil];
+    }
+    ///其他说明信息
+    else if(self.thisWebShareDataStyle == WebDataForDescriptionDataStyle){
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString]];
+        [publishContent addCopyUnitWithContent:[NSString stringWithFormat:@"%@ %@",titleString,urlString] image:nil];
+        [publishContent addMailUnitWithSubject:[NSString stringWithFormat:@"%@",titleString]
+                                       content:[NSString stringWithFormat:@"%@ %@",titleString,urlString]
+                                        isHTML:nil
+                                   attachments:nil
+                                            to:nil
+                                            cc:nil
+                                           bcc:nil];
+    }
+    
+    id<ISSShareOptions> shareOptions =
+    [ShareSDK simpleShareOptionsWithTitle:@"分享内容"
+                        shareViewDelegate:nil];
+    
+    //TODO: 4.将container（iPhone上可为nil）和shareList传入 showShareActionSheet 方法
+    [ShareSDK showShareActionSheet:container
+                         shareList:shareList
+                           content:publishContent
+                     statusBarTips:NO
+                       authOptions:nil
+                      shareOptions:shareOptions
+                            result:nil];
+    //    }
+}
+
+
+- (void)webViewDidFinishLoad:(UIWebView *)webView{
+    self.webShareTtitleString = [[NSString alloc]initWithFormat:@"%@",[webView stringByEvaluatingJavaScriptFromString:@"document.title"]];
+    Log(@"self.webShareTtitleString is %@",self.webShareTtitleString);
+}
+
+- (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType{
+    BOOL shouldStartLoad = YES;
+    
+    Log(@"request %@\n\nrequest.mainDocumentURL is %@\n\n",request.description,request.mainDocumentURL);
+    NSString *documentURLString = [[NSString alloc]initWithFormat:@"%@",request.mainDocumentURL];
+    if ([documentURLString isEqualToString:[NSString stringWithFormat:@"%@ShakePrize/ios.seckill",kBaseAPIURL]]) {
+    }
+    
+    return shouldStartLoad;
+}
+
+
+- (void)initWithGoToMayViewController{
+    
+}
+@end

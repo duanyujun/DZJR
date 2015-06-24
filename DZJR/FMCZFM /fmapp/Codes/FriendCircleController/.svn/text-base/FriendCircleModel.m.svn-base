@@ -1,0 +1,43 @@
+//
+//  FriendCircleModel.m
+//  fmapp
+//
+//  Created by 张利广 on 14-11-1.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FriendCircleModel.h"
+
+@implementation FriendCircleModel
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    
+    return self;
+}
+
++ (id)initWithFriendCircleModelWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    if (dicInfor .count <= 0) {
+        return Nil;
+    }
+    FriendCircleModel *friendModel = [[FriendCircleModel alloc]init];
+    
+    [friendModel setFriendCirId:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [friendModel setFriendCirName:StringForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    [friendModel setFriendCirCurrentUsersCount:IntForKeyInUnserializedJSONDic(dicInfor, @"number")];
+    
+    return friendModel;
+}
+
+- (NSMutableDictionary *)getUserCreateFriendCircleParamInfor{
+    
+    NSMutableDictionary *param = [[NSMutableDictionary alloc]init];
+    AddObjectForKeyIntoDictionary(self.friendCirName, @"name", param);
+    AddObjectForKeyIntoDictionary(self.friendCirCreateUserId, @"userId", param);
+    
+    return param;
+}
+@end
+

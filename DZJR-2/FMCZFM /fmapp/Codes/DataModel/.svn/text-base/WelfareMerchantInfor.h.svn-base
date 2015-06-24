@@ -1,0 +1,155 @@
+//
+//  WelfareMerchantInfor.h
+//  fmapp
+//
+//  Created by 张利广 on 14-9-20.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+
+typedef NS_ENUM(NSInteger, WelfareMerchantStyle){
+    WelfareMerchantForRecommendStyle = 1,       /**< 精品推荐对应的福利商家，标准的车友福利*/
+    WelfareMerchantForActivityStyle,            /**< 电台活动对应的福利商家*/
+    WelfareMerchantForShakStyle,                /**< 摇一摇对应的福利商家*/
+    WelfareMerchantForNearbyStyle,              /**< 附近商家对应的福利商家*/
+    WelfareMerchantForBoutiqueStyle,            /**< 精品推荐，用于消息中的精品推荐模块**/
+    
+} ;
+
+#import <Foundation/Foundation.h>
+#import "UserInfo.h"
+
+/** 车友福利商家信息内容**/
+@interface WelfareMerchantInfor : NSObject
+///福利商家ID
+@property (nonatomic , copy)    NSString            *welfareMerchantId;
+///福利商家标题
+@property (nonatomic , copy)    NSString            *welfareMerchantTitleInfor;
+///福利商家单价(原单价，即原价)
+@property (nonatomic , assign)  CGFloat             welfareMerchantUnitPrice;
+///福利商家现单价(即当前折扣单价，或者是抢购价)
+@property (nonatomic , assign)  CGFloat             welfareMerchantLimitUnitPrice;
+///福利商家购买者的信息
+@property (nonatomic,strong)    UserInfo            *welfareMerchanPayUserInfo;
+///福利商家购买者购买的数量
+@property (nonatomic , assign)  NSInteger           welfareMerchantPayNumberQuantity;
+///福利商家购买者需要支付的商品总金额(人民币)
+@property (nonatomic , assign)  CGFloat             welfareUserPayMerchantTotalPricesRMB;
+///福利商家购买者可使用的红包总金额
+@property (nonatomic , assign)  CGFloat             welfareUserPayRedPacketRMB;
+///福利商家购买者需要支付的实际金额（人民币）
+@property (nonatomic , assign)  CGFloat             welfareUserPayReallyTotalPricesRMB;
+///福利商家描述信息
+@property (nonatomic , copy)    NSString            *welfareMerchanDescriptionInformation;
+///福利商家类别内容
+@property (nonatomic , assign)  WelfareMerchantStyle welfareMerchantInforStyle;
+///福利商家的交易订单号内容
+@property (nonatomic , strong)  NSString            *welfareMerchanTradeOrderNumber;
+///福利商家宣传图片
+@property (nonatomic , copy)    NSString            *welfareMerchanIconImageURLKey;
+
+///福利商家电话
+@property (nonatomic , copy)    NSString            *welfareMerchanTelePhone;
+
+///宣传图片地址，由于大于一张，所以使用NSArray;
+@property (nonatomic , copy)    NSArray             *welfareMerchanPhotoImagesArrayURLKey;
+
+///商家TableCell中的价格及原价参数说明
+@property (nonatomic , copy)    NSString            *welfareMerchanCellLeftParameterString;
+@property (nonatomic , copy)    NSString            *welfareMerchanCellRightParameterString;
+
+///商家操作验证码
+@property (nonatomic , copy)    NSString            *welfareMerchanSecurityCodeString;
+///支付宝回调URL字符串
+@property (nonatomic , copy)    NSString            *welfareMerchanPayReturnCallURLString;
+
+////奖品推荐内部使用地址
+@property (nonatomic , copy)    NSString            *welfareMerchanWebURLString;
+////奖品推荐分享使用地址
+@property (nonatomic , copy)    NSString            *welfareMerchanWebShareURLString;
+
+@property (nonatomic,assign)  NSInteger            state;
+
+///
+//活动时间
+@property (nonatomic,copy)NSString *activityTime;;
+
+//派奖时间
+@property (nonatomic , assign)  NSInteger         welfareMerchantTime;
+//奖品数
+@property (nonatomic,assign)NSInteger sponsor_telephone;
+@property (nonatomic,assign)NSInteger sponsor_id;
+@property (nonatomic,assign)NSInteger surplus;
+@property (nonatomic,assign)NSInteger total;
+@property (nonatomic,assign)NSInteger coin;
+@property (nonatomic,copy)NSString * number;
+
+//评论
+@property (nonatomic,copy)NSString *comment_content;
+@property (nonatomic,copy)NSString *comment_pic;
+@property (nonatomic,copy)NSString *comment_time;
+@property (nonatomic,assign)NSInteger comment_total;
+@property (nonatomic,copy)NSString *comment_userName;
+
+@property (nonatomic,strong) NSAttributedString *commentContent;
+
+///赞助商
+@property (nonatomic,copy)NSString *sponsor_address;
+@property (nonatomic,copy)NSString *sponsor_name;
+@property (nonatomic,copy)NSString *sponsor_pic;
+
+///活动浏览次数
+@property (nonatomic,assign)NSInteger hits;
+///活动状态
+@property (nonatomic,assign)NSInteger status;
+///活动进行状态
+@property (nonatomic,assign)NSInteger activityStyle;
+
+///互动ID
+@property (nonatomic,assign)NSInteger questionId;
+
+///价格
+@property (nonatomic,copy)NSString *current_price;
+@property (nonatomic,copy)NSString *original_price;
+
+//活动浏览次数
+@property (nonatomic,assign)NSInteger business_count;
+
+
+
+
++(id)initWithWelfareMerchantInforWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
++(CGFloat)returnMerchantTitleInforHeightWithMerchantTitleInfor:(NSString *)MerchantTitleInfor;
++(CGFloat)returncommentHeightWithcommentInfor:(NSString *)comment;
+
+
+-(NSDictionary *)getWelfareMerchantInforParameter;
+
++(id)getShakeinfoWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
++(id)getActivityinfoWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
++(id)getMerchantForRecommendWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
++(id)getMerchantForNearbyWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+- (GLfloat)getShortContentHeight:(GLfloat)containerWidth;
+
+@end
+
+
+@interface PayReqForWX : WelfareMerchantInfor
+/** 商家向财付通申请的商家id */
+@property (nonatomic, retain) NSString *wxPartnerId;
+/** 预支付订单 */
+@property (nonatomic, retain) NSString *wxPrepayId;
+/** 随机串，防重发 */
+@property (nonatomic, retain) NSString *wxNonceStr;
+/** 时间戳，防重发 */
+@property (nonatomic, assign) UInt32 wxTimeStamp;
+/** 商家根据财付通文档填写的数据和签名 */
+@property (nonatomic, retain) NSString *wxPackage;
+/** 商家根据微信开放平台文档对数据做的签名 */
+@property (nonatomic, retain) NSString *wxSign;
+@end

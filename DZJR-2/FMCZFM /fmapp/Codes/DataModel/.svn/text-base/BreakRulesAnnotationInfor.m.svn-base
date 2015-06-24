@@ -1,0 +1,103 @@
+//
+//  BreakRulesAnnotationInfor.m
+//  FM_CZFW
+//
+//  Created by 张利广 on 13-11-11.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "BreakRulesAnnotationInfor.h"
+#import "CurrentUserInformation.h"
+
+@implementation BreakRulesAnnotationInfor
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
++(id)initBreakRulesAnnotationInforWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    BreakRulesAnnotationInfor   *itemInfor = [[BreakRulesAnnotationInfor alloc]init];
+    
+    if (itemInfor == nil) {
+        return nil;
+    }
+    ///标题地址
+    [itemInfor setTitle:ObjForKeyInUnserializedJSONDic(dicInfor, @"address")];
+    
+    NSDictionary    *gpsDictionary = (NSDictionary *)ObjForKeyInUnserializedJSONDic(dicInfor, @"gps");
+    ///经纬度
+    float latitude = [ObjForKeyInUnserializedJSONDic(gpsDictionary, @"x") floatValue];
+    float longitude = [ObjForKeyInUnserializedJSONDic(gpsDictionary, @"y") floatValue];
+    CLLocationCoordinate2D itemCoordinate = CLLocationCoordinate2DMake(latitude, longitude);
+    [itemInfor setCoordinate:itemCoordinate];
+    
+    ///评论内容
+    [itemInfor setAnnotationCommentInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"content")];
+    
+    //上报者名字
+    [itemInfor setAnnotationReportedNameString:ObjForKeyInUnserializedJSONDic(dicInfor, @"userName")];
+
+    ///上报者的ID
+    [itemInfor setAnnotationReportedUserIdentifier:[ObjForKeyInUnserializedJSONDic(dicInfor, @"userId") stringValue]];
+    
+    ///本条记录的ID
+    [itemInfor setAnnotationReportedIdentifier:ObjForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    
+    ///标注点的发生/上报/新建时间
+    [itemInfor setAnnotationCreateDateInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"date")];
+    
+    ///违章发生类别
+    [itemInfor setBreakRulesAnnotationTypeStyle:[ObjForKeyInUnserializedJSONDic(dicInfor, @"type") integerValue]];
+
+    return itemInfor;
+}
+
+- (NSMutableDictionary *)getDictionaryWithBreakRulesAnnotationItemInformationWithImageParam:(NSString *)m_imageParam{
+
+    NSMutableDictionary *paramDic = [[NSMutableDictionary alloc]init];
+    
+    [paramDic setObject:self.annotationReportedUserIdentifier forKey:@"userId"];
+    [paramDic setObject:self.annotationReportedNameString forKey:@"userName"];
+    
+    
+    if (!IsStringEmptyOrNull(self.annotationReportedStreedNameInfor)) {
+        [paramDic setObject:self.annotationReportedStreedNameInfor forKey:@"street"];
+    }else{
+        [paramDic setObject:@"" forKey:@"street"];
+    }
+    [paramDic setObject:[CurrentUserInformation sharedCurrentUserInfo].userCityCode forKey:@"cityCode"];
+    [paramDic setObject:self.annotationCommentInfor forKey:@"content"];
+    [paramDic setObject:self.annotationCreateDateInfor forKey:@"date"];
+    [paramDic setObject:[NSNumber numberWithInt:self.breakRulesAnnotationTypeStyle] forKey:@"type"];
+    [paramDic setObject:[NSNumber numberWithFloat:self.coordinate.longitude] forKey:@"longitude"];
+    [paramDic setObject:[NSNumber numberWithFloat:self.coordinate.latitude] forKey:@"latitude"];
+    if (!IsStringEmptyOrNull(m_imageParam)) {
+        [paramDic setObject:m_imageParam forKey:@"pic"];
+    }
+    
+    return paramDic;
+}
+
++(id)initWithCityFreeRideItemForMapViewWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    //分解有用户数据
+    BreakRulesAnnotationInfor *breakRulesAnnotationItemInfor = [[BreakRulesAnnotationInfor alloc]init];
+    if (breakRulesAnnotationItemInfor == nil) {
+        return nil;
+    }
+    ///经纬度
+    CLLocationCoordinate2D itemCoordinate = CLLocationCoordinate2DMake(FloatForKeyInUnserializedJSONDic(dicInfor, @"latitude"), FloatForKeyInUnserializedJSONDic(dicInfor, @"longitude"));
+    [breakRulesAnnotationItemInfor setCoordinate:itemCoordinate];
+    ///本条记录的ID
+    [breakRulesAnnotationItemInfor setAnnotationReportedIdentifier:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    ///违章发生类别
+    [breakRulesAnnotationItemInfor setBreakRulesAnnotationTypeStyle:IntForKeyInUnserializedJSONDic(dicInfor, @"type")];
+    ///初始化在互动中产生的数据ID
+    [breakRulesAnnotationItemInfor setAnnotationReportedNameString:StringForKeyInUnserializedJSONDic(dicInfor, @"questionId")];
+    return breakRulesAnnotationItemInfor;
+}
+
+@end

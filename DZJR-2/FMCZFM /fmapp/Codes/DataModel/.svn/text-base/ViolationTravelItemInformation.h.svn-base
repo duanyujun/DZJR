@@ -1,0 +1,44 @@
+//
+//  ViolationTravelItemInformation.h
+//  fmapp
+//
+//  Created by 张利广 on 14-6-19.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+
+/** 违章查询单条数据信息内容***/
+@interface ViolationTravelItemInformation : NSObject
+
+///编号
+@property (nonatomic,copy) NSString *itemInformationIdentity;
+
+///名称
+@property (nonatomic,copy) NSString *itemInformationName;
+
+///内容
+@property (nonatomic,copy) NSString *itemInformationContent;
+
+///时间
+@property (nonatomic,copy) NSString *itemInformationTime;
+
+///罚款
+@property (nonatomic,copy) NSString *itemInformationPrice;
+
+///扣的分数
+@property (nonatomic,copy) NSString *itemInformationScore;
+
+///月份
+@property (nonatomic,copy) NSString *itemInformationMonth;
+
+///日
+@property (nonatomic,copy) NSString *itemInformationDay;
+
+///1已处理 2未处理
+@property (nonatomic,copy) NSString *itemInformationType;
+
+/** 初始化单条列表数据内容**/
++(id)initViolationTravelItemInformationWithUnserializedJSONDic:(NSDictionary *)dataDictionary;
+@end

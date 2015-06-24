@@ -1,0 +1,391 @@
+//
+//  WepAPIDefine.h
+//  FM_CZFW
+//
+//  所有FM_CZFW Rest服务的API地址
+//
+//  Created by liyuhui on 14-4-1.
+//  Copyright (c) 2013年 ETelecom. All rights reserved.
+//
+
+#ifndef CZFW_WebAPIDefine_h
+#define CZFW_WebAPIDefine_h
+/*！
+ *****************************************************
+ *   互动模块中参加及接口
+ ******************************************************
+ **/
+
+#pragma mark - common key
+#define kDataKeyPageIndex      @"page"
+#define kDataKeyPageSize       @"pagesize"
+#define kDataKeyData           @"data"
+#define kDataKeyId             @"id"
+#define kDataKeyLastId         @"lastid"
+#define kDataKeyType           @"type"
+#define kDataKeyPageCount      @"totalPage"
+#define kDataKeyDataCount      @"count"
+#define kDataKeyUserId         @"userId"
+#define kDataKeyLongitude      @"longitude"
+#define kDataKeyLatitude       @"latitude"
+#define KDataKeyAudio          @"audio"
+#define KDataKeyAvatar         @"avatar"
+#define KDataKeyPublic          @"is_public"
+
+#pragma mark - 图片服务器
+#define kImageUpload           @"upload.php"
+
+#pragma mark - 互动API
+
+#define kAnswersListURL                 @"Answer/answerList"             //获取回答数据URL
+#define kAnswersListURLUnderiOS6        @"Answer/listsIphone"            //获取回答数据URL iOS6以下
+#define kDeleteCommentURL               @"Answer/delete"                 //删除回复
+#define kCarImagesURL                   @"User/carPicLists"              //获取车照片
+#define kPublishCommentURL              @"Answer/answer"                 //发布回复
+#define kAnswerPraiseURL                @"Answer/Praise"                 //点赞回复
+#define kQuestionInfoURL                @"Push/QuestionInfoList"         //获取问题信息
+#define KUserFeedbackQuestioinURL       @"Questions/Accusation"          //举报非法问题接口
+#define KUserFeedbackAnswerURL          @"Answer/Accusation"             //举报非法回复接口
+
+#define kDeleteQuestionURL              @"Questions/delete"              //删除问题
+#define kQuestionsListURL               @"Questions/questionsIndex"      //问题列表 
+#define kQuestionsListURLUnderiOS6      @"Questions/indexIphone"
+#define kPublishQuestionURL             @"Questions/iPhoneAsk"           //发布问题
+#define kPublishQuestionURL             @"Questions/iPhoneAsk"           //发布问题
+
+#define KFriendsCircleListURL           @"FriendsCircle/Lists"           //朋友圈列表
+#define KFriendsListsURL                @"Friends/Lists"                 //关注用户列表
+
+#pragma mark - 未读消息
+#define kUnreadMsgCountURL              @"Message/MessageNum"            //未读消息数目
+#define kUnreadMsgURL                   @"Message/Lists"                 //未读消息列表
+#define kIgnoreMsgURL                   @"Message/Ignore"                //忽略未读消息
+#define kMarkMsgReadURL                 @"Message/ReadNew"               //标记未读消息已读
+
+#pragma mark - 主持人
+#define kEmceeListURL                   @"Emcee/lists"                   //主持人列表
+#define kCurrentEmceeURL                @"Emcee/nowEmcee"                //当前主持人
+#define kPraiseEmceeURL                 @"Emcee/zan"                     //赞主持人
+#define kProgramDataURL                 @"Program/lists"                 //节目数据
+
+#pragma mark - 路况
+#define kRoadConditionsURL              @"RoadCondition/lists"          //获取路况数据
+#define kSearchRoadConditionsURL        @"RoadCondition/search"         //搜索路况
+#define KAutoUploadRoadConditionURL     @"RoadCondition/AddNew"         //自动上报路况内容
+#define KGetGeoInfoTipURL               @"RoadCondition/Road"           //地理提示信息
+#define kAddRoadConditionInfoURL        @"RoadCondition/add"            //手动上报路况
+#define KRoadGetInforForAudioURL        @"RoadCondition/ListsAudio"     //获取路况语音列表内容
+#define KRoadGetIniforListForSquareURL  @"RoadCondition/listsSquare"    ///更具左右对角线获取路况内容
+#define KRoadUserDeleteRoadItemURL      @"RoadCondition/delete"         ///删除自己上报的路况内容
+#define KRoadForWelfareMerchantURL      @"Index/Recommend"              ///猜你喜欢商家信息接口
+#define KRoadTransactionParamUploadURL  @"CarWelfare/Buy"               ///上传购买商品参数信息
+#define KRoadCarWelfareFinishURL        @"CarWelfare/Finish"            ///付款成功后回调接口
+#define KWeixinChatPayParamURL          @"CarWelfare/WechatConfig"      ///微信支付参数信息内容
+
+
+
+#pragma mark - 车友
+#define kMyCarFriendsURL                @"Nearby/My"                    //我的车友
+#define kActiveCarFriendsURL            @"Nearby/Active"                //活跃车友
+#define kNearbyCarFriendsURL            @"Nearby/Index"                 //附近车友
+#define kNearbyPeopleURL                @"Questions/nearby"             //获取附近到访的人
+#define KUserAddBlackListURL            @"BlackList/Add"                //加入黑名单操作
+#define KUserAddAttentionListURL        @"Friends/Add"                  //加入关注操作
+#define KUserCanCelAttentionListURL     @"Friends/Delete"               //取消关注操作
+#define KUserFriendsListURL             @"Friends/Lists"                //关注用户列表
+#define KUserEditEditBGImageInforURL    @"User/EditBack"                //修改个人背景图
+
+
+#define KGetUserPersonalInforURL        @"User/UserInfoiPhone"          //获取好友个人信息
+#define KGetUserNameInforURL            @"Questions/GetUserName"        //获取用户名字的参数内容
+#define KGetNearbyUserForLocationURL    @"Questions/nearbySquare"       //根据双经纬度获取附近用户信息内容
+
+#pragma mark - 消息模块
+#define KGetMsgListFriendsInfoURL       @"User/InfoIM"                  //获取消息列表好友信息
+#define KGetAuthUserInforURL            @"User/AuthUser"                //获取认证用户信息
+
+
+
+/*！
+ *****************************************************
+ *   "探索"模块中API相关参数内容
+ ******************************************************
+ **/
+#define KDataKeyUserMobile              @"mobile"
+
+
+#pragma mark - 事故快处模块中接口
+#define KExploreQuickDealPointURL       @"Weizhang/kpcld"               //事故快处服务点接口
+
+#pragma mark - 摇一摇接口内容
+#define KExploreUserShakeResultURL      @"ShakeOff/GetPrize"            //摇一摇结束后请求数据接口
+#define KExploreUserShakeResultDetalURL @"Activity/DetailNew/?"         //获取摇一摇Web界面数据接口
+#define KExploreUserShakePrizeListURL   @"ShakeOff/Lists"               //摇一摇中奖品类别接口
+#define KExploreShakePrizeResidueTotalURL   @"ShakeOff/PrizeNumIphone"  ///获取摇一摇奖品剩余总量
+#define KShakePrizeTipURL                @"ShakePrize/Tip"              ///摇一摇提醒
+
+#define KCarWelfareDrawBackURL           @"CarWelfare/DrawBack"        ///消费券退款
+
+
+#pragma mark - 电台活动接口内容
+#define KExploreStationActivityURL      @"Activity/ListsWithUnit"       //电台活动接口
+#define KExploreStationActivityWebURL   @""                             //获取电台活动详情界面Web接口
+
+#pragma mark - 电台资讯接口内容
+
+#define KSecondHandCarKeySeries            @"series"
+#define KSecondHandCarKeyBrand              @"brand"
+#pragma mark -
+#pragma mark - 二手车模块内容
+#define KExploreSecondMainViewFooterURL         @"SecondHandCar/Info"               //二手车主界面提供商内容
+#define kExploreSecondHandListURL               @"SecondHandCar/Exhibition"         //二手车展厅列表接口
+#define KExploreSecondHandForSearchInforURL     @"SecondHandCar/SearchSecondCar"    ///二手车展厅搜索接口
+#define KExploreSecondHandAddUsedCarInforURL    @"SecondHandCar/AddEvaluate"       //用户提交二手车信息参数内容
+#define KExploreSecondHandResultURL             @"SecondHandCar/GetEvaluate"        //获取用户最新一次提交的二手车的评估结果接口
+#define KExploreSecondHandWillSellCarUploadURL  @"SecondHandCar/SellCar"         //上传用户有变卖该评估结果对应的二手车意向内容接口
+#define KExploreSecondHandAutomobileLogoDataURL @"SecondHandCar/CarBrand"       //获取汽车Logo URL接口
+#define KExploreSecondHandCarSeriesDataURL      @"SecondHandCar/CarSeries"      //二手车二级界面
+#define KExploreSecondHandCarTypeDataURL        @"SecondHandCar/CarType"        //二手车选择三级界面
+
+#pragma mark - 946幸运星接口内容
+#define KExploreLuckUserCodeWordsURL    @"FlashHeadlight/index"             //946幸运星设置
+
+#define KExploreInforNetworkListURL     @"Recruit/Lists"                //信息网列表
+#define KExploreInforNetworkDeleteURL   @"Recruit/Delete"               //信息网删除
+#define KExploreInforNetworkAddInforURL @"Recruit/Add"                  //信息网添加
+
+
+#define KExploreFreshThingListURL       @"TipOff/Lists"                //我要爆料列表
+#define KExploreFreshThingDeleteURL     @"TipOff/Delete"               //我要爆料删除
+#define KExploreFreshThingAddInforURL   @"TipOff/Add"                  //我要爆料添加
+
+#pragma mark - 随手拍接口内容
+#define KExploreRandomPhotoURL          @"Snapshot/Lists"                //随手拍内容列表
+#define KExploreSnapshotAddURL          @"Snapshot/Add"                 //添加随手拍
+
+
+#pragma mark - 交警留言板接口内容
+#define kExplorePoliceMessageURL        @"TrafficPolice/AddMessage"      //交警留言板
+
+
+
+#pragma mark - 活动召集令接口内容
+
+#pragma mark - 1074找到了接口内容
+
+#define KExploreSearchInforListURL      @"LostProperty/Lists"           //找到了列表界面接口
+#define kExploreSearchInforListUnderiOS6 @"LostProperty/ListsLowVersion" //低版本的数据内容
+#define KExploreSearchInforDeleteURL    @"LostProperty/Delete"          //找到了删除单条信息接口
+#define KExploreSearchAddInforURL       @"LostProperty/Add"             //找到了添加信息接口
+
+#pragma mark - 都市顺风车接口内容
+#define KExploreCityFreeInforListURL    @"AvToStop/Lists"              //顺风车列表界面接口
+#define KExploreCityFreeInforListURLUnderiOS6 @"AvToStop/ListsLowVersion"
+#define KExploreCityFreeDeleteURL       @"AvToStop/Delete"             //顺风车单条数据删除接口
+#define KExploreCityFreeAddInforURL     @"AvToStop/Add"                //顺风车添加单条数据接口
+
+#define KExploreNearbyFreeRideURL       @"AvToStop/AroundLists"        ///周围用户数据内容接口（包括乘客、车主）
+#define KExploreCityFreeSearchInforURL  @"AvToStop/Search"              ///顺风车搜索界面
+
+
+#pragma mark - 违章多发接口数据内容
+#define KExploreBreakRulesDataInforURL  @"Weizhang/peccancyLists"       //获取违章多发数据界面
+#define KExploreBreakRulesDeleteInforURL @"Weizhang/deletePeccancyAddress" //删除单条违章多发数据内容
+#define KExploreBreakRulesAddInforURL   @"Weizhang/addPeccancyAddressPic"   //违章多发添加单条数据接口
+
+
+#pragma mark - 代驾_发送拨打电话人信息内容
+
+#define KExploreInsteadOfDrivingURL     @"Driver/Add"                   //代驾_上传用户信息接口
+
+
+#pragma mark - 特约商户模块接口
+#define kExploreNearbyShopsURL          @"BusinessUser/lists"           //特约商户列表接口
+#define KExploreNearbyShopDetailURL     @"BusinessUser/details"         //特约商户详情接口
+#define KExploreSpecialBusinessURL      @"BusinessUser/VipLists"        //签约商户列表
+#define KCarWelfareBusinessURL          @"CarWelfare/Business"          //适用商家
+//Activity/DetailnewShare
+//活动报名上传手机参数内容
+#define KExploreUserUploadPhoneURL      @"Activity/Enroll"
+//取消活动报名
+#define KActivityCancelURL              @"Activity/Cancel"
+//确认参加活动
+#define KActivityEnsureURL              @"Activity/Ensure"
+
+/*！
+ *****************************************************
+ *   用户登录注册参数
+ ******************************************************
+ **/
+
+#pragma mark - common key
+
+#define kuserName                       @"userName"
+#define kuserpassword                   @"password"
+#define kuserGender                     @"sex"
+#define kuserCityCode                   @"cityCode"
+#define kuserLatitude                   @"resLatitude"
+#define kuserLongitude                  @"resLongitude"
+#define kuserDeviceToken                @"deviceToken"
+#define kuserDeviceNumber               @"deviceNumber"
+#define kuserOrigin                     @"origin"
+#define kuserLoginClient                @"login_client"
+
+#define KuserLoginLatitude              @"latitude"
+#define KuserLoginLongitude             @"longitude"
+
+#pragma mark -
+#pragma mark -  用户登录注册API
+
+#define kUserRegisterURL                @"User/register"                    //用户注册URL
+#define kUserLoginURL                   @"User/login"                       //用户登录URL
+#define KUserRegisterCitySearchURL      @"User/citycode"                    ///注册城市选择
+#define KUserLogOutURL                  @"User/logout"                      ///用户退出登录
+#define KGetMobileCheckCodeURL          @"User/SendCode"                    ///获取验证码
+#define KLoginForForgetPasswordURL      @"ForgetPass/SendCode"              ///用户找回密码接口
+#define KLoginForSecurityCodeURL        @"ForgetPass/CheckCode"             //找回密码_验证当前验证码是否正确
+#define KLoginForSetupPasswordURL       @"ForgetPass/ModifyPass"            ///找回密码_重设密码
+#define KRegisterUserPhoneAuditURL      @""                             ///通过手机号进行注册_验证手机号
+#define KRegisterUserSecurityCodeURL    @""                             ///通过用户手机号进行注册_验证验证码
+
+#define KProgramRedHintPointDataURL     @"RedHint/Index"                    ///小红点提示内容
+#define KMeUserReadMyPrizeInforDataURL  @"RedHint/DelPrizeHint"             ///用户已经阅读了我的奖品内容信息
+
+/*！
+ *****************************************************
+ *   “我”的模块中相关接口参数
+ ******************************************************
+ **/
+
+#pragma mark - common key
+
+#define KUserPersonalID                 @"userId"
+#define KUserCarNo                      @"carNo"
+#define KUserCarColor                   @"carColor"
+#define KDataKeyNumPerPage              @"numPerPage"
+
+
+#pragma mark -
+#pragma mark -  “我”的界面中相关API
+#define kUserInfoURL                    @"User/info"                        //获取用户等级信息接口
+#define kQueryTrafficViolationsURL      @"Weizhang/iPhoneLists"             //用户违章查询接口
+#define KInitWithPrizeDataURL           @"ShakeOff/My"                      //获取我的奖品信息接口
+#define KMeMyPrizeForShakeURL           @"Activity/Select"                  //我的奖品中选中的活动
+#define kAnnouncementDataURL            @"Announce/lists"                   //获取电台公告信息接口
+#define kMeUserUploadCarImagesURL       @"User/UploadCarPic"                //上传爱车照片
+#define kMeGetUserCarImagesListURL      @"User/carPicLists"                 //获取用户爱车图片参数列表
+#define KGeneralizeListsURL             @"Generalize/Lists"                 //精彩推荐接口
+
+/*!
+ *********************************************************
+ *  ”个人信息“界面相关接口
+ *********************************************************
+ */
+#define KDataKeyUserSignature           @"signature"
+#define KDataKeyUserNewPasword          @"newPassword"
+
+
+/*!
+ **********************************************************
+ *
+ *车辆信息参数内容
+ *
+ *********************************************************
+ **/
+#define KDataKeyCarEengine              @"carEengine"                           ///车辆发动机号
+#define KDataKeyDefaultCarCode          @"ssid"                                 ///车辆默认编号参数
+#define KMeKeyDefaultCarCode            @"defaultcar"
+#define KMeKeyUserPhoneNumber           @"mobile"                               ///用户个人手机号
+#define KMeKeyUserSecurityCode          @"code"                                 ///验证码
+
+#define KMeTrafficViolationsAddURL      @"Car/addCarNo"                         ///添加车牌操作接口
+#define KMeUserAddEnginePhotoURL        @"Car/SendLicense"                      ///用户上传行驶证相关信内容
+#define KMeTrafficViolationsSwitchURL   @"Car/defaultcar"                       ///切换车牌操作接口
+#define KMeTrafficViolationsModifyURL   @"Car/changeCarNo"                      ///修改车牌操作接口
+#define KMeTrafficViolationsDeleteURL   @"Car/Delete"                           ///解除绑定设置接口
+
+/*!
+ **********************************************************
+ *个人优享卡相关接口参数
+ **********************************************************
+ */
+
+#define KInitExclusiveCardCodeInforURL      @"VipCard/Check"                    //获取用户个人优惠卡信息接口
+#define KMeClubCardReceiveURL               @"VipCard/Add"                      ///用户领取优享卡相关参数内容
+#define KMeReSetClubCardDataURL             @"VipCard/Edit"                     //编辑用户会员卡数据信息
+
+#pragma mark -
+#pragma mark -  “个人信息”界面中相关API
+
+#define KMeUserInformationURL               @"User/info"                        //获取用户个人信息接口
+#define KUserEditPersonalInforURL           @"User/ModifyInfo"                  //用户修改用户个人信息接口
+#define KMeUserAddPhoneNumberURL            @"User/checkMobile"                 ///添加个人手机号接口
+
+#define KMeUserSecurityCodeURL              @"User/bindMobile"                  //用户绑定手机号操作（若为会员直接绑定为会员，若为非会员，则直接添加手机号）//验证码提交接口
+#define KMeCarAutoSeriesURL                 @"CarType/series"                   //获取爱车选择二级界面数据
+#define kMeCarModifyAutoTypeURL             @"Car/modifyLogo"                   //修改用户个人车型参数内容
+
+
+
+#define KMeSetupPasswordURL                 @"User/modifyPassword"              //登录后修改密码
+
+#pragma mark - 隐私设置接口内容及参数
+
+#define KMePrivacySetupLocationURL          @"User/ModifyAddress"               //设置是否公开个人位置接口
+#define KMePrivacySetupStealthURL           @"User/setHide"                     //设置是否隐私接口
+#define KMePrivacySetupUserCarImagesURL     @"User/setHover"                    //设置是否公开个人爱车照片
+#define KMePrivacyBlackListInforURL         @"BlackList/Lists"                  ///获取用户个人黑名单列表
+#define KMePrivacyRemoveBlacklistURL        @"BlackList/Delete"                 ///将用户移除黑名单
+#define KCarWelfarecardListsURL             @"CarWelfare/cardLists"            ///消费券列表
+
+#pragma mark - 工程广告内容
+#define KProjectionAdvertisementInforURL    @"StartAd/GetAd"                    ///工程广告内容
+
+#pragma mark - 启动页广告接口内容
+//#define
+
+#pragma mark -车友聚会内容
+#define KCarFriendSendActivityURL           @"Party/Add"                        //发起活动
+#define KPartyListURL                       @"Party/Lists"                      //车友聚会列表
+#define KSignPartyURL                       @"Party/Sign"                       //报名参加聚会
+#define KDeletePartyURL                     @"Party/Delete"                       //删除聚会
+
+
+#pragma mark -  获取系统通知
+
+
+#define KMessageSystemMsgURL                @"SystemNotice/Lists"               ///系统消息通知
+//#define
+
+#pragma mark -详情内容
+
+#define KBusinessUserDetailURL               @"BusinessUser/Detail"        //商户详情
+#define KShakePrizeDetailURL                 @"ShakePrize/Detail"          //摇一摇详情
+#define KActivityDetailURL                   @"Activity/Detail"            //电台活动
+#define KCarWelfareDetailURL                 @"CarWelfare/Detail"          //精品限购
+
+
+#pragma mark - 即时通信IM消息接口信息
+
+#define KInstantMessagingWithChatUserListURL @"Chat/ChatUserList"           ///或许消息的最新10条消息内容
+#define KInstantMessagingWithChatHistoryURL  @"Chat/ChatHistorySecure"      ///或许用户的聊天记录信息
+#define KInstantMessagingWithReadURL         @"Chat/Read"                   ///通知服务器进行已读操作处理
+
+#define KChatNumberURL                       @"Chat/Number"                ///获取聊天用户数
+#define KChatDeleteMsgInforURL               @"Chat/Delete"
+#define KGetIMServerURL                      @"Chat/Host"                   //获取IM服务器信息
+#define KChatDeleteURL                       @"Chat/Delete"
+
+#define mark - 朋友圈接口URL内容
+
+#define KFCircleNameURL                     @"Circle/Search"                //获取朋友圈名字URL接口
+#define KFCircleCreateURL                   @"Circle/Add"                   //创建圈子URL接口
+#define KFCircleJoinURL                     @"Circle/Join"                  //加入到某个圈子
+#define KFCircleCancelURL                   @"Circle/Cancel"                //退出某个圈子
+#define KFCirclePostListsURL                @"Circle/PostLists"             ///圈内帖子列表内容
+#define KFCirclePraiseURL                   @"Circle/Praise"                ///圈内点赞接口
+#define KFCircleSendPostURL                 @"Circle/Post"                  ///圈内发送帖子
+#define KFCircleUserMemberURL               @"Circle/User"                  ///圈子内成员内容
+#define KFCircleDeletePostURL               @"Circle/DeletePost"            ///删除当前帖子信息
+
+#endif

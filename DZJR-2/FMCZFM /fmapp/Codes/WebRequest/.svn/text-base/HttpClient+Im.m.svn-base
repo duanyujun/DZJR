@@ -1,0 +1,24 @@
+//
+//  HttpClient+Im.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14/11/15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+
+#import "HttpClient+Im.h"
+
+@implementation HTTPClient (IM)
+
+- (AFHTTPRequestOperation *)getImserverPerfer:(WebAPIRequestCompletionBlock)completion
+{
+    return [self postPath:KGetIMServerURL
+               parameters:nil
+               completion:completion];
+}
+
+
+@end

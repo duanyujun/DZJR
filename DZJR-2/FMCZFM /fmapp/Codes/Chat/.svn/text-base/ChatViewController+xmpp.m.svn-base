@@ -1,0 +1,351 @@
+//
+//  ChatViewController+xmpp.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14/10/31.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "ChatViewController+xmpp.h"
+#import "CurrentUserInformation.h"
+#import "CellFrameModel.h"
+#import "IMManager.h"
+#import "HTTPClient.h"
+#import "HTTPClient+Friends.h"
+#import "TSMessage.h"
+#import "TSMessageView.h"
+#import "LocalDataManagement.h"
+
+
+
+@implementation ChatViewController (xmpp)
+
+
+
+#pragma mark 发送消息
+
+
+// 发送文本、表情消息
+- (void)sendTextMessage:(NSString* )strText
+{
+    
+     // 1.获得时间
+     NSTimeInterval time = [[NSDate date] timeIntervalSince1970];
+     uint32_t date = (uint32_t)time;
+     
+     // 2.创建一个MessageModel类
+     FMMessage *message    = [[FMMessage alloc] init];
+     message.messageType   = MessageTypeText;
+     message.flowno = [[IMManager sharedIMManager].Client nextSendSequence];
+     message.content       = strText;
+     message.msgTime = date;
+     message.sendOrReceive = MessageSend;
+     
+     message.userId = [CurrentUserInformation sharedCurrentUserInfo].userID;
+     message.chatUserId = self.userFriendInfo.userID;
+     message.userName = [CurrentUserInformation sharedCurrentUserInfo].userName;
+     message.userIconKey = [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl;
+     message.isShowTime = [self showMessageTime:message insertPos:-1];
+     message.msgStatus = MessageStatusSending;
+    
+    
+    [self showNewMessage:message location:-1];
+    
+     //发送im消息
+     [[IMManager sharedIMManager].Client sendMessage:message
+                                            toUserDd:self.userFriendInfo.userID];
+    
+    ///设置已发送数据
+    self.whetherSendData = YES;
+    
+}
+
+// 发送图片
+- (void)sendImageMessage:(UIImage *)image
+{
+    if (image == nil) {
+        return;
+    }
+    // 1.获得时间
+    NSTimeInterval time = [[NSDate date] timeIntervalSince1970];
+    uint32_t date = (uint32_t)time;
+    
+    // 2.创建一个FMMessage类
+    FMMessage *message = [[FMMessage alloc] init];
+    message.messageType = MessageTypeImage;
+    message.flowno = [[IMManager sharedIMManager].Client nextSendSequence];
+    message.imageData = image;
+    message.msgTime = date;
+    message.sendOrReceive = MessageSend;
+    message.userId = [CurrentUserInformation sharedCurrentUserInfo].userID;
+    message.chatUserId = self.userFriendInfo.userID;
+    message.userName = [CurrentUserInformation sharedCurrentUserInfo].userName;
+    message.userIconKey = [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl;
+    message.isShowTime = [self showMessageTime:message insertPos:-1];
+    message.imageWidth = image.size.width;
+    message.imageHeight = image.size.height;
+    message.msgStatus = MessageStatusSending;
+    
+    [self showNewMessage:message location:-1];
+    
+    //上传图片
+    NSString* peerUserId = [self.userFriendInfo.userID copy];
+    __weak __typeof(&*self)weakSelf = self;
+    [FMImageClient imageUpload:image
+                     imageType:@"1"
+                    completion:^(WebAPIResponse *response){
+                        
+                        dispatch_async(dispatch_get_main_queue(), ^(void){
+                            if (response.code == WebAPIResponseCodeSuccess) {
+                                
+                               //所有图片上传完毕,开始发送消息
+                                NSDictionary* dic = [response.responseObject objectForKey:kDataKeyData];
+                                    if (dic) {
+                                        message.imageWidth = FloatForKeyInUnserializedJSONDic(dic, @"pic_width");
+                                        message.imageHeight = FloatForKeyInUnserializedJSONDic(dic, @"pic_height");
+                                        message.imageKey = StringForKeyInUnserializedJSONDic(dic, @"pic_url");
+                                        [message makeImageContent];
+                                        [[IMManager sharedIMManager].Client sendMessage:message
+                                                                               toUserDd:peerUserId];
+
+                                    }else{
+                                        message.msgStatus = MessageStatusAttachFailed;
+                                        [weakSelf updateMessage:message.flowno updateStauts:MessageStatusAttachFailed];
+                                    }
+                               
+                                
+                            } else {
+                                message.msgStatus = MessageStatusAttachFailed;
+                                [weakSelf updateMessage:message.flowno updateStauts:MessageStatusAttachFailed];
+                            }
+                        });
+                    }];
+    ///设置已发送数据
+    self.whetherSendData = YES;
+}
+
+// 发送语音
+- (void)sendVoiceMessage:(AMRInfo* )audioData
+{
+    // 1.获得时间
+    NSTimeInterval time = [[NSDate date] timeIntervalSince1970];
+    uint32_t date = (uint32_t)time;     // 发送到服务器的数据
+    
+    // 2.创建一个FMMessage类
+    FMMessage *message = [[FMMessage alloc] init];
+    message.messageType = MessageTypeVoice;
+    message.flowno = [[IMManager sharedIMManager].Client nextSendSequence];
+    message.msgTime = date;
+    message.sendOrReceive = MessageSend;
+    message.voiceAMRInfo = audioData;
+    message.userId = [CurrentUserInformation sharedCurrentUserInfo].userID;
+    message.chatUserId = self.userFriendInfo.userID;
+    message.userName = [CurrentUserInformation sharedCurrentUserInfo].userName;
+    message.userIconKey = [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl;
+    message.isShowTime = [self showMessageTime:message insertPos:-1];
+    message.voiceLen = [NSString stringWithFormat:@"%d",audioData.amrLength];
+    message.msgStatus = MessageStatusSending;
+    
+    //4.添加到消息列表
+    [self showNewMessage:message location:-1];
+    
+    //5.上传语音
+    NSString* peerUserId = [self.userFriendInfo.userID copy];
+    __weak __typeof(&*self)weakSelf = self;    
+    [[HTTPClient sharedImageClient] audioUpload:audioData.amrData
+                                     completion:^(WebAPIResponse *response) {
+                                         dispatch_async(dispatch_get_main_queue(), ^(void){
+                                             if(response.code == WebAPIResponseCodeSuccess){
+                                                 NSString *audioKeyString = StringForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData);
+                                                 if (!IsStringEmptyOrNull(audioKeyString)) {
+                                                     // 语音上传完成，开始发送消息
+                                                     message.voiceKey = audioKeyString;
+                                                     [message makeVoiceContent];
+                                                     [[IMManager sharedIMManager].Client sendMessage:message
+                                                                                            toUserDd:peerUserId];
+                                                     
+                                                     
+                                                 }else{
+                                                     message.msgStatus = MessageStatusAttachFailed;
+                                                     [weakSelf updateMessage:message.flowno updateStauts:MessageStatusAttachFailed];
+                                                 }
+                                             }
+                                             else {
+                                                 message.msgStatus = MessageStatusAttachFailed;
+                                                 [weakSelf updateMessage:message.flowno updateStauts:MessageStatusAttachFailed];
+                                             }
+                                         });
+                                     }];
+    ///设置已发送数据
+    self.whetherSendData = YES;
+    
+}
+
+
+#pragma mark XMPPStreamDelegate
+// 消息发送结果事件
+- (void)xmppStream:(IMClient *)sender didSendMessage:(NSData *)message
+{
+    c2s_pkg_t *pkg = (c2s_pkg_t *)[message bytes];
+    uint8_t ret = pkg->msgrsp.ret;
+    uint32_t seq = ntohl(pkg->head.seq);
+    [self updateMessage:seq updateStauts:MessageStatusOk];
+    
+    if (ret == C2S_MESSAGE_OK) {
+        
+    } else if (ret == C2S_MESSAGE_OFFLINE) { //对方不在线,已推送(但推送不一定到达)
+       // [self.view endEditing:YES];
+       // ShowIMAutoHideMBProgressHUD(self.view, @"对方不在线！");
+
+    } else if (ret == C2S_MESSAGE_RCVED) { //对方已接收(对方在线或推送到达)
+        
+    } else if (ret == C2S_MESSAGE_FAILED) { //发送失败(用户不存在,推送信息超时等）
+       // ShowIMAutoHideMBProgressHUD(self.view, @"发送失败！");
+    } else if (ret == C2S_MESSAGE_BAN) { //禁止通信(黑名单)
+        //ShowIMAutoHideMBProgressHUD(self.view, @"对方在您的黑名单中，无法发送消息！");
+    }
+    
+}
+
+// 接收到服务器消息事件
+- (void)xmppStream:(IMClient *)sender didReceiveMessage:(NSData *)message
+{
+    c2s_pkg_t *pkg = (c2s_pkg_t *)[message bytes];
+    
+    // 用户Id
+    U4 peer = pkg->message.peer;
+    int peerId = htonl(peer);
+    NSString *userId = [NSString stringWithFormat:@"%d", peerId];
+    if (![userId isEqualToString:self.userFriendInfo.userID]) {
+        LocalDataManagement *dataManagement = [LocalDataManagement sharedLocalManager];
+        NSString *userName=[dataManagement getUserNameWithUserId:userId];
+        
+        if (userName) {
+            [TSMessage showNotificationWithTitle:[NSString stringWithFormat:@"车友 @%@ 发来新消息",userName] type:TSMessageNotificationTypeMessage];
+        }
+        else
+        {
+            [self getFriendDetailInfoFromServer:userId];
+  
+        }
+            
+        return;
+    }
+    
+    // messageId
+    U4 msg_id = pkg->message.msg_id;
+    int messageId = htonl(msg_id);
+    
+    // msgTime
+    U4 msg_time = pkg->message.msg_time;
+    int msgTime = htonl(msg_time);
+    
+    // 消息内容
+    pkg_message_t *msg = &pkg->message;
+    PLV plvMessage = &msg->msg_content;
+    
+    NSString *messageStr = StringFromLV(plvMessage);
+    
+    // 收到消息后
+    // 1.创建一个MessageModel类
+    FMMessage *receiveMessage    = [[FMMessage alloc] init];
+    receiveMessage.sendOrReceive = MessageReceive;
+    receiveMessage.messageId = messageId;
+    receiveMessage.userId = [CurrentUserInformation sharedCurrentUserInfo].userID;
+    receiveMessage.chatUserId = userId;
+    receiveMessage.userName = self.userFriendInfo.userName;
+    receiveMessage.userIconKey = self.userFriendInfo.userAvatar;
+    receiveMessage.msgTime = msgTime;
+    receiveMessage.content = messageStr;
+    receiveMessage.isShowTime = [self showMessageTime:receiveMessage insertPos:-1];
+    [self showNewMessage:receiveMessage location:-1];
+    
+    ///设置为收到信息
+    self.whetherReceiveData = YES;
+
+}
+//从服务器获取好友详细信息
+- (void)getFriendDetailInfoFromServer:(NSString *)userId{
+    // 请求车友详细信息
+    [FMHTTPClient getMsgListFriendsDetailInfo:userId
+                                   completion:^(WebAPIResponse *response) {
+                                       
+                                       Log(@"%@",response.responseObject);
+                                       dispatch_async(dispatch_get_main_queue(), ^(void) {
+                                           
+                                           if (response.code == WebAPIResponseCodeSuccess) {
+                                               
+                                               NSDictionary *dataDic = [response.responseObject objectForKey:kDataKeyData];
+                                               if (dataDic.count > 0 ) {
+
+                                                   NSString* strUserName = StringForKeyInUnserializedJSONDic(dataDic,@"userName");
+                                                   
+                                                    [TSMessage showNotificationWithTitle:[NSString stringWithFormat:@"车友 @%@ 发来新消息",strUserName] type:TSMessageNotificationTypeMessage];
+}
+                                           }
+                                       });
+                                   } ];
+    
+    
+}
+
+//同步不同终端数据
+- (void)xmppStream:(IMClient *)sender didSyncMessage:(NSData *)message
+{
+    c2s_pkg_t *pkg = (c2s_pkg_t *)[message bytes];
+    
+    // 用户Id
+    U4 peer = pkg->message.peer;
+    int peerId = htonl(peer);
+    NSString *userId = [NSString stringWithFormat:@"%d", peerId];
+    if (![userId isEqualToString:self.userFriendInfo.userID]) {
+        return;
+    }
+    
+    // messageId
+    U4 msg_id = pkg->message.msg_id;
+    int messageId = htonl(msg_id);
+    
+    // msgTime
+    U4 msg_time = pkg->message.msg_time;
+    int msgTime = htonl(msg_time);
+    
+    // 消息内容
+    pkg_message_t *msg = &pkg->message;
+    PLV plvMessage = &msg->msg_content;
+    
+    NSString *messageStr = StringFromLV(plvMessage);
+    
+    // 收到消息后
+    // 1.创建一个MessageModel类
+    FMMessage *receiveMessage    = [[FMMessage alloc] init];
+    receiveMessage.sendOrReceive = MessageSend;
+    receiveMessage.messageId = messageId;
+    receiveMessage.userId = [CurrentUserInformation sharedCurrentUserInfo].userID;
+    receiveMessage.chatUserId = userId;
+    receiveMessage.userName = [CurrentUserInformation sharedCurrentUserInfo].userName;
+    receiveMessage.userIconKey = [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl;
+    receiveMessage.msgTime = msgTime;
+    receiveMessage.content = messageStr;
+    
+    
+    receiveMessage.isShowTime = [self showMessageTime:receiveMessage insertPos:-1];
+    [self showNewMessage:receiveMessage location:-1];
+}
+//消息发送失败事件
+- (void)xmppStream:(IMClient *)sender didMessageSendFailed:(NSInteger)flowno
+{
+    int i = 0;
+    for (CellFrameModel* cell in self.dataSource) {
+        FMMessage* msg = cell.message;
+        if (msg.flowno == flowno) {
+            msg.msgStatus = MessageStatusSendFailed;
+            NSIndexPath* path = [NSIndexPath indexPathForRow:i+1 inSection:0];
+            [self.messageListTableView reloadRowsAtIndexPaths:@[path] withRowAnimation:UITableViewRowAnimationNone];
+            break;
+        }
+        i++;
+    }
+}
+@end

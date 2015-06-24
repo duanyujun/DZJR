@@ -1,0 +1,573 @@
+//
+//  LeftViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-10-9.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define ViewSizeWidth   self.view.bounds.size
+
+#import "MembershipCardController.h"
+#import "CurrentUserInformation.h"
+#import "SettingViewController.h"
+#import "SliderViewController.h"
+#import "UIView+KGViewExtend.h"
+#import "PrizeViewController.h"
+#import "LeftViewController.h"
+#import "MeViewController.h"
+#import "LoginController.h"
+#import "APAvatarImageView.h"
+#import "FMImageView.h"
+#import "UserGradeView.h"
+#import "FontAwesome.h"
+#import "UserInformationController.h"
+#import "FriendDetailedInforViewController.h"
+#import "MainTabViewController.h"
+
+#define KFunctionIconNameLabelTag   1980731
+#define KFunctionNameLabelTag       1980732
+
+//分享
+#import <AGCommon/UINavigationBar+Common.h>
+#import <AGCommon/UIImage+Common.h>
+#import <AGCommon/UIDevice+Common.h>
+#import <AGCommon/NSString+Common.h>
+#import <ShareSDK/ShareSDK.h>
+
+@interface LeftViewController ()<UITableViewDataSource,UITableViewDelegate,UserInfoDelegate>
+///功能模块名字数据
+@property (nonatomic,strong)    NSArray                     *titleNamesArray;
+///功能模块Icons数据
+@property (nonatomic,strong)    NSArray                     *titleIconsArray;
+///功能模块颜色值内容
+@property (nonatomic, strong)   NSArray                     *titleIconColorArray;
+///功能模块操作视图
+@property (nonatomic,weak)      UITableView                 *tableView;
+///头像
+@property (nonatomic,weak)      APAvatarImageView           *userCarTypeImageView;
+
+///用户姓名
+@property (nonatomic,weak)      UILabel                     *userPersonalNameLable;
+///用户性别
+@property (nonatomic,weak)      UIImageView                 *userPersonalGender;
+
+///用户个人等级界面
+@property (nonatomic,weak)      UserGradeView               *userPersonalGradeView;
+
+
+///初始化界面内容
+- (void)initWithLeftViewControllerFrame;
+
+- (void)initWithUserOperationButtonEvent;
+@end
+
+@implementation LeftViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        self.enableCustomNavbarBackButton = NO;
+        
+        [[NSNotificationCenter defaultCenter] addObserver: self
+                                                 selector: @selector(leftloginNotification:)
+                                                     name: FMUserLoginNotification
+                                                   object: nil];
+        [[NSNotificationCenter defaultCenter] addObserver: self
+                                                 selector: @selector(leftloginOutNotification:)
+                                                     name: FMUserLogoutNotification
+                                                   object: nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(changeMyInformation:)
+                                                     name:FMChangeMyInformationNotification object:nil];
+
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    //    [self.navigationItem setHidesBackButton:YES];
+    self.navigationController.navigationBarHidden = YES;
+    
+    [self.view setBackgroundColor:[UIColor colorWithRed:72.0f/255.0f
+                                                  green:92.0f/255.0f
+                                                   blue:99.0f/255.0f
+                                                  alpha:1.0f]];
+    
+    ///登录通知
+    ///退出登录通知
+    
+    [self initWithLeftViewControllerFrame];
+}
+
+
+- (void)viewDidAppear:(BOOL)animated{
+    [super viewDidAppear:animated];
+    self.navigationController.navigationBarHidden = YES;
+}
+
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (void)initWithLeftViewControllerFrame{
+    
+    
+    self.titleIconsArray = [[NSArray alloc]initWithObjects:[NSNumber numberWithInteger:FMIconMe],[NSNumber numberWithInteger:FMIconVIPCard],[NSNumber numberWithInteger:FMIconMyPrize],[NSNumber numberWithInteger:FMIconGoldCoin], nil];
+    
+    self.titleNamesArray = [[NSArray alloc]initWithObjects:
+                            @"我的资料", @"我的卡券包",
+                            @"我的奖品",@"邀请好友赚金币",nil];
+    
+    self.titleIconColorArray = [[NSArray alloc]initWithObjects:
+                                HUIRGBColor(205.0f, 199.0f, 45.0f, 1.0f),
+                                HUIRGBColor(243.0f, 152.0f, 0.0f, 1.0f),
+                                HUIRGBColor(126.0f, 206.0f, 244.0f, 1.0f),
+                                HUIRGBColor(65.0f, 196.0f, 160.0f, 1.0f),nil];
+    
+    float hHeight = 60;
+    UIImageView *imageBgV = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, self.view.width, self.view.height/4 + hHeight)];
+    imageBgV.tag = 18;
+    [self.view addSubview:imageBgV];
+    
+    hHeight = imageBgV.bottom - 80;
+    UIImageView *imageBgV2 = [[UIImageView alloc] initWithFrame:CGRectMake(0, hHeight, self.view.width, self.view.height - hHeight)];
+    imageBgV2.tag = 19;
+    [imageBgV2 setBackgroundColor:[UIColor clearColor]];
+    [self.view addSubview:imageBgV2];
+    
+    
+    
+    ///设置承载图
+    self.contentView  = [[UIView alloc]initWithFrame:self.view.bounds];
+    [self.contentView  setBackgroundColor:[UIColor clearColor]];
+    [self.view addSubview:self.contentView];
+    
+    CGFloat width=(CGFloat)KProjectScreenWidth/320;
+    
+    ////车型图片
+    APAvatarImageView *carTypeImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(83*width, 60, 75, 75)borderColor:[UIColor whiteColor] borderWidth:0.5];
+    [carTypeImageView setClipsToBounds:YES];
+    carTypeImageView.userInteractionEnabled=YES;
+    [carTypeImageView setContentMode:UIViewContentModeScaleAspectFill];
+    carTypeImageView.image = kImgDefaultCar;
+    self.userCarTypeImageView = carTypeImageView;
+    self.userCarTypeImageView.alpha=1;
+    [self.contentView addSubview:self.userCarTypeImageView ];
+    
+    UIButton *carImageBtn=[UIButton buttonWithType:UIButtonTypeCustom];
+    carImageBtn.backgroundColor=[UIColor clearColor];
+    [carImageBtn setFrame:carTypeImageView.bounds];
+    [carImageBtn addTarget:self action:@selector(carTypeImageViewBtnClick) forControlEvents:UIControlEventTouchUpInside];
+    [carTypeImageView addSubview:carImageBtn];
+    
+    ///用户名
+    UILabel *userName = [[UILabel alloc]init];
+    [userName setTextColor:[UIColor whiteColor]];
+    [userName setBackgroundColor:[UIColor clearColor]];
+    [userName setFont:[UIFont systemFontOfSize:18.0f]];
+    [userName setTextAlignment:NSTextAlignmentCenter];
+    [userName setFrame:CGRectMake(carTypeImageView.frame.origin.x-37.5-25,
+                                  (carTypeImageView.frame.origin.y+carTypeImageView.frame.size.height + 10),
+                                  200, 20.0f)];
+    self.userPersonalNameLable = userName;
+    [self.contentView addSubview:self.userPersonalNameLable];
+    
+    ///用户性别
+    UIImageView *userSex = [[UIImageView alloc]init];
+    [userSex setFrame:CGRectMake(userName.frame.size.width +10,  (carTypeImageView.frame.origin.y+carTypeImageView.frame.size.height + 10),16, 16)];
+    
+    self.userPersonalGender = userSex;
+    [self.userPersonalGender setHidden:YES];
+    [userSex setBackgroundColor:[UIColor clearColor]];
+    [self.contentView addSubview:self.userPersonalGender];
+    
+    ///用户个人等级
+    UserGradeView *gradeView = [[UserGradeView alloc]init];
+    [gradeView setBackgroundColor:[UIColor clearColor]];
+    self.userPersonalGradeView = gradeView;
+    self.userPersonalGradeView.alpha=1;
+    [self.contentView addSubview:self.userPersonalGradeView];
+    
+    ///tableview视图内容
+    UITableView *viewControllerTableView = [[UITableView alloc] initWithFrame:CGRectMake(0, imageBgV.bottom + 10, self.view.width, self.view.height - imageBgV.bottom - 80) style:UITableViewStylePlain];
+    viewControllerTableView.dataSource = self;
+    viewControllerTableView.delegate = self;
+    [viewControllerTableView setBackgroundColor:[UIColor clearColor]];
+    viewControllerTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    self.tableView = viewControllerTableView;
+    [self.contentView addSubview:self.tableView];
+    
+    UIButton *setButton =[UIButton buttonWithType:UIButtonTypeCustom];
+    [setButton setFrame:CGRectMake(40.0f, self.contentView.frame.size.height- 60.0f, 130.0f, 30.0f)];
+    setButton.titleLabel.font = [UIFont systemFontOfSize:16];
+    [setButton setTitle:@"设置" forState:UIControlStateNormal];
+    setButton.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+    [setButton simpleButtonWithImageColor:[UIColor whiteColor]];
+    [setButton addAwesomeIcon:FMIconSetup beforeTitle:YES];
+    
+    [setButton addTarget:self action:@selector(initWithUserOperationButtonEvent) forControlEvents:UIControlEventTouchUpInside];
+    [self.contentView addSubview:setButton];
+    
+    ///添加通知设置
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(initWithUserSetUpPhotoImageNotification:)
+                                                 name: FMUserBrandImageModifyNotification
+                                               object: nil];
+    
+}
+
+- (void)initWithUserSetUpPhotoImageNotification:(NSNotification *)notification{
+    
+    
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState != 1) {
+        return;
+    }
+    
+    ///头像
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)) {
+        
+        [self.userCarTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                            [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                     placeholderImage:kImgDefaultCar];
+    }
+}
+
+#pragma mark - UITableViewDataSource
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    NSString *reuseIdetify = @"LeftTableViewCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdetify];;
+    
+    if (cell == nil)
+    {
+        cell = [[UITableViewCell alloc] init];
+        [cell setBackgroundColor:[UIColor clearColor]];
+        [cell setSelectionStyle:UITableViewCellSelectionStyleBlue];
+        
+        UIButton *functionButtton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [functionButtton setTag:KFunctionIconNameLabelTag];
+        functionButtton.titleLabel.font = [UIFont systemFontOfSize:17];
+        [functionButtton setBackgroundColor:[UIColor clearColor]];
+        [functionButtton setFrame:CGRectMake(20.0f,10,40, 30.0f)];
+        [functionButtton setBackgroundImage:createImageWithColor([UIColor clearColor])
+                                   forState:UIControlStateNormal];
+        [functionButtton setBackgroundImage:createImageWithColor([UIColor clearColor])
+                                   forState:UIControlStateHighlighted];
+        [cell addSubview:functionButtton];
+        
+        UILabel *funNameLabel = [[UILabel alloc]init];
+        [funNameLabel setTextAlignment:NSTextAlignmentLeft];
+        [funNameLabel setTag:KFunctionNameLabelTag];
+        [funNameLabel setBackgroundColor:[UIColor clearColor]];
+        [funNameLabel setFrame:CGRectMake(57.0f, 0.0f, 150, 47.0f)];
+        [funNameLabel setTextColor:[UIColor whiteColor]];
+        [funNameLabel setFont:[UIFont systemFontOfSize:18.0f]];
+        [cell addSubview:funNameLabel];
+    }
+    UIButton *button = (UIButton *)[cell viewWithTag:KFunctionIconNameLabelTag];
+    [button simpleButtonWithImageColor:(UIColor *)[self.titleIconColorArray objectAtIndex:indexPath.row]];
+    NSNumber *iconNumber = (NSNumber *)[self.titleIconsArray objectAtIndex:indexPath.row];
+    [button addAwesomeIcon:(FMIconFont)[iconNumber integerValue] beforeTitle:YES];
+    
+    UILabel *nameLabel = (UILabel *)[cell viewWithTag:KFunctionNameLabelTag];
+    [nameLabel setText:[self.titleNamesArray objectAtIndex:indexPath.row]];
+    
+
+    return cell;
+    
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    
+    return [self.titleNamesArray count];
+}
+
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
+    return 1;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 47;
+}
+
+
+#pragma mark - UITableViewDelegate
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    NSInteger indexRowInteger = indexPath.row;
+    
+    switch (indexRowInteger) {
+        case 0://我的资料
+        {
+            
+            [[SliderViewController sharedSliderController] closeSideBarWithAnimate:YES complete:^(BOOL finished)
+             {
+                 if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+                     LoginController *registerController = [[LoginController alloc] init];
+                     FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+                     [self presentModalViewController:navController animated:YES];
+                 }else{
+                     
+                     
+//                     PersonalLoveCarController *viewController = [[PersonalLoveCarController alloc]init];
+//                     [[SliderViewController sharedSliderController].navigationController pushViewController:viewController animated:YES];
+                     
+                     UserInformationController *viewController = [[UserInformationController alloc]initWithUserEditInforDelegate:self];
+                     viewController.delegateStyle=YES;
+                     [[SliderViewController sharedSliderController].navigationController pushViewController:viewController animated:YES];
+
+                 }
+             }];
+        }
+            break;
+        case 1:///我的优享卡
+        {
+            [[SliderViewController sharedSliderController] closeSideBarWithAnimate:YES complete:^(BOOL finished)
+             {
+                 if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+                     LoginController *registerController = [[LoginController alloc] init];
+                     FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+                     [self presentModalViewController:navController animated:YES];
+                 }else{
+                     
+                     MembershipCardController *viewController = [[MembershipCardController alloc]init];
+                     [[SliderViewController sharedSliderController].navigationController pushViewController:viewController animated:YES];
+                 }
+             }];
+        }
+            break;
+        case 2:///我的奖品
+        {
+            [[SliderViewController sharedSliderController] closeSideBarWithAnimate:YES complete:^(BOOL finished)
+             {
+                 if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+                     LoginController *registerController = [[LoginController alloc] init];
+                     FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+                     [self presentModalViewController:navController animated:YES];
+                 }else{
+                     PrizeViewController *viewController = [[PrizeViewController alloc]init];
+                     [[SliderViewController sharedSliderController].navigationController pushViewController:viewController animated:YES];
+                 }
+             }];
+        }
+            break;
+        case 3:
+        {
+            //TODO: 1.构造一个Container（iPhone可省略）
+            id<ISSContainer> container = [ShareSDK container];
+            [container setIPhoneContainerWithViewController:self];
+            
+            //TODO: 3.使用customShareList构造shareList，项目的顺序也会反映在菜单顺序之中
+            NSArray *shareList = [ShareSDK customShareListWithType:
+                                  SHARE_TYPE_NUMBER(ShareTypeSinaWeibo),
+                                  SHARE_TYPE_NUMBER(ShareTypeWeixiSession),
+                                  SHARE_TYPE_NUMBER(ShareTypeWeixiTimeline),
+                                  SHARE_TYPE_NUMBER(ShareTypeSMS),
+                                  SHARE_TYPE_NUMBER(ShareTypeMail),
+                                  SHARE_TYPE_NUMBER(ShareTypeCopy),
+                                  nil];
+            NSString *contentString =  [NSString stringWithFormat:@"我在使用%@交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectCityNameText];
+            NSString *titleString   = [NSString stringWithFormat:@"%@交通广播手机客户端，便捷查路况、查违章、还可参与节目互动",KProjectCityNameText];
+            
+            NSString *urlString     = [NSString stringWithFormat: URLString1,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"];
+            
+            /*
+             
+             #if defined (YT)
+             
+             #else
+             
+             #endif
+             */
+#if defined (YT)
+            NSString *description   = [NSString stringWithFormat:@"%@交警在线，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectRadioFMNumber];
+#else
+            NSString *description   = [NSString stringWithFormat:@"%@车主服务，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectRadioFMNumber];
+#endif
+            
+            
+            NSData *contentImageData = UIImagePNGRepresentation([UIImage imageNamed:FMCZFWLogoImage]);
+            NSString *fileName=[NSString stringWithFormat:@"%@.jpg",KProjectRadioFMNumber];
+            id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:fileName];
+            
+            id<ISSContent> publishContent = [ShareSDK content:contentString
+                                               defaultContent:@""
+                                                        image:attachment
+                                                        title:titleString
+                                                          url:urlString
+                                                  description:description
+                                                    mediaType:SSPublishContentMediaTypeNews];
+            [publishContent addSMSUnitWithContent:[NSString stringWithFormat:ContentString1,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"]];
+            id<ISSShareOptions> shareOptions =
+            [ShareSDK simpleShareOptionsWithTitle:@"分享内容"
+                                shareViewDelegate:nil];
+            
+            //TODO: 4.将container（iPhone上可为nil）和shareList传入 showShareActionSheet 方法
+            [ShareSDK showShareActionSheet:container
+                                 shareList:shareList
+                                   content:publishContent
+                             statusBarTips:NO
+                               authOptions:nil
+                              shareOptions:shareOptions
+                                    result:nil];
+        }
+            break;
+            
+        default:
+            break;
+    }
+}
+- (void) changeMyInformation:(NSNotification *) notification
+{
+    ///姓名
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userName)) {
+        [self.userPersonalNameLable setText:[CurrentUserInformation sharedCurrentUserInfo].userName];
+        
+        CGSize nameSize=[[CurrentUserInformation sharedCurrentUserInfo].userName sizeWithFont:self.userPersonalNameLable.font];
+        
+        self.userPersonalNameLable.frame=CGRectMake((self.userCarTypeImageView.frame.origin.x+37.5 - nameSize.width/2), self.userPersonalNameLable.frame.origin.y, nameSize.width, 20.0f);
+        
+    }
+    ///性别
+    [self.userPersonalGender setHidden:NO];
+    
+    self.userPersonalGender.frame=CGRectMake(self.userPersonalNameLable.frame.size.width+self.userPersonalNameLable.frame.origin.x +10,  (self.userCarTypeImageView.frame.origin.y+self.userCarTypeImageView.frame.size.height + 10),16, 16);
+    if ([CurrentUserInformation sharedCurrentUserInfo].userSex == 1) {//性别为男
+        self.userPersonalGender.image = kImgSexMan;
+    }else {//性别为女
+        self.userPersonalGender.image = kImgSexWomman;
+    }
+ 
+}
+- (void) leftloginNotification:(NSNotification *) notification{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState != 1) {
+        return;
+    }
+    ///头像
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)) {
+        [self.userCarTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                                         [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                                  placeholderImage:kImgDefaultCar];
+    }
+    
+    ///姓名
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userName)) {
+        [self.userPersonalNameLable setText:[CurrentUserInformation sharedCurrentUserInfo].userName];
+        
+        CGSize nameSize=[[CurrentUserInformation sharedCurrentUserInfo].userName sizeWithFont:self.userPersonalNameLable.font];
+        
+        self.userPersonalNameLable.frame=CGRectMake((self.userCarTypeImageView.frame.origin.x+37.5 - nameSize.width/2), self.userPersonalNameLable.frame.origin.y, nameSize.width, 20.0f);
+        
+    }
+    
+    ///性别
+    [self.userPersonalGender setHidden:NO];
+    
+    self.userPersonalGender.frame=CGRectMake(self.userPersonalNameLable.frame.size.width+self.userPersonalNameLable.frame.origin.x +10,  (self.userCarTypeImageView.frame.origin.y+self.userCarTypeImageView.frame.size.height + 10),16, 16);
+    if ([CurrentUserInformation sharedCurrentUserInfo].userSex == 1) {//性别为男
+        self.userPersonalGender.image = kImgSexMan;
+    }else {//性别为女
+        self.userPersonalGender.image = kImgSexWomman;
+    }
+    
+    ///等级
+    if ([[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString length] == 4) {
+        NSString *grade = [CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString;
+        int crownCount = [grade characterAtIndex:0] - 48;   //皇冠个数
+        int sunCount = [grade characterAtIndex:1] - 48;     //太阳个数
+        int moonCount = [grade characterAtIndex:2] - 48;    //月亮个数
+        int starCount = [grade characterAtIndex:3] - 48;    //星星级别个数
+        CGFloat len = (crownCount + sunCount + moonCount + starCount)*20.0f;
+        
+        [self.userPersonalGradeView setFrame:CGRectMake((self.userCarTypeImageView.frame.origin.x+37.5 - len/2), (self.userPersonalNameLable.frame.origin.y+25.0f), len, 20.0f)];
+        [self.userPersonalGradeView setGrade:[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString];
+    }
+
+}
+
+- (void) leftloginOutNotification:(NSNotification *) notification{
+    [self.userCarTypeImageView setImage:kImgDefaultCar];
+    [self.userPersonalNameLable setText:@""];
+    [self.userPersonalGender setHidden:YES];
+    [self.userPersonalGradeView setGrade:@"0000"];
+    [self.userPersonalGradeView setFrame:CGRectMake(0.0, 0.0, 0.0f, 20.0f)];
+    
+}
+
+- (void)initWithUserOperationButtonEvent{
+    
+    [[SliderViewController sharedSliderController] closeSideBarWithAnimate:YES
+                                                                  complete:^(BOOL finished){
+         SettingViewController *viewController = [[SettingViewController alloc]init];
+         [[SliderViewController sharedSliderController].navigationController pushViewController:viewController animated:YES];
+     }];
+    
+
+}
+-(void)carTypeImageViewBtnClick
+{
+    
+    [[SliderViewController sharedSliderController] closeSideBarWithAnimate:YES complete:^(BOOL finished)
+     {
+         if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+             LoginController *registerController = [[LoginController alloc] init];
+             FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+             [self presentModalViewController:navController animated:YES];
+         }else{
+             
+             
+             MainTabViewController* mainViewController = (MainTabViewController* )[SliderViewController sharedSliderController].MainVC;
+             UIViewController* currentViewController = mainViewController.tabController.selectedViewController;
+             UINavigationController* currentNavController = (UINavigationController* )currentViewController;
+             
+             FriendDetailedInforViewController *viewController = [[FriendDetailedInforViewController alloc]initWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID];
+             
+             [currentNavController pushViewController:viewController animated:YES];
+
+             
+             
+             
+         }
+     }];
+ 
+}
+- (void) changedWithName:(NSString *) userName
+{
+    [self.userPersonalNameLable setText:userName];
+    
+    CGSize nameSize=[[CurrentUserInformation sharedCurrentUserInfo].userName sizeWithFont:self.userPersonalNameLable.font];
+    
+    self.userPersonalNameLable.frame=CGRectMake((self.userCarTypeImageView.frame.origin.x+37.5 - nameSize.width/2), self.userPersonalNameLable.frame.origin.y, nameSize.width, 20.0f);
+
+}
+- (void) changedWithSex:(NSInteger) sexValue
+{
+    
+    self.userPersonalGender.frame=CGRectMake(self.userPersonalNameLable.frame.size.width+self.userPersonalNameLable.frame.origin.x +10,  (self.userCarTypeImageView.frame.origin.y+self.userCarTypeImageView.frame.size.height + 10),16, 16);
+
+    if (sexValue == 1) {//性别为男
+        self.userPersonalGender.image = kImgSexMan;
+    }else {//性别为女
+        self.userPersonalGender.image = kImgSexWomman;
+    }
+
+}
+
+@end

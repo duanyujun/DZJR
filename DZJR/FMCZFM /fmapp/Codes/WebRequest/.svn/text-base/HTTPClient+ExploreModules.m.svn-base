@@ -1,0 +1,622 @@
+//
+//  HTTPClient+ExploreModules.m
+//  fmapp
+//
+//  Created by 张利广 on 14-5-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "HTTPClient+ExploreModules.h"
+
+@implementation HTTPClient (ExploreModules)
+
+#pragma mark -
+#pragma mark - 摇一摇模块_摇一摇结束获取摇一摇结果数据内容
+- (AFHTTPRequestOperation *)getUserShakedResultInforShakedEndWithUserId:(NSString *)m_UserID
+                                                             completion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_UserID length ] <= 0) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KUserPersonalID: m_UserID};
+    return [self postPath:KExploreUserShakeResultURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 摇一摇模块_获取摇一摇中奖品列表内容
+- (AFHTTPRequestOperation *)getUserShakePrizeListInformationWithIntPage:(NSInteger)page withnumPerPage:(NSInteger)numPerPage completion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage]};
+    
+    return [self postPath:KExploreUserShakePrizeListURL
+               parameters:parameters
+               completion:completion];
+}
+#pragma mark - 摇一摇模块_获取摇一摇提醒
+- (AFHTTPRequestOperation *)getUserShakePrizeTipWithUserId:(NSString *)m_UserID
+                                               withPrizeID:(NSString *)m_prizeID
+                                               withTipTime:(NSInteger)time
+                                                completion:(WebAPIRequestCompletionBlock)completion
+{
+    if([m_UserID length]<=0||[m_prizeID length]<=0)
+    {
+        return nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID: m_UserID,@"prizeId":m_prizeID,@"time":[NSNumber numberWithInteger:time]};
+
+    
+    return [self postPath:KShakePrizeTipURL
+               parameters:parameters
+               completion:completion];
+
+    
+}
+
+- (AFHTTPRequestOperation *)UserCarWelfareDrawBackWithUserId:(NSString *)m_UserID
+                                                 withPrizeID:(NSString *)m_ticketID
+                                                  completion:(WebAPIRequestCompletionBlock)completion
+{
+    if([m_UserID length]<=0||[m_ticketID length]<=0)
+    {
+        return nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID: m_UserID,@"id":m_ticketID};
+    
+    
+    return [self postPath:KCarWelfareDrawBackURL
+               parameters:parameters
+               completion:completion];
+ 
+}
+#pragma mark -
+#pragma mark - 事故快处模块_获取事故快处服务点
+- (AFHTTPRequestOperation *)getQuickDealWithServicePointWithLongitude:(NSString *)m_longitudeValue
+                                                         withLatitude:(NSString *)m_latitudeValue
+                                                           completion:(WebAPIRequestCompletionBlock)completion{
+    
+    NSDictionary *parameters = @{KuserLoginLatitude:m_latitudeValue,
+                                 KuserLoginLongitude:m_longitudeValue
+                                 };
+
+    
+    return [self postPath:KExploreQuickDealPointURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 获取二手车评估结果内容信息
+- (AFHTTPRequestOperation *)getUserPersonalSecondHandCarResultInforWithUserID:(NSString *)m_userId
+                                                                   completion:(WebAPIRequestCompletionBlock)completion{
+    
+    NSDictionary *parameters = @{KUserPersonalID:m_userId,
+                                 };
+    return [self postPath:KExploreSecondHandResultURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getUserPersonalSecondHandCarAddItemInforWithDictionary:(NSMutableDictionary *)m_inforDictionary
+                                                                        completion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KExploreSecondHandAddUsedCarInforURL
+               parameters:m_inforDictionary
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getSecondHandCarAutomobileLogoWithCompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KExploreSecondHandAutomobileLogoDataURL
+               parameters:nil
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getSecondHandCarSeriesDataWithLogoID:(NSString *)m_logoId
+                                                      completion:(WebAPIRequestCompletionBlock)completion{
+    NSMutableDictionary *paramDic = [[NSMutableDictionary alloc]init];
+    AddObjectForKeyIntoDictionary(m_logoId, KSecondHandCarKeyBrand, paramDic);
+    return [self postPath:KExploreSecondHandCarSeriesDataURL
+               parameters:paramDic
+               completion:completion];
+}
+
+
+- (AFHTTPRequestOperation *)getSecondHandCarCarTypeDataWithSeriesId:(NSString *)m_SeriesID
+                                                         completion:(WebAPIRequestCompletionBlock)completion{
+    NSMutableDictionary *paramDic = [[NSMutableDictionary alloc]init];
+    AddObjectForKeyIntoDictionary(m_SeriesID, KSecondHandCarKeySeries, paramDic);
+    return [self postPath:KExploreSecondHandCarTypeDataURL
+               parameters:paramDic
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getSecondHandCarExhibitionListDataInformationWithIntPage:(NSInteger)page withnumPerPage:(NSInteger)numPerPage completion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage]};
+    
+    return [self postPath:kExploreSecondHandListURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getSecondHandWillSellCarWithUserSetupWithUserName:(NSString *)m_UserName withResultID:(NSString *)m_ResultDataId withUserPhoneNumber:(NSString *)m_userPhoneNumber WithSellState:(NSInteger)m_sellState completion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_ResultDataId length] <= 0 ) {
+        return nil;
+    }
+    //@"id=%@&isSell=0&mobile=%@"
+    //@"id=%@&isSell=1&mobile=%@&userName=%@"
+    NSMutableDictionary *parameters = [[NSMutableDictionary  alloc]init];
+    AddObjectForKeyIntoDictionary(m_ResultDataId, kDataKeyId, parameters);
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInteger:m_sellState], @"isSell", parameters);
+    AddObjectForKeyIntoDictionary(m_userPhoneNumber, KDataKeyUserMobile, parameters);
+    if (m_sellState == 1) {
+        AddObjectForKeyIntoDictionary(m_UserName, kuserName, parameters);
+    }
+    
+    return [self postPath:KExploreSecondHandWillSellCarUploadURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getSecondHandCarMainViewFooterInforWithCompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    return [self postPath:KExploreSecondMainViewFooterURL
+               parameters:nil
+               completion:completion];
+}
+
+#pragma mark - 
+#pragma mark - 获取电台活动内容信息
+- (AFHTTPRequestOperation *)getBroadcastinStationActivityDataInforWithIntPage:(NSInteger)page
+                                                               withnumPerPage:(NSInteger)numPerPage
+                                                                   completion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage]};
+    
+    return [self postPath:KExploreStationActivityURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 获取找到了内容信息
+- (AFHTTPRequestOperation *)getSearchOrRecevieDataInforWithIntPage:(NSInteger)page
+                                                    withnumPerPage:(NSInteger)numPerPage
+                                                      withDataType:(NSInteger)m_type
+                                                    withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_type]};
+    return [self postPath: KExploreSearchInforListURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户添加找到了数据内容
+- (AFHTTPRequestOperation *)userAddWithSearchOrRecevieItemDataWithParamData:(SearchAndReceiveDataInfor *)m_AddItemData withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    
+    return [self postPath:KExploreSearchAddInforURL
+               parameters:[m_AddItemData getParameForWithSearchAndReceiveItemData]
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户删除单条找到了数据内容
+- (AFHTTPRequestOperation *)operationWithUserDeleteSearchOrRecevieItemDataWithItemID:(NSString *)m_itemId withUserID:(NSString *)m_userID withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyId:m_itemId,
+                                 KUserPersonalID:m_userID,
+                                 };
+    
+    return [self postPath:KExploreSearchInforDeleteURL
+               parameters:parameters
+               completion:completion];
+}
+#pragma mark -
+#pragma mark - 获取都市顺风车列表内容信息
+- (AFHTTPRequestOperation *)getCityFreeRideDataWithIntPage:(NSInteger)page withnumPerPage:(NSInteger)numPerPage withDataType:(NSInteger)m_type withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_type]};
+    
+    return [self postPath:KExploreCityFreeInforListURL
+               parameters:parameters
+               completion:completion];
+
+}
+
+#pragma mark -
+#pragma mark - 获取都市顺风车列表内容信息
+- (AFHTTPRequestOperation *)getCityFreeRideDataWithSearchKey:(NSString *)m_searchKey withIntPage:(NSInteger)page withnumPerPage:(NSInteger)numPerPage withDataType:(NSInteger)m_type withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_type],
+                                  @"keyword":m_searchKey};
+    
+    return [self postPath:KExploreCityFreeSearchInforURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark - 
+#pragma mark - 获取都市顺风车列表内容信息(针对地图模式)
+- (AFHTTPRequestOperation *)getCityFreeRideDataForMapViewWithLongitude:(NSString *)m_longitudeValue withLatitude:(NSString *)m_latitudeValue withDataType:(NSInteger)m_type withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KuserLoginLatitude:m_latitudeValue,
+                                 KuserLoginLongitude:m_longitudeValue,};
+    
+    return [self postPath:KExploreNearbyFreeRideURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户添加都市顺风车数据内容
+- (AFHTTPRequestOperation *)userAddWithCityFreeRideDataWithCityFreeRideItemInfor:(SearchAndReceiveDataInfor *)m_dataInfor withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    return [self postPath:KExploreCityFreeAddInforURL
+               parameters:[m_dataInfor getParameForCityFreeRideItemDataInformation]
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户删除单条都市顺风车数据内容
+- (AFHTTPRequestOperation *)operationWithUserDeleteCityFreeRideItemDataWithItemID:(NSString *)m_itemId withUserID:(NSString *)m_userID withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    NSDictionary *parameters = @{kDataKeyId:m_itemId,
+                                 KUserPersonalID:m_userID,
+                                 };
+    
+    return [self postPath:KExploreCityFreeDeleteURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 获取违章多发数据内容信息
+- (AFHTTPRequestOperation *)getMultipleBreakRulesDataInforWithLongitude:(NSString *)m_longitudeValue
+                                                           withLatitude:(NSString *)m_latitudeValue
+                                                         withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KuserLoginLatitude:m_latitudeValue,
+                                 KuserLoginLongitude:m_longitudeValue,
+                                 };
+    
+    return [self postPath:KExploreBreakRulesDataInforURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark -
+- (AFHTTPRequestOperation *)userAddMultipleBreakRulesItemInforWith:(BreakRulesAnnotationInfor *)m_dataInfor withImageParam:(NSString *)imageParamInfor withcompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KExploreBreakRulesAddInforURL
+               parameters:[m_dataInfor getDictionaryWithBreakRulesAnnotationItemInformationWithImageParam:imageParamInfor]
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark -  用户删除单条违章多发数据内容
+- (AFHTTPRequestOperation *)operationWithUserDeleteItemBreakRulesDataInforWithItemID:(NSString *)m_itemId
+                                                                          withUserID:(NSString *)m_userID
+                                                                      withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyId:m_itemId,
+                                 KUserPersonalID:m_userID,
+                                 };
+    return [self postPath:KExploreBreakRulesDeleteInforURL
+               parameters:parameters
+               completion:completion];
+    
+}
+
+
+#pragma mark -
+#pragma mark - 代驾模块上传用户个人信息
+- (AFHTTPRequestOperation *)getUserInsteadOfDrivingUploadInforWithUserID:(NSString *)m_userId
+                                                     withUserPhoneNumber:(NSString *)m_userPhone
+                                                            withUserName:(NSString *)m_userName
+                                                          withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KUserPersonalID:m_userId,
+                                 KDataKeyUserMobile:m_userPhone,
+                                 kuserName:m_userName,
+                                 };
+    return [self postPath:KExploreInsteadOfDrivingURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark - 
+#pragma mark -  获取周边商户数据内容信息
+- (AFHTTPRequestOperation *)getNearbyMerchantInformationWithLongitude:(NSString *)m_longitudeValue
+                                                         withLatitude:(NSString *)m_latitudeValue
+                                                        withStyleType:(NSInteger)m_styleType
+                                                       withPageNumber:(NSInteger)m_PageNumber
+                                                       withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KuserLoginLatitude:m_latitudeValue,
+                                 KuserLoginLongitude:m_longitudeValue,
+                                 kDataKeyPageIndex:[NSNumber numberWithInteger:m_PageNumber],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_styleType],
+                                 };
+    return [self postPath:kExploreNearbyShopsURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getNearbyMerchantForSpecialBusinessWithLongitude:(NSString *)m_longitudeValue withLatitude:(NSString *)m_latitudeValue withStyleType:(NSInteger)m_styleType withPageNumber:(NSInteger)m_PageNumber withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KuserLoginLatitude:m_latitudeValue,
+                                 KuserLoginLongitude:m_longitudeValue,
+                                 kDataKeyPageIndex:[NSNumber numberWithInteger:m_PageNumber],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_styleType],
+                                 };
+    return [self postPath:KExploreSpecialBusinessURL
+               parameters:parameters
+               completion:completion];
+}
+- (AFHTTPRequestOperation *)getCarWelfareBusinessWithBusinessID:(NSString *)businessID WithLongitude:(NSString *)m_longitudeValue withLatitude:(NSString *)m_latitudeValue
+                                                 withcompletion:(WebAPIRequestCompletionBlock)completion
+{
+    if([businessID length]<=0)
+    {
+        return nil;
+    }
+    NSDictionary *parameters = @{KuserLoginLatitude:m_latitudeValue,
+                                 KuserLoginLongitude:m_longitudeValue,@"id":businessID };
+    
+    return [self postPath:KCarWelfareBusinessURL
+               parameters:parameters
+               completion:completion];
+    
+}
+#pragma mark -
+#pragma mark - 获取单个特约商户详细信息
+- (AFHTTPRequestOperation *)getNearbyMerchantDetailInformationWithId:(NSString *)m_inforID
+                                                     withScreenStyle:(NSString *)m_Style
+                                                      withCompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyId:m_inforID,
+                                 kDataKeyType:m_Style,
+                                 };
+    return [self postPath:KExploreNearbyShopDetailURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 报名参加活动
+- (AFHTTPRequestOperation *)getUserPersonalUploadPersonalMobileNumberWithUserId:(NSString *)m_UserID withUserMobileNumber:(NSString *)m_userPersonalNumber withActivityID:(NSString *)m_actvityID completion:(WebAPIRequestCompletionBlock)completion{
+    
+//    if ([m_userPersonalNumber length] < 10||
+//        [m_actvityID length] <= 0) {
+//        return nil;
+//    }
+    NSDictionary *parameters = @{KUserPersonalID:m_UserID,
+                                 KMeKeyUserPhoneNumber:m_userPersonalNumber,
+                                 kDataKeyId:m_actvityID
+                                 };
+    return [self postPath:KExploreUserUploadPhoneURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getUserPersonalActivityCancelWithUserId:(NSString *)m_UserID
+                                                     withActivityID:(NSString *)m_actvityID
+                                                         completion:(WebAPIRequestCompletionBlock)completion
+{
+        if ([m_UserID length]<=0||[m_actvityID length] <= 0) {
+            return nil;
+        }
+    NSDictionary *parameters = @{KUserPersonalID:m_UserID,
+                                 kDataKeyId:m_actvityID
+                                 };
+    return [self postPath:KActivityCancelURL
+               parameters:parameters
+               completion:completion];
+ 
+}
+- (AFHTTPRequestOperation *)getUserPersonalActivityEnsureWithUserId:(NSString *)m_UserID
+                                                     withActivityID:(NSString *)m_actvityID
+                                                         completion:(WebAPIRequestCompletionBlock)completion
+
+
+{
+    if ([m_UserID length]<=0||[m_actvityID length] <= 0) {
+        return nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID:m_UserID,
+                                 kDataKeyId:m_actvityID
+                                 };
+    return [self postPath:KActivityEnsureURL
+               parameters:parameters
+               completion:completion];
+
+    
+}
+
+#pragma mark -
+#pragma mark - 获取我要曝光内容信息
+- (AFHTTPRequestOperation *)getExposureFreshThingDataInforWithIntPage:(NSInteger)page withnumPerPage:(NSInteger)numPerPage withDataType:(NSInteger)m_type withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_type]};
+    return [self postPath: KExploreFreshThingListURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户添加我要曝光数据内容
+- (AFHTTPRequestOperation *)userAddWithExposureFreshThingItemDataWithParamData:(SearchAndReceiveDataInfor *)m_AddItemData withcompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KExploreFreshThingAddInforURL
+               parameters:[m_AddItemData getParameForWithSearchAndReceiveItemData]
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户删除单条我要曝光数据内容
+- (AFHTTPRequestOperation *)operationWithUserDeleteExposureFreshThingItemDataWithItemID:(NSString *)m_itemId withUserID:(NSString *)m_userID withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyId:m_itemId,
+                                 KUserPersonalID:m_userID,
+                                 };
+    
+    return [self postPath:KExploreFreshThingDeleteURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+
+#pragma mark -
+#pragma mark - 获取946幸运星通关密语
+- (AFHTTPRequestOperation *)getExploreMoreLuckUserCodewordsWithCompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    return [self postPath:KExploreLuckUserCodeWordsURL
+               parameters:nil
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 获取信息网内容信息
+- (AFHTTPRequestOperation *)getInforNetworkDataInforWithIntPage:(NSInteger)page
+                                                 withnumPerPage:(NSInteger)numPerPage
+                                                   withDataType:(NSInteger)m_type
+                                                 withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage],
+                                 kDataKeyType:[NSNumber numberWithInteger:m_type]};
+    return [self postPath: KExploreInforNetworkListURL
+               parameters:parameters
+               completion:completion];
+    
+}
+
+#pragma mark -
+#pragma mark - 用户添加信息网数据内容
+- (AFHTTPRequestOperation *)userAddWithInforNetworkItemDataWithParamData:(SearchAndReceiveDataInfor *)m_AddItemData
+                                                          withcompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KExploreInforNetworkAddInforURL
+               parameters:[m_AddItemData getParameForWithSearchAndReceiveItemData]
+               completion:completion];
+    
+}
+
+#pragma mark -
+#pragma mark - 用户删除单条信息网数据内容
+- (AFHTTPRequestOperation *)operationWithUserDeleteInforNetworkItemDataWithItemID:(NSString *)m_itemId
+                                                                       withUserID:(NSString *)m_userID
+                                                                   withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyId:m_itemId,
+                                 KUserPersonalID:m_userID,
+                                 };
+    
+    return [self postPath:KExploreInforNetworkDeleteURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+// 随手拍
+- (AFHTTPRequestOperation *)getRandomPhotoDataInformationWithIntPage:(NSInteger)page
+                                                      withnumPerPage:(NSInteger)numPerPage
+                                                          completion:(WebAPIRequestCompletionBlock)completion {
+    NSDictionary *parameters = @{kDataKeyPageIndex:[NSNumber numberWithInteger:page],
+                                 KDataKeyNumPerPage:[NSNumber numberWithInteger:numPerPage]};
+    return [self postPath:KExploreRandomPhotoURL
+               parameters:parameters
+               completion:completion];
+    
+}
+
+// 发布随手拍
+- (AFHTTPRequestOperation *)pulishNewRandomPhoto:(QuestionInfo *)questionInfo
+                                      completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = [questionInfo generateQuestionJSONDic];
+    if (parameters == nil) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    return [self postPath:KExploreSnapshotAddURL
+               parameters:parameters
+               completion:completion];
+}
+
+// 交警留言板
+- (AFHTTPRequestOperation *)publishNewPoliceMessage:(QuestionInfo *)questionInfo completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = [questionInfo generatePoliceMessageJSONDic];
+    if (parameters == nil) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    return [self postPath:kExplorePoliceMessageURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma amrk - 获取摇一摇最新奖品剩余量
+- (AFHTTPRequestOperation *)getPrizesForUserShakeWithResidueTotalWithcompletion:(WebAPIRequestCompletionBlock)completion{
+
+    return [self postPath:KExploreShakePrizeResidueTotalURL
+               parameters:Nil
+               completion:completion];
+}
+
+//获取详情网络数据（摇一摇，商户）
+-(AFHTTPRequestOperation *)getMerchantDetailInfoWithMerchant:(NSString *)merchantId WithWelfareMerchantStyle:(InitWebViewStyle)merchantStyle                                                     completion:(WebAPIRequestCompletionBlock)completion
+{
+    
+    if ([merchantId length ] <= 0) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{@"id": merchantId};
+
+    //摇一摇
+    if (merchantStyle==InitShakePrizeInfor) {
+        
+        return [self postPath:KShakePrizeDetailURL
+                   parameters:parameters
+                   completion:completion];
+    }
+   //商户详情
+    else
+    {
+        
+            return [self postPath:KBusinessUserDetailURL
+                       parameters:parameters
+                       completion:completion];
+ 
+    }
+}
+//获取电台活动详情
+-(AFHTTPRequestOperation *)getActivityDetailInfoWithMerchant:(NSString *)merchantId WithUserId:(NSString *)userId WithWelfareMerchantStyle:(InitWebViewStyle)merchantStyle                                      completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([merchantId length ] <= 0||[userId length]<=0) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{@"id": merchantId,@"userId":userId};
+    
+    //活动详情
+    if (merchantStyle==InitStationActivityInfor) {
+        
+        return [self postPath:KActivityDetailURL
+                   parameters:parameters
+                   completion:completion];
+
+    }
+    //精品限购
+    else
+    {
+        return [self postPath:KCarWelfareDetailURL
+                   parameters:parameters
+                   completion:completion];
+
+    }
+    
+ 
+}
+@end

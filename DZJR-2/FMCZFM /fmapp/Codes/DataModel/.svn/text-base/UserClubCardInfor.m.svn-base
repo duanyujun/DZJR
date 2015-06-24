@@ -1,0 +1,90 @@
+//
+//  UserClubCardInfor.m
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "UserClubCardInfor.h"
+
+@implementation UserClubCardInfor
+- (id)init{
+    self = [super init];
+    if (self) {
+    }
+    
+    return self;
+}
+
+#pragma mark - 读取会员卡信息
++ (id)userClubCardInforWithUnserializedJSONDic:(NSDictionary *)dic{
+
+    UserClubCardInfor *userCardInfor = [[UserClubCardInfor alloc]init];
+    if (userCardInfor == nil) {
+        return nil;
+    }
+    ///用户名
+    [userCardInfor setUserClubCardRealName:ObjForKeyInUnserializedJSONDic(dic, @"name")];
+    ///用户手机号
+    [userCardInfor setUserMobileNumber:ObjForKeyInUnserializedJSONDic(dic,@"mobile")];
+    ///用户车牌号
+    [userCardInfor setUserCarNumber:ObjForKeyInUnserializedJSONDic(dic,@"carNo")];
+    ///用户会员卡号
+    [userCardInfor setUserClubCardNumber:ObjForKeyInUnserializedJSONDic(dic,@"vipNo")];
+    ///用户车检日期
+    [userCardInfor setUserCarCheckDate:ObjForKeyInUnserializedJSONDic(dic,@"carInspection")];
+    ///用户车险日期
+    [userCardInfor setUserCarInsuranceDate:ObjForKeyInUnserializedJSONDic(dic,@"autoInsurance")];
+    
+    return userCardInfor;
+}
+
+#pragma mark - 初始化参数字典内容
+- (NSDictionary *)getDictionaryWithSetpuParamInforamtion{
+     NSMutableDictionary* dic = [[NSMutableDictionary alloc] init];
+    ///用户ID
+    [dic setObject:self.userId forKey:@"userId"];
+    ///昵称
+    [dic setObject:self.userClubCardName forKey:@"userName"];
+    ///真实名字
+    [dic setObject:self.userClubCardRealName forKey:@"name"];
+    ///手机号
+    [dic setObject:self.userMobileNumber forKey:@"mobile"];
+    ///车牌号
+    [dic setObject:self.userCarNumber forKey:@"carNo"];
+    ///用户个人车险日期
+    [dic setObject:self.userCarInsuranceDate forKey:@"autoInsurance"];
+    ///
+    [dic setObject:self.userCarCheckDate forKey:@"carInspection"];
+    return dic;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@end

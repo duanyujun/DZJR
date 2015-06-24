@@ -1,0 +1,96 @@
+//
+//  UserGradeView.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-19.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "UserGradeView.h"
+
+@implementation UserGradeView
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+//        [self setUserInteractionEnabled:YES];
+        [self setColorForNight];
+    }
+    return self;
+}
+
+/*
+// Only override drawRect: if you perform custom drawing.
+// An empty implementation adversely affects performance during animation.
+- (void)drawRect:(CGRect)rect
+{
+    // Drawing code
+}
+*/
+//夜间模式
+-(void)setColorForNight
+{
+    NSString *info=[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]];
+    NSInteger m=[info integerValue];
+    
+    if(m==5)
+    {
+        self.alpha=0.6;
+    }
+}
+- (void)setGrade:(NSString* )grade
+{
+    if ([grade length] != 4) {
+        return;
+    }
+    //移除所有子视图
+    NSArray *views = [self subviews];
+    for(UIView* view in views)
+    {
+        [view removeFromSuperview];
+    }
+    
+    int crownCount = [grade characterAtIndex:0] - 48;   //皇冠个数
+    int sunCount = [grade characterAtIndex:1] - 48;     //太阳个数
+    int moonCount = [grade characterAtIndex:2] - 48;    //月亮个数
+    int starCount = [grade characterAtIndex:3] - 48;    //星星级别个数
+    
+
+    //级别的总数内容
+    int gradeTotalCount = crownCount + sunCount + moonCount +starCount;;
+    if (gradeTotalCount  < 1) {
+        starCount = 0;
+        gradeTotalCount = 0;
+    }
+    
+    float imageCoordinate = 0;
+    
+    for (int gradeIndex = 1; gradeIndex <= gradeTotalCount; gradeIndex++) {
+        UIImageView    *gradeStyleImageView = [[UIImageView alloc] initWithFrame:CGRectMake(imageCoordinate, 2, 16.0f, 16.0f)];
+        //星星的个数
+        if (gradeIndex <= crownCount) {
+            [gradeStyleImageView setImage:[UIImage imageNamed:@"UserGrade_Crown.png"]];
+        }
+        //月亮的个数
+        else if (gradeIndex <= (crownCount+ sunCount)&&gradeIndex > crownCount){
+            [gradeStyleImageView setImage:[UIImage imageNamed:@"UserGrade_Sun.png"]];
+        }
+        
+        //太阳的个数
+        else if (gradeIndex > (crownCount+ sunCount) &&gradeIndex <= (crownCount + sunCount + moonCount) ){
+            [gradeStyleImageView setImage:[UIImage imageNamed:@"UserGrade_Moon.png"]];
+            
+        }
+        //皇冠的个数
+        else if (gradeIndex > crownCount+ sunCount+ moonCount && gradeIndex <= gradeTotalCount){
+            [gradeStyleImageView setImage:[UIImage imageNamed:@"UserGrade_Star.png"]];
+        }
+        
+        [self addSubview:gradeStyleImageView];
+        
+        imageCoordinate += 20.0f;
+    }
+}
+@end

@@ -1,0 +1,81 @@
+//
+//  Prefix header
+//
+//  The contents of this file are implicitly included at the beginning of every source file.
+//
+
+#import <Availability.h>
+
+#ifndef __IPHONE_3_0
+#warning "This project uses features only available in iOS SDK 3.0 and later."
+#endif
+
+#ifdef __OBJC__
+    #import <UIKit/UIKit.h>
+    #import <Foundation/Foundation.h>
+    #import <SystemConfiguration/SystemConfiguration.h>
+    #import <MobileCoreServices/MobileCoreServices.h>
+    //#import "ThemeManager.h"
+    #import "HUIKit.h"
+    #import "JSONKit.h"
+    #import "FMStrings.h"
+    #import "FMFunctions.h"
+    #import "DataPage.h"
+    #import "WebAPIDefine.h"
+    #import "FMNotification.h"
+    #import "UIImageView+WebCache.h"        //SDWebImage缓存网络图片
+    #import "SVPullToRefresh.h"             //下拉刷新控件
+    #import "MBProgressHUD.h"
+    #import "UIButton+Bootstrap.h"
+    #import "FMViewController.h"
+    #import "ThemeManager.h"
+    #import "FMSettings.h"
+
+#endif
+
+#define kFontAwesomeFamilyName @"FontAwesome"
+
+/*接口地址
+  */
+#define kBaseAPIURL  @"http://www.dazhongpay.com/Dazhongsoc/"//项目URL
+//#define kBaseAPIURL  @"http://p2p.rongtuojinrong.com/Rongtuoxinsoc/"//测试环境
+
+
+//图片地址
+#define kMediaServerURL  @"http://121.40.131.88:8080"
+#define KMediaServerImagesInforURL  @"http://media.czfw.cn/get.php?id="
+
+//Umeng地址
+#define kUmengKey @"54eab7acfd98c5a2770000fa"
+//ShareSDK
+#define kShareSDKAppKey @"b0cea1638d1"
+
+
+//微信KEY
+#define kWeiXinKey          @"wx8027d409dd974b7c"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"73ef455b9ae0e0bd54e20f7ec334e657"
+
+//微博 AppKey
+#define kWeiboAppKey @"2229255698"
+//微博token
+#define kWeiboAppSecret @"644b66a6f00ade2db3891b956b2d727d"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://sns.whalecloud.com/sina2/callback"
+//http://weibo.com/u/2964731135
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+//全局打印方法
+#define Log(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__);
+//#define   Log(fmt, ...) [NSString stringWithFormat:fmt, ##__VA_ARGS__];
+
+//全局显示方法
+#define Show(fmt, ...) UIAlertView *alert=[[UIAlertView alloc] initWithTitle:@"消息" message:[NSString stringWithFormat:fmt,##__VA_ARGS__] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil]; [alert show];
+//#define Show(fmt, ...) [NSString stringWithFormat:fmt, ##__VA_ARGS__];
+
+
+//模式选择
+#define ThemeCategory [[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]] integerValue]
+

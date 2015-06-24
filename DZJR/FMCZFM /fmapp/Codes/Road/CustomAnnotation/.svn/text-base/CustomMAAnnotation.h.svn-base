@@ -1,0 +1,25 @@
+//
+//  CustomMAAnnotation.h
+//  CheYouHui
+//
+//  Created by Ma Yiming on 13-1-6.
+//
+//
+
+#import <Foundation/Foundation.h>
+#import "CustomMKAnnotation.h"
+#import <MAMapKit/MAMapKit.h>
+
+@interface CustomMAAnnotation : NSObject<MAAnnotation>
+{
+
+}
+
+@property (nonatomic, assign) CLLocationCoordinate2D coordinate;//经纬度
+@property (nonatomic, retain) NSString *title;//主标题
+@property (nonatomic, retain) NSString *subtitle;//副标题
+@property (nonatomic, assign) FMAnnotationType type;//标注类型
+@property (nonatomic, assign) NSInteger subType;//标注副类型 （加油站，汽车美容，维修保养。。）
+@property (nonatomic, assign) NSInteger tag;//标记
+
+@end

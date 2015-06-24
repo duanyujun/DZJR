@@ -1,0 +1,228 @@
+//
+//  MyPrizeOrAnnouncementDataInfor.m
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "MyPrizeOrAnnouncementDataInfor.h"
+
+@implementation MyPrizeOrAnnouncementDataInfor
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+
+#pragma mark - 
+#pragma mark - 序列化电台公告Item内容
++(id)initAnnouncementWithInforWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    
+    MyPrizeOrAnnouncementDataInfor *announcementItemInfor = [[MyPrizeOrAnnouncementDataInfor alloc]init];
+    if (announcementItemInfor == nil) {
+        return nil;
+    }
+    ///数据id参数信息
+    [announcementItemInfor setDataSelfDataID:ObjForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    ///创建时间信息
+    [announcementItemInfor setDataCreateDateInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"createtime")];
+    ///数据标题信息
+    [announcementItemInfor setDataTitleContentInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"title")];
+    ///数据图片信息
+    NSString *imageUrl = [NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    Log(@"imageUrl is %@",imageUrl);
+    [announcementItemInfor setDataForItsImageURL:imageUrl];
+    return announcementItemInfor;
+}
+
+#pragma mark - 
+#pragma mark - 序列化用户奖品数据Item内容
++(id)initWithMyPrizeInforithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    MyPrizeOrAnnouncementDataInfor *myPrizeItemInfor = [[MyPrizeOrAnnouncementDataInfor alloc]init];
+    if (myPrizeItemInfor == nil) {
+        return nil;
+    }
+    ///数据id参数信息
+    [myPrizeItemInfor setDataSelfDataID:ObjForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    ///创建时间信息
+    [myPrizeItemInfor setDataCreateDateInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"createtime")];
+    ///数据标题信息
+    [myPrizeItemInfor setDataTitleContentInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"content")];
+    ///数据图片信息
+//    [myPrizeItemInfor setDataForItsImageURL:ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    
+    NSArray *imageArray = [[NSArray alloc]initWithArray:(NSArray *)ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    if (imageArray.count > 0) {
+        NSDictionary *imageDictionary = [[NSDictionary alloc]initWithDictionary:[imageArray objectAtIndex:0]];
+        if (imageDictionary.count >= 2) {
+            [myPrizeItemInfor setDataForItsImageURL:ObjForKeyInUnserializedJSONDic(imageDictionary, @"pic_url")];
+        }
+    }
+    
+    return myPrizeItemInfor;
+}
+
++(id)initWithBroadcastinStationActivityUnserializedJSONDic:(NSDictionary *)dicInfor{
+
+    MyPrizeOrAnnouncementDataInfor *stationActivityItemInfor = [[MyPrizeOrAnnouncementDataInfor alloc]init];
+    if (stationActivityItemInfor == nil) {
+        return nil;
+    }
+    
+
+    ///数据id参数信息
+    [stationActivityItemInfor setDataSelfDataID:ObjForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [stationActivityItemInfor setSelfDataID:IntForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    ///创建时间信息
+    [stationActivityItemInfor setDataCreateDateInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"date")];
+    ///数据标题信息
+    [stationActivityItemInfor setDataTitleContentInfor:ObjForKeyInUnserializedJSONDic(dicInfor, @"title")];
+    
+    [stationActivityItemInfor setStop_sign:IntForKeyInUnserializedJSONDic(dicInfor, @"stop_sign")];
+    ///数据图片信息
+//    [stationActivityItemInfor setDataForItsImageURL:ObjForKeyInUnserializedJSONDic(dicInfor, @"pic1")];
+    NSArray *imageArray = [[NSArray alloc]initWithArray:(NSArray *)ObjForKeyInUnserializedJSONDic(dicInfor, @"pic_cover")];
+    if (imageArray.count > 0) {
+        NSDictionary *imageDictionary = [[NSDictionary alloc]initWithDictionary:[imageArray objectAtIndex:0]];
+        if (imageDictionary.count >= 2) {
+            [stationActivityItemInfor setDataForItsImageURL:ObjForKeyInUnserializedJSONDic(imageDictionary, @"pic_url")];
+        }
+    }
+    ///当前活动状态信息
+    [stationActivityItemInfor setDataForStateStyle:ObjForKeyInUnserializedJSONDic(dicInfor, @"status")];
+    ///电台活动预参加人数信息
+    [stationActivityItemInfor setDataForJoinNumberOrUnit:ObjForKeyInUnserializedJSONDic(dicInfor, @"number")];
+    Log(@"\ndicInfor is \n%@\nimageURL is %@\n",dicInfor,stationActivityItemInfor.dataForItsImageURL);
+    
+    
+    return stationActivityItemInfor;
+}
+
++(id)initWithUserShakeAndShakePrizeListInformationForItemUnserializedJSONDic:(NSDictionary *)dicInfor{
+    MyPrizeOrAnnouncementDataInfor *shakePrizeItemInfor = [[MyPrizeOrAnnouncementDataInfor alloc]init];
+    if (shakePrizeItemInfor == nil) {
+        return nil;
+    }
+    
+    Log(@"摇一摇奖品列表data is %@",dicInfor)
+    if (dicInfor.count > 0) {
+        ///奖品ID
+        [shakePrizeItemInfor setDataSelfDataID:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+        ///奖品Name
+        [shakePrizeItemInfor setDataTitleContentInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"name")];
+        ///奖品赞助商名字
+        [shakePrizeItemInfor setDataSubtitleContentInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor")];
+        ///奖品对应的图片地址KEY
+        [shakePrizeItemInfor setDataForItsImageURL:StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+        Log(@"image is %@",shakePrizeItemInfor.dataForItsImageURL);
+        ///奖品总份数内容
+        NSInteger prizeCount = IntForKeyInUnserializedJSONDic(dicInfor, @"number");
+        [shakePrizeItemInfor setDataForJoinNumberOrUnit:[NSString stringWithFormat:@"%d",prizeCount]];
+        ///奖品剩余量内容
+        [shakePrizeItemInfor setDataForStateStyle:StringForKeyInUnserializedJSONDic(dicInfor, @"surplus")];
+        ///是否需要金币
+        NSInteger   coinCount = IntForKeyInUnserializedJSONDic(dicInfor, @"coin");
+        [shakePrizeItemInfor setDataForShakePirzeGoldCoinCount:[NSString stringWithFormat:@"%d",coinCount > 0 ? coinCount : 0 ]];
+    }
+    return shakePrizeItemInfor;
+}
+
+//序列化交通资讯列表内容
++(id)initWithTransportInformationUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    
+    
+    Log(@"transportItemInfor is \n-----------------------------\n%@",dicInfor);
+    MyPrizeOrAnnouncementDataInfor *transportItemInfor = [[MyPrizeOrAnnouncementDataInfor alloc]init];
+    if (transportItemInfor == nil) {
+        return nil;
+    }
+    
+    if (dicInfor.count > 0) {
+        ///资讯ID
+        [transportItemInfor setDataSelfDataID:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+        //发布时间
+        [transportItemInfor setDataCreateDateInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"createtime")];
+        ///交通资讯Name
+        [transportItemInfor setDataTitleContentInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"title")];
+        //交通资讯详情
+        [transportItemInfor setDataSubtitleContentInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"content")];
+        ///交通资讯对应的图片地址KEY
+        NSString *stringImageKey = [NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+        [transportItemInfor setDataForItsImageURL:stringImageKey];
+        
+        
+        [transportItemInfor setDataURL:StringForKeyInUnserializedJSONDic(dicInfor, @"url")];
+        
+        [transportItemInfor setDataShareUrl:StringForKeyInUnserializedJSONDic(dicInfor, @"share_url")];
+    }
+    
+    return transportItemInfor;
+}
+-(id)initWithCustomTicketUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    MyPrizeOrAnnouncementDataInfor *announcementItemInfor = [[MyPrizeOrAnnouncementDataInfor alloc]init];
+    if (announcementItemInfor == nil) {
+        return nil;
+    }
+    
+    ///数据id参数信息
+    NSInteger uid=IntForKeyInUnserializedJSONDic(dicInfor, @"id");
+    
+    [announcementItemInfor setDataSelfDataID:[NSString stringWithFormat:@"%d",uid]];
+    
+    [announcementItemInfor setSelfDataID:IntForKeyInUnserializedJSONDic(dicInfor, @"goodsId")];
+    ///创建时间信息
+    [announcementItemInfor setDataCreateDateInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"endtime")];
+    ///数据标题信息
+    [announcementItemInfor setDataTitleContentInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"title")];
+    ///数据图片信息
+    [announcementItemInfor setDataForItsImageURL:StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    
+    NSString *cardStr=[self returnCardIdWithString:StringForKeyInUnserializedJSONDic(dicInfor, @"card_no")];
+    [announcementItemInfor setCard_no:cardStr];
+    
+//    [announcementItemInfor setCard_no:StringForKeyInUnserializedJSONDic(dicInfor, @"card_no")];
+    
+    [announcementItemInfor setStatus:IntForKeyInUnserializedJSONDic(dicInfor, @"status")];
+    
+    //是否消费
+    
+    if (announcementItemInfor.status) {
+        
+    [announcementItemInfor setDataSubtitleContentInfor:@"已消费"];
+
+    }
+    else
+    {
+    [announcementItemInfor setDataSubtitleContentInfor:@"未消费"];
+    }
+
+    return announcementItemInfor;
+    
+}
+-(NSString *)returnCardIdWithString:(NSString *)cardStr
+{
+    
+    NSMutableString *cStr=[[NSMutableString alloc]initWithString:cardStr];
+
+    int len=[cardStr length];
+    
+    int num=len/5;
+    
+    
+    for(int i=0;i<num;i++)
+    {
+    [cStr insertString:@" " atIndex:4*(i+1)+i];
+    }
+
+    return cStr;
+    
+    return nil;
+    
+}
+@end

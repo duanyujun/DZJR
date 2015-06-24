@@ -1,0 +1,118 @@
+//
+//  HTTPClient+Interaction.h
+//  FM_CZFW
+//
+//  Created by liyuhui on 14-4-14.
+//  Copyright (c) 2014年 ETelecom. All rights reserved.
+//
+
+#import "HTTPClient.h"
+#import "QuestionInfo.h"
+
+/** 互动模块数据内容信息
+ 
+ *
+ *
+ **/
+@interface HTTPClient (Interaction)
+
+//获取问题列表
+- (AFHTTPRequestOperation *)getQusetionList:(NSString *)lastQuestionId
+                               questionType:(NSUInteger)type
+                                  pageIndex:(NSUInteger)pageIndex
+                                   pageSize:(NSUInteger)pageSize
+                                 withUserId:(NSString *)userPersonalId
+                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取问题回复信息列表
+- (AFHTTPRequestOperation *)getQusetionAnswerList:(NSString *)questionId
+                                     lastAnswerId:(NSString *)lastId
+                                       withUserId:(NSString *)userId
+                                        pageIndex:(NSUInteger)pageIndex
+                                         pageSize:(NSUInteger)pageSize
+                                     withIsPublic:(NSInteger)isPbulic
+                                       completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取问题详细信息回复信息列表
+- (AFHTTPRequestOperation *)getQusetionInfo:(NSString *)questionId
+                                  pageIndex:(NSUInteger)pageIndex
+                                 withUserId:(NSString *)userId
+                                   pageSize:(NSUInteger)pageSize
+                                 withPublic:(NSInteger )m_isPublice
+                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+//发布新问题
+- (AFHTTPRequestOperation *)pulishNewQuesiton:(QuestionInfo *)questionInfo
+                                   completion:(WebAPIRequestCompletionBlock)completion;
+
+//回复问题
+- (AFHTTPRequestOperation *)replyQuesiton:(QuestionInfo *)questionInfo withPublic:(NSInteger )m_isPublice
+                               completion:(WebAPIRequestCompletionBlock)completion;
+//点赞问题
+- (AFHTTPRequestOperation *)AnswerPraiseQuesiton:(QuestionInfo *)questionInfo                                completion:(WebAPIRequestCompletionBlock)completion;
+
+
+//删除问题
+- (AFHTTPRequestOperation *)deleteQuesiton:(NSString *)questionId
+                                    userId:(NSString *)userId
+                                withPublic:(NSInteger )m_isPublice
+                                completion:(WebAPIRequestCompletionBlock)completion;
+//删除回复
+- (AFHTTPRequestOperation *)deleteReply:(NSString *)answerId
+                                 userId:(NSString *)userId
+                             withPublic:(NSInteger )m_isPublice
+                             completion:(WebAPIRequestCompletionBlock)completion;
+//举报非法问题
+- (AFHTTPRequestOperation *)feedbackQuestion:(NSString *)questionId
+                                      userId:(NSString *)userId
+                             withPublicState:(NSInteger)publicState
+                                  completion:(WebAPIRequestCompletionBlock)completion;
+//举报非法回复
+- (AFHTTPRequestOperation *)feedbackAnswer:(NSString *)answerId
+                                    userId:(NSString *)userId
+                           withPublicState:(NSInteger)publicState
+                                completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取未读消息条数
+- (AFHTTPRequestOperation *)getUnreadMsgNumsWithUserID:(NSString *)m_UseId
+                                               complet:(WebAPIRequestCompletionBlock)completion;
+
+
+//获取未读消息列表
+- (AFHTTPRequestOperation *)getUnreadMsgList:(NSString *)userId
+                                   pageIndex:(NSUInteger)pageIndex
+                                    pageSize:(NSUInteger)pageSize
+                                  completion:(WebAPIRequestCompletionBlock)completion;
+
+//忽略所有未读消息
+- (AFHTTPRequestOperation *)ingoreUnreadMsg:(NSString *)userId
+                                 completion:(WebAPIRequestCompletionBlock)completion;
+
+//标记消息已读
+- (AFHTTPRequestOperation *)markMsgRead:(NSString *)userId
+                             questionId:(NSString *)questionId
+                             completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取主持人信息
+- (AFHTTPRequestOperation *)getEmceeList:(WebAPIRequestCompletionBlock)completion;
+
+
+//获取当前主持人
+- (AFHTTPRequestOperation *)getCurrentEmcee:(WebAPIRequestCompletionBlock)completion;
+
+//赞主持人
+- (AFHTTPRequestOperation *)praiseEmcee:(NSString* ) emceeId
+                             completion:(WebAPIRequestCompletionBlock)completion;
+
+//获取节目信息
+- (AFHTTPRequestOperation *)getCurrentProgram:(WebAPIRequestCompletionBlock)completion;
+
+/** 根据用户输入的KeyWord信息，获取用户名**/
+- (AFHTTPRequestOperation *)getQusetionUserNameForKeyWord:(NSString *)userNameKey
+                                           withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+///修改圈子中背景图内容
+//- (AFHTTPRequestOperation *)get
+
+
+@end

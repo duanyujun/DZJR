@@ -1,0 +1,44 @@
+//
+//  FriendCirclePostsModel.h
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "UserInfo.h"
+
+/** 用户发表的帖子信息模型
+ 
+ *@See 存储用户发表帖子信息内容
+ **/
+@interface FriendCirclePostsModel : NSObject
+
+///帖子创建者的信息
+@property (nonatomic , strong)      UserInfo        *postUserInfor;
+///帖子ID
+@property (nonatomic , copy)        NSString        *postCreateID;
+///帖子图片信息
+@property (nonatomic , copy)        NSArray         *postImagesArray;
+///帖子创建时间
+@property (nonatomic , copy)        NSString        *postCreateDate;
+///帖子内容
+@property (nonatomic , strong) NSAttributedString   *postsAttributedContent;//带属性完整数据的问题内容
+///帖子内容
+@property (nonatomic , copy)        NSString        *postsContentString;
+///帖子中，用户点赞的个数
+@property (nonatomic , assign)      NSInteger       postsUserPraiseCount;
+///帖子所在的圈子ID
+@property (nonatomic , copy)        NSString        *postAtFriendCircleId;
+
+@property (nonatomic,copy)  NSString                *postCityCode;
+
++ (id)initWithFriendCirclePostsModelWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+///获取消息高度
+- (GLfloat)getContentHeight:(GLfloat)containerWidth;
+
+- (NSDictionary *)getParamForSendFriendCirclePost;
+
+@end

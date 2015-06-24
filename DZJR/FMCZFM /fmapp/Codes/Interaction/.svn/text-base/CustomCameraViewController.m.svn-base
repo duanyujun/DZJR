@@ -1,0 +1,221 @@
+//
+//  CustomCameraViewController.m
+//  fmapp
+//
+//  Created by SDYK on 14-8-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "CustomCameraViewController.h"
+#import "CameraView.h"
+#import "CameraTableViewCell.h"
+#import "PublishQuestionViewController.h"
+
+#define     kScreenWidth            [UIScreen mainScreen].bounds.size.width
+#define     kScreenHeight           [UIScreen mainScreen].bounds.size.height
+
+
+@interface CustomCameraViewController ()
+@property (nonatomic,assign) id <CustomCameraViewControllerDelegate> delegate;
+@end
+
+@implementation CustomCameraViewController {
+    CameraView      *_cameraView;               // 相机拍摄视图
+    UIButton        *_cameraBtn;                // 拍照按钮
+    UITableView     *_imageTableView;           // 展示拍摄完成的图片
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+    
+    
+}
+
+- (id)initWithDelegate:(id<CustomCameraViewControllerDelegate>)m_delegate{
+    
+        self = [super init];
+        if (self) {
+            // Custom initialization
+            self.delegate = m_delegate;
+        }
+        return self;
+}
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [[ThemeManager sharedThemeManager].skin backgroundColor];
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    self.view.backgroundColor = [UIColor blackColor];
+    if (!self.imageArray) {
+        self.imageArray = [[NSMutableArray alloc] init];
+    }
+    [self showCustomCamera];
+    
+    CGRect rc=self.view.bounds;
+    // 取消按钮
+    UIButton *cancelBtn = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    cancelBtn.frame = CGRectMake((KProjectScreenWidth-280)/2, rc.size.height-42, 60, 34);
+    [cancelBtn setTitle:@"取消" forState:UIControlStateNormal];
+    [cancelBtn addTarget:self action:@selector(cancel) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:cancelBtn];
+
+    // 拍照按钮
+    _cameraBtn = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    [_cameraBtn setTitle:@"拍照" forState:UIControlStateNormal];
+    [_cameraBtn addTarget:self action:@selector(takePhotos) forControlEvents:UIControlEventTouchUpInside];
+    _cameraBtn.frame = CGRectMake(cancelBtn.frame.origin.x+110, rc.size.height-42, 60, 34);
+    [self.view addSubview:_cameraBtn];
+    
+    
+    // 确定按钮
+    UIButton *okBtn = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    okBtn.frame = CGRectMake(_cameraBtn.frame.origin.x+110, rc.size.height-42, 60, 34);
+    [okBtn setTitle:@"确定" forState:UIControlStateNormal];
+    [okBtn addTarget:self action:@selector(saveImage) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:okBtn];
+    
+    
+    // 存放拍照完成后照片的TableView
+    _imageTableView = [[UITableView alloc] initWithFrame:CGRectMake(0, rc.size.height-20-110, 60, 320)];
+    _imageTableView.backgroundColor = [UIColor whiteColor];
+    //_imageTableView.alpha = 0.5;
+    _imageTableView.transform = CGAffineTransformMakeRotation(-M_PI/2);
+    _imageTableView.center = CGPointMake(_cameraView.frame.size.width/2, _cameraView.frame.size.height-50);
+    _imageTableView.showsVerticalScrollIndicator = NO;
+    _imageTableView.rowHeight = 60.0;
+    _imageTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    _imageTableView.backgroundColor=[UIColor colorWithRed:226.0/255.0 green:231.0/255.0 blue:237.0/255.0 alpha:0.5];
+    _imageTableView.delegate = self;
+    _imageTableView.dataSource = self;
+    [self.view addSubview:_imageTableView];
+    
+    
+    NSLog(@"--------------- %f ---------------", self.view.bounds.size.height);
+    
+}
+
+- (void)showCustomCamera
+{
+    _cameraView = [[CameraView alloc] initWithFrame:CGRectMake(0, -20, kScreenWidth, kScreenHeight-50)];
+    [self.view addSubview:_cameraView];
+    [_cameraView showCamera:nil];
+}
+
+#pragma mark ---------------- TableView Delegate Methods ------------------
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 60.0;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.imageArray count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *CustomCellIdentifier = @"CameraCellIdentifier";
+    
+    CameraTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CustomCellIdentifier];
+    if (cell == nil) {
+        cell = [[CameraTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                            reuseIdentifier:CustomCellIdentifier];
+    }
+    
+    NSUInteger row = [indexPath row];
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.backgroundColor = [UIColor whiteColor];
+    
+    cell.imageView.image = [self.imageArray objectAtIndex:row];
+    cell.imageView.transform = CGAffineTransformMakeRotation(M_PI/2);
+    cell.deleteImageView.transform = CGAffineTransformMakeRotation(M_PI/2);
+    
+    UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(deleteImage:)];
+    [cell.deleteImageView addGestureRecognizer:singleTap];
+    cell.deleteImageView.tag = row;
+    
+    return cell;
+}
+
+
+-(void)deleteImage:(UITapGestureRecognizer *)gesture{
+    
+    [self.imageArray removeObjectAtIndex:gesture.view.tag];
+    [_imageTableView reloadData];
+    
+}
+
+#pragma mark ------------------- Button Action Methods --------------------
+
+// 拍照按钮
+- (void)takePhotos
+{
+        
+    if ([self.imageArray count] > self.photoNumbers-1)
+    {
+        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示"
+                                                            message:@"本次会话最多可上传9张图片"
+                                                           delegate:nil
+                                                  cancelButtonTitle:@"确定"
+                                                  otherButtonTitles:nil, nil];
+        [alertView show];
+        return;
+    }
+    
+    _cameraBtn.enabled = NO;
+    _cameraBtn.enabled = YES;
+    
+    [_cameraView captureImage:^(BOOL finished, UIImage *captureImage) {
+        if (finished) {
+            
+            [_cameraView startCamera];
+            [self.imageArray addObject:captureImage];
+            [_imageTableView reloadData];
+            _cameraBtn.enabled = YES;
+        }
+    }
+     ];
+    
+}
+
+// 取消按钮
+- (void)cancel
+{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+// 确定按钮
+- (void)saveImage
+{
+    [self dismissModalViewControllerAnimated:YES];
+    
+    if (self.delegate) {
+        if ([self.delegate respondsToSelector:@selector(sendImageList:andCount:)]) {
+            [self.delegate sendImageList:self.imageArray andCount:[self.imageArray count]];
+        }
+    }
+    
+}
+
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+
+@end

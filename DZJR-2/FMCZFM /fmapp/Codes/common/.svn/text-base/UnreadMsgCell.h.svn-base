@@ -1,0 +1,17 @@
+//
+//  UnreadMsgCell.h
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-12-23.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "RichTextLabel.h"
+#import "UnreadMsgInfo.h"
+
+@interface UnreadMsgCell : UITableViewCell
+
+-(void)displayUnreadMsg:(UnreadMsgInfo* )unreadMsgInfo;
+
+@end

@@ -1,0 +1,23 @@
+//
+//  ActivityOrPrizeInformation.m
+//  fmapp
+//
+//  Created by 张利广 on 14-6-10.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "ActivityOrPrizeInformation.h"
+
+@implementation ActivityOrPrizeInformation
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    
+    return self;
+}
+
+
+
+@end

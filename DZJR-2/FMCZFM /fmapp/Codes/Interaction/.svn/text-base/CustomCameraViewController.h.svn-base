@@ -1,0 +1,26 @@
+//
+//  CustomCameraViewController.h
+//  fmapp
+//
+//  Created by SDYK on 14-8-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+#import <AVFoundation/AVFoundation.h>
+
+@protocol CustomCameraViewControllerDelegate <NSObject>
+
+- (void)sendImageList:(NSArray *)array andCount:(NSInteger)count;
+
+@end
+
+@interface CustomCameraViewController : FMViewController <UITableViewDataSource, UITableViewDelegate> {
+//    __weak id <CustomCameraViewControllerDelegate> _delegate;
+}
+
+
+- (id)initWithDelegate:(id <CustomCameraViewControllerDelegate> )m_delegate;
+@property (strong, nonatomic) NSMutableArray *imageArray;
+@property (nonatomic,assign)NSInteger photoNumbers;
+@end

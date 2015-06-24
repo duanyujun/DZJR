@@ -1,0 +1,24 @@
+//
+//  FriendCirUserMemberCell.h
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+#import "UserInfo.h"
+/** 朋友圈成员Cell
+ 
+ *@See 用于展示圈内成员信息，主要包括头像、名字、性别和个性签名
+ **/
+@interface FriendCirUserMemberCell : UITableViewCell
+
+/** 初始化朋友圈成员数据信息
+ 
+ *@param itemUserInfor 成员信息内容
+ *@See 用于展示圈内成员信息，主要包括头像、名字、性别和个性签名
+ **/
+- (void)initWithFriendCirUserMemberDataInfor:(UserInfo *)itemUserInfor;
+@end

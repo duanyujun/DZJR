@@ -1,0 +1,1145 @@
+#import "IMClient.h"
+#import "GCDMulticastDelegate.h"
+#import "ImBuffer.h"
+#import "FMMessage.h"
+#import "FMSettings.h"
+
+
+#import <objc/runtime.h>
+#import <libkern/OSAtomic.h>
+
+#if TARGET_OS_IPHONE
+  // Note: You may need to add the CFNetwork Framework to your project
+  #import <CFNetwork/CFNetwork.h>
+#endif
+
+#if ! __has_feature(objc_arc)
+#warning This file must be compiled with ARC. Use -fobjc-arc flag (or convert project to ARC).
+#endif
+
+
+
+/**
+ * Seeing a return statements within an inner block
+ * can sometimes be mistaken for a return point of the enclosing method.
+ * This makes inline blocks a bit easier to read.
+**/
+#define return_from_block  return
+
+// Define the timeouts (in seconds) for retreiving various parts of the XML stream
+#define TIMEOUT_XMPP_WRITE         -1
+#define TIMEOUT_XMPP_READ_START    10
+#define TIMEOUT_XMPP_READ_STREAM   -1
+
+// Define the tags we'll use to differentiate what it is we're currently reading or writing
+#define TAG_XMPP_READ_START         100
+#define TAG_XMPP_READ_STREAM        101
+#define TAG_XMPP_WRITE_START        200
+#define TAG_XMPP_WRITE_STOP         201
+#define TAG_XMPP_WRITE_STREAM       202
+#define TAG_XMPP_WRITE_RECEIPT      203
+
+// Define the timeouts (in seconds) for SRV
+#define TIMEOUT_SRV_RESOLUTION 30.0
+
+NSString *const XMPPStreamErrorDomain = @"XMPPStreamErrorDomain";
+
+const NSTimeInterval XMPPStreamTimeoutNone = -1;
+
+enum XMPPStreamFlags
+{
+	kP2PInitiator                 = 1 << 0,  // If set, we are the P2P initializer
+	kIsSecure                     = 1 << 1,  // If set, connection has been secured via SSL/TLS
+	kIsAuthenticated              = 1 << 2,  // If set, authentication has succeeded
+};
+
+enum XMPPStreamConfig
+{
+	kEnableAutoConnect            = 1 << 0,  // 是否支持自动重连
+	kEnableNetDectect             = 1 << 1,  // 是否支持网络探测
+	kEnableBackgroundingOnSocket  = 1 << 2,  // 是否支持后台连接socket
+};
+
+// Define the various states we'll use to track our progress
+typedef NS_ENUM(NSInteger, XMPPStreamState) {
+	STATE_XMPP_DISCONNECTED,    //未连接到IM服务器
+	STATE_XMPP_CONNECTING,      //正在连接IM服务器
+	STATE_XMPP_CONNECTED,       //已经建立到IM的网络连接
+	STATE_XMPP_AUTH,            //正在鉴权
+	STATE_XMPP_START_SESSION,   //健全成功开始回话
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark -
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+@interface IMClient ()
+{
+    //IMClient主线程队列
+	dispatch_queue_t xmppQueue;
+	void *xmppQueueTag;
+
+    //连接超时定时器,在连接时启动,连接成功后关闭,超时时响应
+	dispatch_source_t connectTimer;
+	
+    //代理管理器
+	GCDMulticastDelegate <XMPPStreamDelegate> *multicastDelegate;
+	
+    //客户端当前状态
+	XMPPStreamState state;
+	
+    //网络连接管理
+	GCDAsyncSocket *asyncSocket;
+	
+	//接收缓存
+    ImBuffer* readBuffer;
+    
+	Byte flags;
+    
+    //当前设置
+	Byte config;
+	
+    //IM服务器地址，端口
+	NSString *hostName;
+	UInt16 hostPort;
+    
+    //发送心跳间隔
+	NSTimeInterval keepAliveInterval;
+    
+    //心跳定时器
+	dispatch_source_t keepAliveTimer;
+    
+    //最后活动时间
+	NSTimeInterval lastSendReceiveTime;
+	
+    //心跳发送数据
+	NSData* heartSendData;
+    
+    //用户ID
+    uint32_t myJID;
+    
+    //客户端发送流水号
+    uint32_t sendSequenceNo;
+    
+    //消息发送缓存队列，检查是否发送失败
+    NSMutableDictionary*   sendCache;
+}
+@end
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark -
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+@implementation IMClient
+
+
+/**
+ * Shared initialization between the various init methods.
+**/
+- (void)commonInit
+{
+	xmppQueueTag = &xmppQueueTag;
+	xmppQueue = dispatch_queue_create("xmpp", DISPATCH_QUEUE_SERIAL);
+	dispatch_queue_set_specific(xmppQueue, xmppQueueTag, xmppQueueTag, NULL);
+	
+	multicastDelegate = (GCDMulticastDelegate <XMPPStreamDelegate> *)[[GCDMulticastDelegate alloc] init];
+	
+    readBuffer = [[ImBuffer alloc] init];
+	state = STATE_XMPP_DISCONNECTED;
+	
+	flags = 0;
+	config = 0;
+		
+	hostPort = 5222;
+	keepAliveInterval = DEFAULT_KEEPALIVE_INTERVAL;
+    sendSequenceNo = 0;
+    sendCache = [NSMutableDictionary dictionary];
+}
+
+/**
+ * Standard XMPP initialization.
+ * The stream is a standard client to server connection.
+**/
+- (id)init
+{
+	if ((self = [super init]))
+	{
+		// Common initialization
+		[self commonInit];
+		
+		// Initialize socket
+		asyncSocket = [[GCDAsyncSocket alloc] initWithDelegate:self delegateQueue:xmppQueue];
+        
+        //心跳发送数据
+        pkg_head_t head;
+        head.cmd = C2S_HEART;
+        head.seq = 0;
+        head.size = htons(sizeof(pkg_head_t));
+        heartSendData = [NSData dataWithBytes:&head length:sizeof(pkg_head_t)];
+        
+	}
+	return self;
+}
+
+/**
+ * Standard deallocation method.
+ * Every object variable declared in the header file should be released here.
+**/
+- (void)dealloc
+{
+	#if !OS_OBJECT_USE_OBJC
+	dispatch_release(xmppQueue);
+	
+	#endif
+	
+	[asyncSocket setDelegate:nil delegateQueue:NULL];
+	[asyncSocket disconnect];
+		
+	if (keepAliveTimer)
+	{
+		dispatch_source_cancel(keepAliveTimer);
+	}
+    
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Properties
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+- (XMPPStreamState)state
+{
+	__block XMPPStreamState result = STATE_XMPP_DISCONNECTED;
+	
+	dispatch_block_t block = ^{
+		result = state;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+
+- (NSString *)hostName
+{
+	if (dispatch_get_specific(xmppQueueTag))
+	{
+		return hostName;
+	}
+	else
+	{
+		__block NSString *result;
+		
+		dispatch_sync(xmppQueue, ^{
+			result = hostName;
+		});
+		
+		return result;
+	}
+}
+
+- (void)setHostName:(NSString *)newHostName
+{
+	if (dispatch_get_specific(xmppQueueTag))
+	{
+		if (hostName != newHostName)
+		{
+			hostName = [newHostName copy];
+		}
+	}
+	else
+	{
+		NSString *newHostNameCopy = [newHostName copy];
+		
+		dispatch_async(xmppQueue, ^{
+			hostName = newHostNameCopy;
+		});
+		
+	}
+}
+
+- (UInt16)hostPort
+{
+	if (dispatch_get_specific(xmppQueueTag))
+	{
+		return hostPort;
+	}
+	else
+	{
+		__block UInt16 result;
+		
+		dispatch_sync(xmppQueue, ^{
+			result = hostPort;
+		});
+		
+		return result;
+	}
+}
+
+- (void)setHostPort:(UInt16)newHostPort
+{
+	dispatch_block_t block = ^{
+		hostPort = newHostPort;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_async(xmppQueue, block);
+}
+
+- (uint32_t) myJID
+{
+    if (dispatch_get_specific(xmppQueueTag))
+	{
+		return myJID;
+	}
+	else
+	{
+		__block uint32_t result;
+		
+		dispatch_sync(xmppQueue, ^{
+			result = myJID;
+		});
+		
+		return result;
+	}
+}
+
+- (void)setMyJID:(uint32_t)newMyJID
+{
+	dispatch_block_t block = ^{
+		myJID = newMyJID;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_async(xmppQueue, block);
+}
+
+- (NSTimeInterval)keepAliveInterval
+{
+	__block NSTimeInterval result = 0.0;
+	
+	dispatch_block_t block = ^{
+		result = keepAliveInterval;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+
+- (void)setKeepAliveInterval:(NSTimeInterval)interval
+{
+	dispatch_block_t block = ^{
+		
+		if (keepAliveInterval != interval)
+		{
+			if (interval <= 0.0)
+				keepAliveInterval = interval;
+			else
+				keepAliveInterval = MAX(interval, MIN_KEEPALIVE_INTERVAL);
+			
+			[self setupKeepAliveTimer];
+		}
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_async(xmppQueue, block);
+}
+
+- (uint32_t)nextSendSequence
+{
+    if (dispatch_get_specific(xmppQueueTag))
+    {
+        return ++sendSequenceNo;
+    }
+    else
+    {
+        __block uint32_t result = 0;
+        
+        dispatch_sync(xmppQueue, ^{
+            result = ++sendSequenceNo;
+        });
+        
+        return result;
+    }
+}
+
+#if TARGET_OS_IPHONE
+
+- (BOOL)enableBackgroundingOnSocket
+{
+	__block BOOL result = NO;
+	
+	dispatch_block_t block = ^{
+		result = (config & kEnableBackgroundingOnSocket) ? YES : NO;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+
+- (void)setEnableBackgroundingOnSocket:(BOOL)flag
+{
+	dispatch_block_t block = ^{
+		if (flag)
+			config |= kEnableBackgroundingOnSocket;
+		else
+			config &= ~kEnableBackgroundingOnSocket;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_async(xmppQueue, block);
+}
+
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Delegate
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (void)addDelegate:(id)delegate delegateQueue:(dispatch_queue_t)delegateQueue
+{
+	// Asynchronous operation (if outside xmppQueue)
+	
+	dispatch_block_t block = ^{
+		[multicastDelegate addDelegate:delegate delegateQueue:delegateQueue];
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_async(xmppQueue, block);
+}
+
+- (void)removeDelegate:(id)delegate delegateQueue:(dispatch_queue_t)delegateQueue
+{
+	// Synchronous operation
+	
+	dispatch_block_t block = ^{
+		[multicastDelegate removeDelegate:delegate delegateQueue:delegateQueue];
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+}
+
+- (void)removeDelegate:(id)delegate
+{
+	// Synchronous operation
+	
+	dispatch_block_t block = ^{
+		[multicastDelegate removeDelegate:delegate];
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Connection State
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Returns YES if the connection is closed, and thus no stream is open.
+ * If the stream is neither disconnected, nor connected, then a connection is currently being established.
+**/
+- (BOOL)isDisconnected
+{
+	__block BOOL result = NO;
+	
+	dispatch_block_t block = ^{
+		result = (state == STATE_XMPP_DISCONNECTED);
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+
+/**
+ * Returns YES is the connection is currently connecting
+ **/
+
+- (BOOL)isConnecting
+{
+	__block BOOL result = NO;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		result = (state == STATE_XMPP_CONNECTING);
+	}};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+/**
+ * Returns YES if the connection is open, and the stream has been properly established.
+ * If the stream is neither disconnected, nor connected, then a connection is currently being established.
+**/
+- (BOOL)isConnected
+{
+	__block BOOL result = NO;
+	
+	dispatch_block_t block = ^{
+		result = (state >= STATE_XMPP_CONNECTED);
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Connect Timeout
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Start Connect Timeout
+**/
+- (void)startConnectTimeout:(NSTimeInterval)timeout
+{
+	if (timeout >= 0.0 && !connectTimer)
+	{
+		connectTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, xmppQueue);
+		
+		dispatch_source_set_event_handler(connectTimer, ^{ @autoreleasepool {
+			
+			[self doConnectTimeout];
+		}});
+		
+		dispatch_time_t tt = dispatch_time(DISPATCH_TIME_NOW, (timeout * NSEC_PER_SEC));
+		dispatch_source_set_timer(connectTimer, tt, DISPATCH_TIME_FOREVER, 0);
+		
+		dispatch_resume(connectTimer);
+	}
+}
+
+/**
+ * End Connect Timeout
+**/
+- (void)endConnectTimeout
+{
+	if (connectTimer)
+	{
+		dispatch_source_cancel(connectTimer);
+		connectTimer = NULL;
+	}
+}
+
+/**
+ * Connect has timed out, so inform the delegates and close the connection
+**/
+- (void)doConnectTimeout
+{
+	[self endConnectTimeout];
+    		
+    if (state != STATE_XMPP_DISCONNECTED)
+    {
+        [multicastDelegate xmppStreamConnectDidTimeout:self];
+        [asyncSocket disconnect];
+    }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark C2S Connection
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (BOOL)connectWithTimeout:(NSTimeInterval)timeout error:(NSError **)errPtr
+{
+	__block BOOL result = NO;
+	__block NSError *err = nil;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+	
+		if (state != STATE_XMPP_DISCONNECTED)
+		{
+			NSString *errMsg = @"Attempting to connect while already connected or connecting.";
+			NSDictionary *info = [NSDictionary dictionaryWithObject:errMsg forKey:NSLocalizedDescriptionKey];
+			
+			err = [NSError errorWithDomain:XMPPStreamErrorDomain code:XMPPStreamInvalidState userInfo:info];
+			
+			result = NO;
+			return_from_block;
+		}
+
+		// Notify delegates
+		[multicastDelegate xmppStreamWillConnect:self];
+
+        // Open TCP connection to the configured hostName.
+        
+        state = STATE_XMPP_CONNECTING;
+        
+        NSError *connectErr = nil;
+        result = [self connectToHost:hostName
+                              onPort:hostPort
+                         withTimeout:XMPPStreamTimeoutNone
+                               error:&connectErr];
+        
+        if (!result)
+        {
+            err = connectErr;
+            state = STATE_XMPP_DISCONNECTED;
+        }
+        
+ 	}};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	if (errPtr)
+		*errPtr = err;
+	
+	return result;
+}
+
+
+- (BOOL)connectToHost:(NSString *)host onPort:(UInt16)port withTimeout:(NSTimeInterval)timeout error:(NSError **)errPtr
+{
+	NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+	
+	BOOL result = [asyncSocket connectToHost:host onPort:port error:errPtr];
+		
+	if(result)
+    {
+        [self startConnectTimeout:timeout];
+    }
+	
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Disconnect
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Closes the connection to the remote host.
+**/
+- (void)disconnect
+{
+	dispatch_block_t block = ^{ @autoreleasepool {
+		
+		if (state != STATE_XMPP_DISCONNECTED)
+		{
+			[multicastDelegate xmppStreamWasToldToDisconnect:self];
+			
+			[asyncSocket disconnect];
+		}
+	}};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Authentication
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * This method applies to standard password authentication schemes only.
+ *
+ * @see authenticate:error:
+ * 
+ * This method exists for backwards compatibility, and may disappear in future versions.
+**/
+- (BOOL)authenticateWithPassword:(NSString *)inPassword
+                    withDeviceNo:(NSString* )inDeviceNo
+                           error:(NSError **)errPtr
+{
+	
+    NSString *password = [inPassword copy];
+    NSString *md5Password = EncryptPassword(password);
+    NSString *deviceNo = [inDeviceNo copy];
+    
+	__block BOOL result = YES;
+	__block NSError *err = nil;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		
+        if (state == STATE_XMPP_START_SESSION) {
+            //重新登陆
+            state = STATE_XMPP_CONNECTED;
+        }
+        
+		if (state != STATE_XMPP_CONNECTED)
+		{
+			NSString *errMsg = @"Please wait until the stream is connected.";
+			NSDictionary *info = [NSDictionary dictionaryWithObject:errMsg forKey:NSLocalizedDescriptionKey];
+			
+			err = [NSError errorWithDomain:XMPPStreamErrorDomain code:XMPPStreamInvalidState userInfo:info];
+			
+			result = NO;
+			return_from_block;
+		}
+		
+		if (myJID == 0)
+		{
+			NSString *errMsg = @"You must set myJID before calling authenticate:error:.";
+			NSDictionary *info = [NSDictionary dictionaryWithObject:errMsg forKey:NSLocalizedDescriptionKey];
+			
+			err = [NSError errorWithDomain:XMPPStreamErrorDomain code:XMPPStreamInvalidProperty userInfo:info];
+			
+			result = NO;
+			return_from_block;
+		}
+        
+        state = STATE_XMPP_AUTH;
+        
+		ImBuffer* authData = [[ImBuffer alloc] init];
+        pkg_head_t head;
+        head.cmd = C2S_LOGIN;
+        head.seq = 0;
+        [authData appendData:(const char* )&head withLength:sizeof(pkg_head_t)];
+        [authData appendInt:htonl(myJID)];  //userId
+        [authData appendByte:2];            //ter_id
+        [authData appendShort:0];
+        [authData appendString:md5Password];   //authCode
+        [authData appendString:deviceNo];   //ter_no
+        [self sendImMessage:authData];
+        
+	}};
+	
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	if (errPtr)
+		*errPtr = err;
+	
+	return result;
+}
+
+- (BOOL)isAuthenticating
+{		
+	__block BOOL result = NO;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		result = (state == STATE_XMPP_AUTH);
+	}};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+
+	return result;
+}
+
+- (BOOL)isAuthenticated
+{
+	__block BOOL result = NO;
+	
+	dispatch_block_t block = ^{
+		result = (flags & kIsAuthenticated) ? YES : NO;
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+	
+	return result;
+}
+
+- (void)setIsAuthenticated:(BOOL)flag
+{
+	dispatch_block_t block = ^{
+		if(flag)
+		{
+			flags |= kIsAuthenticated;
+		}
+		else
+		{
+			flags &= ~kIsAuthenticated;
+		}
+	};
+	
+	if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_async(xmppQueue, block);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Send Message Method
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+- (void)sendMessage:(FMMessage *)message toUserDd:(NSString *)userId
+{
+    dispatch_block_t block = ^{ @autoreleasepool {
+        
+        NSString *toUserId = [userId copy];
+        int toUserJID = [toUserId intValue];
+        ImBuffer *sendData = [[ImBuffer alloc] init];
+        int sendTime = message.msgTime;
+        NSString *content = [message.content copy];
+        
+        pkg_head_t head;
+        head.cmd = C2S_MESSAGE;
+        head.seq = htonl(message.flowno);
+                
+        [sendData appendData:(const char *)&head withLength:sizeof(pkg_head_t)];
+        [sendData appendByte:0];                // 加密方式
+        [sendData appendInt:htonl(toUserJID)];  // peer
+        [sendData appendInt:htonl(sendTime)];   // msg_time
+        [sendData appendInt:htonl(0)];          // msg_id
+        [sendData appendString:content];        // 消息内容
+
+        [self sendImMessage:sendData];
+        
+    }};
+    
+    if (dispatch_get_specific(xmppQueueTag))
+		block();
+	else
+		dispatch_sync(xmppQueue, block);
+}
+- (void)sendMsgRcvRsp:(NSUInteger)msgId withPeer:(NSUInteger)peerId sequence:(NSUInteger)seq
+{
+    dispatch_block_t block = ^{ @autoreleasepool {
+        
+
+        ImBuffer *sendData = [[ImBuffer alloc] init];
+        
+        pkg_head_t head;
+        head.cmd = C2S_MESSAGE;
+        head.seq = htonl(seq);
+        [sendData appendData:(const char *)&head withLength:sizeof(pkg_head_t)];
+        [sendData appendInt:htonl(msgId)];      // msg_id
+        [sendData appendInt:htonl(peerId)];     // peerId
+        [sendData appendByte:0];                // ret
+        
+        [self sendImMessage:sendData];
+        
+    }};
+    
+    if (dispatch_get_specific(xmppQueueTag))
+        block();
+    else
+        dispatch_sync(xmppQueue, block);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark General Methods
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+- (void)sendImMessage:(ImBuffer *)buffer
+{
+    //此方法必须在xmppQueue线程调用
+    NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+    
+    uint8_t* sendBytes =[buffer getBytes];
+    *((uint16_t* )sendBytes) = htons([buffer getSize]);
+    NSData* outgoingData = [NSData dataWithBytes:sendBytes length:[buffer getSize]];
+    
+    if ([asyncSocket isConnected]) {
+        [asyncSocket writeData:outgoingData
+                   withTimeout:TIMEOUT_XMPP_WRITE
+                           tag:TAG_XMPP_WRITE_STREAM];
+    }else{
+        pkg_head_t* pkg = (pkg_head_t* )sendBytes;
+        if (pkg->cmd == C2S_MESSAGE) {
+            NSInteger flowno = ntohl(pkg->seq);
+            [multicastDelegate xmppStream:self didMessageSendFailed:flowno];
+        }
+    }
+	
+}
+//处理服务器回应消息
+- (void)dealImMessage:(NSData* )msg
+{
+    //此方法必须在xmppQueue线程调用
+    NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+    
+    c2s_pkg_t* pkg = (c2s_pkg_t* )[msg bytes];
+    switch (pkg->head.cmd) {
+        case C2S_LOGIN:
+        {
+            //鉴权响应
+            if (pkg->result == C2S_AUTH_OK) {
+                state = STATE_XMPP_START_SESSION;
+                [multicastDelegate xmppStreamDidAuthenticate:self];
+
+            }else{
+                state = STATE_XMPP_CONNECTED;
+                NSError* err;
+                NSString* errMsg;
+                if (pkg->result == C2S_AUTH_PASSWORD) {
+                    errMsg = @"用户名密码不正确.";
+                }else{
+                    errMsg = @"系统错误.";
+                }
+                NSDictionary *info = [NSDictionary dictionaryWithObject:errMsg forKey:NSLocalizedDescriptionKey];
+                err = [NSError errorWithDomain:XMPPStreamErrorDomain code:XMPPStreamInvalidState userInfo:info];
+
+                [multicastDelegate xmppStreamDidAuthenticateFailed:self error:err];
+            }
+            
+        }
+            
+            break;
+        case C2S_MESSAGE:
+        {
+            //接收消息
+            [multicastDelegate xmppStream:self didReceiveMessage:msg];
+        }
+            break;
+        case C2S_MESSAGE_SENDRSP:
+        {
+            //发送消息响应
+            [sendCache removeObjectForKey:[NSNumber numberWithInteger:ntohl(pkg->head.seq)]];
+            [multicastDelegate xmppStream:self didSendMessage:msg];
+        }
+            break;
+        case C2S_MESSAGE_SYNC:
+        {
+            //同步消息
+            [multicastDelegate xmppStream:self didSyncMessage:msg];
+        }
+            break;
+        default:
+            break;
+    }
+    
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark AsyncSocket Delegate
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Called when a socket connects and is ready for reading and writing. "host" will be an IP address, not a DNS name.
+**/
+- (void)socket:(GCDAsyncSocket *)sock didConnectToHost:(NSString *)host port:(UInt16)port
+{
+	// This method is invoked on the xmppQueue.
+	// 
+	// The TCP connection is now established.
+	   
+    [self endConnectTimeout];
+	
+	#if TARGET_OS_IPHONE
+	{
+		if (self.enableBackgroundingOnSocket)
+		{
+			__block BOOL result;
+			
+			[asyncSocket performBlock:^{
+				result = [asyncSocket enableBackgroundingOnSocket];
+			}];
+		}
+	}
+	#endif
+	state = STATE_XMPP_CONNECTED;
+	[multicastDelegate xmppStream:self socketDidConnect:sock];
+    
+    //启动心跳
+    [self setupKeepAliveTimer];
+    
+    //开始读取数据
+    [asyncSocket readDataToLength:2 withTimeout:-1 tag:TAG_XMPP_READ_START];
+	
+}
+/**
+ * Called when a socket has completed reading the requested data. Not called if there is an error.
+**/
+- (void)socket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag
+{
+    // This method is invoked on the xmppQueue.
+    
+    if(![readBuffer appendData:[data bytes] withLength:[data length]])
+    {
+        return;
+    }
+    
+    uint16_t pkg_size = *((uint16_t* )[readBuffer getBytes]);
+    pkg_size = ntohs(pkg_size);
+    
+    if (tag == TAG_XMPP_READ_START) {
+        //读消息体
+        NSAssert([readBuffer getSize] == 2, @"IMCLIENT READ BUFFER ERROR");
+        if (pkg_size < MIN_PKG_SIZE) {
+            [self disconnect];
+            return;
+        }
+        [asyncSocket readDataToLength:pkg_size - 2 withTimeout:-1 tag:TAG_XMPP_READ_STREAM];
+    }
+    else
+    {
+        NSAssert([readBuffer getSize] == pkg_size, @"IMCLIENT READ BUFFER ERROR");
+        NSData* msg = [NSData dataWithBytes:[readBuffer getBytes] length:pkg_size];
+        [self dealImMessage:msg];
+        //读下一条
+        [readBuffer empty];
+        [asyncSocket readDataToLength:2 withTimeout:-1 tag:TAG_XMPP_READ_START];
+    }
+
+}
+- (void)socket:(GCDAsyncSocket *)sock didWriteDataFailed:(NSData* )data tag:(long)tag
+{
+    NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+    pkg_head_t* pkg = (pkg_head_t* )[data bytes];
+    if (pkg->cmd == C2S_MESSAGE) {
+        NSInteger flowno = ntohl(pkg->seq);
+        [sendCache removeObjectForKey:[NSNumber numberWithInteger:flowno]];
+        [multicastDelegate xmppStream:self didMessageSendFailed:flowno];
+    }
+    
+}
+
+
+
+/**
+ * Called after data with the given tag has been successfully sent.
+**/
+- (void)socket:(GCDAsyncSocket *)sock didWriteData:(NSData* )data WithTag:(long)tag
+{
+	// This method is invoked on the xmppQueue.
+    NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+    c2s_pkg_t* pkg = (c2s_pkg_t* )[data bytes];
+    if (pkg->head.cmd == C2S_MESSAGE) {
+        
+        NSInteger msgTime = ntohl(pkg->message.msg_time);
+        NSInteger flowno = ntohl(pkg->head.seq);
+        [sendCache setObject:[NSNumber numberWithInteger:msgTime]
+                      forKey:[NSNumber numberWithInteger:flowno]];
+    }
+}
+
+/**
+ * Called when a socket disconnects with or without error.
+**/
+- (void)socketDidDisconnect:(GCDAsyncSocket *)sock withError:(NSError *)err
+{
+	// This method is invoked on the xmppQueue.
+    
+    [self endConnectTimeout];
+	
+    // Update state
+    state = STATE_XMPP_DISCONNECTED;
+    [readBuffer empty];
+    
+    
+    // Stop the keep alive timer
+    if (keepAliveTimer)
+    {
+        dispatch_source_cancel(keepAliveTimer);
+        keepAliveTimer = NULL;
+    }
+    
+    
+    // Clear flags
+    flags = 0;
+    [multicastDelegate xmppStreamDidDisconnect:self withError:err];
+	
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Keep Alive
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (void)setupKeepAliveTimer
+{
+	NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+	
+	if (keepAliveTimer)
+	{
+		dispatch_source_cancel(keepAliveTimer);
+		keepAliveTimer = NULL;
+	}
+	
+	if (state >= STATE_XMPP_CONNECTED)
+	{
+		if (keepAliveInterval > 0)
+		{
+			keepAliveTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, xmppQueue);
+			
+			dispatch_source_set_event_handler(keepAliveTimer, ^{ @autoreleasepool {
+				
+				[self keepAlive];
+			}});
+						
+			// Everytime we send or receive data, we update our lastSendReceiveTime.
+			// We set our timer to fire several times per keepAliveInterval.
+			// This allows us to maintain a single timer,
+			// and an acceptable timer resolution (assuming larger keepAliveIntervals).
+			
+			uint64_t interval = ((keepAliveInterval / 4.0) * NSEC_PER_SEC);
+			
+			dispatch_time_t tt = dispatch_time(DISPATCH_TIME_NOW, interval);
+			
+			dispatch_source_set_timer(keepAliveTimer, tt, interval, 1.0);
+			dispatch_resume(keepAliveTimer);
+		}
+	}
+}
+
+- (void)keepAlive
+{
+	NSAssert(dispatch_get_specific(xmppQueueTag), @"Invoked on incorrect queue");
+	
+	if (state >= STATE_XMPP_CONNECTED)
+	{
+		NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+		NSTimeInterval elapsed = (now - lastSendReceiveTime);
+		
+		if (elapsed < 0 || elapsed >= keepAliveInterval)
+		{
+            
+			[asyncSocket writeData:heartSendData
+			           withTimeout:TIMEOUT_XMPP_WRITE
+			                   tag:TAG_XMPP_WRITE_STREAM];
+			
+			// Force update the lastSendReceiveTime here just to be safe.
+			// 
+			// In case the TCP socket comes to a crawl with a giant element in the queue,
+			// which would prevent the socket:didWriteDataWithTag: method from being called for some time.
+			
+			lastSendReceiveTime = [NSDate timeIntervalSinceReferenceDate];
+		}
+	}
+    //检查超时
+    int timeNow = [[NSDate date] timeIntervalSince1970];
+    [sendCache enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop){
+        if (timeNow - [obj intValue] > 20) {
+            [sendCache removeObjectForKey:key];
+            [multicastDelegate xmppStream:self didMessageSendFailed:[key intValue]];
+            *stop = TRUE;
+        }
+        
+    }];
+
+}
+
+@end

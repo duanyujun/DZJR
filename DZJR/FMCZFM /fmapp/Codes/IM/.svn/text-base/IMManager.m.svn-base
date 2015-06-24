@@ -1,0 +1,307 @@
+//
+//  IMManager.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-10-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "IMManager.h"
+#import "CurrentUserInformation.h"
+#import "LocalDataManagement.h"
+#import "OpenUDID.h"
+#import "HttpClient+Im.h"
+
+@interface IMManager () <XMPPStreamDelegate>
+{
+    //IMManager主线程队列
+    dispatch_queue_t imQueue;
+    void *imQueueTag;
+    
+    //自动连接管理定时器
+    dispatch_source_t connectTimer;
+    
+    NSString* password;
+    NSString* devNo;
+    NSInteger userId;
+    BOOL isRequestServer;
+    
+}
+
+
+@end
+@implementation IMManager
+
+
++ (IMManager *)sharedIMManager
+{
+    static IMManager *_imManager = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        _imManager = [[IMManager alloc] init];
+
+    });
+    
+    return _imManager;
+}
+- (id)init
+{
+    self = [super init];
+    if (self){
+        //社区登陆成功消息通知
+        [[NSNotificationCenter defaultCenter] addObserver: self
+                                                 selector: @selector(userLoginNotification:)
+                                                     name: FMUserLoginNotification
+                                                   object: nil];
+        _Client = [[IMClient alloc] init];
+        _Client.keepAliveInterval = 60;
+        
+        imQueueTag = &imQueueTag;
+        imQueue = dispatch_queue_create("im", DISPATCH_QUEUE_SERIAL);
+        dispatch_queue_set_specific(imQueue, imQueueTag, imQueueTag, NULL);
+
+        _enableAutoConnect = TRUE;
+        isRequestServer = NO;
+        [_Client addDelegate:self delegateQueue:imQueue];
+        
+        dispatch_async(imQueue, ^{
+            [self setupAutoConnectTimer:2];
+        });
+        
+    }
+    return self;
+}
+
+
+- (void)setUserId:(NSInteger )newUserId
+{
+    if (dispatch_get_specific(imQueueTag))
+    {
+        userId = newUserId;
+
+    }
+    else
+    {
+
+        dispatch_async(imQueue, ^{
+            userId = newUserId;
+        });
+        
+    }
+}
+
+- (void)setPassword:(NSString *)newPassword
+{
+    if (dispatch_get_specific(imQueueTag))
+    {
+        if (password != newPassword)
+        {
+            password = [newPassword copy];
+        }
+    }
+    else
+    {
+        NSString *newPasswordCopy = [newPassword copy];
+        
+        dispatch_async(imQueue, ^{
+            password = newPasswordCopy;
+        });
+        
+    }
+}
+- (void)setDevNo:(NSString *)newDevNo
+{
+    if (dispatch_get_specific(imQueueTag))
+    {
+        if (devNo != newDevNo)
+        {
+            devNo = [newDevNo copy];
+        }
+    }
+    else
+    {
+        NSString *newDevNoCopy = [newDevNo copy];
+        
+        dispatch_async(imQueue, ^{
+            devNo = newDevNoCopy;
+        });
+        
+    }
+}
+
+- (void)setEnableAutoConnect:(BOOL )bEnable
+{
+    if (dispatch_get_specific(imQueueTag))
+    {
+        _enableAutoConnect = bEnable;
+        
+    }
+    else
+    {
+        
+        dispatch_async(imQueue, ^{
+            _enableAutoConnect = bEnable;
+        });
+        
+    }
+}
+
+- (void)doAutoConnect
+{
+    if (self.enableAutoConnect == FALSE) {
+        return;
+    }
+    
+    if (![_Client isDisconnected])
+    {
+        return;
+        
+    }
+    
+    if (_Client.hostName == nil) {
+        return;
+    }
+    
+    if (isRequestServer == YES) {
+        return;
+    }
+
+    [self doConnectRequest];
+}
+
+- (void)doConnectRequest
+{
+
+    NSAssert(dispatch_get_specific(imQueueTag), @"Invoked on incorrect queue");
+    
+    isRequestServer = YES;
+    //向服务器请求im服务器地址
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient getImserverPerfer:^(WebAPIResponse *response) {
+        dispatch_async(imQueue, ^(void){
+            isRequestServer = NO;
+            if(response.code == WebAPIResponseCodeSuccess){
+                NSDictionary *dic = [response.responseObject objectForKey:kDataKeyData];
+                if ([dic isKindOfClass:[NSDictionary class]]) {
+                    NSString* strServerAddress = StringForKeyInUnserializedJSONDic(dic, @"address");
+                    //NSInteger port = IntForKeyInUnserializedJSONDic(dic, @"port");
+                    [weakSelf setServerAddress:strServerAddress hostPort:5222];
+                    [weakSelf.Client connectWithTimeout:10 error:nil];
+                }
+            }
+        });
+    }];
+
+    
+}
+
+- (void)setupAutoConnectTimer:(NSInteger )autoInterval
+{
+    NSAssert(dispatch_get_specific(imQueueTag), @"Invoked on incorrect queue");
+    
+    if (connectTimer)
+    {
+        dispatch_source_cancel(connectTimer);
+        connectTimer = NULL;
+    }
+    
+    connectTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, imQueue);
+    
+    dispatch_source_set_event_handler(connectTimer, ^{ @autoreleasepool {
+        
+        [self doAutoConnect];
+    }});
+    
+
+    uint64_t interval = autoInterval * NSEC_PER_SEC;
+    
+    dispatch_time_t tt = dispatch_time(DISPATCH_TIME_NOW, interval);
+    
+    dispatch_source_set_timer(connectTimer, tt, interval, 1.0);
+    dispatch_resume(connectTimer);
+}
+
+- (void)setServerAddress:(NSString* )hostName hostPort:(NSInteger)port
+{
+    _Client.hostName = hostName;
+    _Client.hostPort = port;
+}
+
+- (void) doLogin
+{
+    NSAssert(dispatch_get_specific(imQueueTag), @"Invoked on incorrect queue");
+    
+    
+    if (password == nil) {
+        return;
+    }
+    
+    _Client.myJID = userId;
+    [_Client authenticateWithPassword:password
+                         withDeviceNo:devNo
+                                error:NULL];
+
+
+}
+- (void) userLoginNotification:(NSNotification *) notification
+{
+    
+    LocalDataManagement *dataManagement = [[LocalDataManagement alloc] init];
+    NSDictionary *userLoginDic = [[NSDictionary alloc] initWithDictionary:[dataManagement getUserFileWithUserFileType:CYHUserLoginInfoFile]];
+    
+    
+    [self setUserId:[[CurrentUserInformation sharedCurrentUserInfo].userID intValue]];
+    [self setPassword:[NSString stringWithFormat:@"%@",[userLoginDic objectForKey:@"Password"]]];
+    [self setDevNo:[[NSString alloc]initWithFormat:@"%@",[OpenUDID value]]];
+    
+    //
+    if ([self.Client isConnected] == YES) {
+        
+        dispatch_async(imQueue, ^{
+            [self doLogin];
+        });
+        
+    }
+    else
+    {
+        //[_Client connectWithTimeout:10 error:nil];
+        dispatch_async(imQueue, ^{
+            [self doConnectRequest];
+        });
+    }
+    
+}
+#pragma mark -XMPPStreamDelegate
+- (void)xmppStream:(IMClient *)sender socketDidConnect:(GCDAsyncSocket *)socket
+{
+    //if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState]){
+        
+        [self doLogin];
+    //}
+}
+
+- (void)xmppStreamDidAuthenticate:(IMClient *)sender
+{
+    //ShowImportErrorAlertView(@"鉴权成功");
+}
+
+- (void)xmppStreamDidDisconnect:(IMClient *)sender withError:(NSError *)error
+{
+    //ShowImportErrorAlertView(@"当前已从聊天服务器断开\n请重新登录或重新启动应用");
+}
+
+- (void)xmppStreamConnectDidTimeout:(IMClient *)sender
+{
+    //ShowImportErrorAlertView(@"连接聊天服务器超时\n请检查您的网络连接");
+}
+
+- (void)xmppStream:(IMClient *)sender didReceiveMessage:(NSData *)message
+{
+    c2s_pkg_t *pkg = (c2s_pkg_t *)[message bytes];
+    
+    [_Client sendMsgRcvRsp:htonl(pkg->message.msg_id)
+                  withPeer:htonl(pkg->message.peer)
+                  sequence:htonl(pkg->head.seq)];
+
+}
+@end

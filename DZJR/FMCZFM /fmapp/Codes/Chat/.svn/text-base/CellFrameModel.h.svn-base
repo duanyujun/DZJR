@@ -1,0 +1,34 @@
+//
+//  CellFrameModel.h
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+@class FMMessage;
+
+@interface CellFrameModel : NSObject
+
+@property (nonatomic, strong) FMMessage *message;
+
+// 时间
+@property (nonatomic, assign, readonly) CGRect  timeLabelBgFrame;
+@property (nonatomic, assign, readonly) CGRect  timeLabelFrame;
+// 用户头像
+@property (nonatomic, assign, readonly) CGRect  userIconFrame;
+// 消息气泡
+@property (nonatomic, assign, readonly) CGRect  bubbleBgFrame;
+@property (nonatomic, assign, readonly) CGRect  bubbleContentLabelFrame;
+@property (nonatomic, assign, readonly) CGRect  bubbleImageViewFrame;
+@property (nonatomic, assign, readonly) CGRect  voiceDurationLabelFrame;
+@property (nonatomic, assign, readonly) CGRect  voiceAnimationFrame;
+@property (nonatomic, assign, readonly) CGRect  voicePlayButtonFrame;
+// cell高度
+@property (nonatomic, assign, readonly) CGFloat cellHeight;
+// UIActivityIndicatorView
+@property (nonatomic, assign, readonly) CGRect  indicatorViewFrame;
+@property (nonatomic , strong) NSIndexPath      *selectedCellIndexPath;
+
+@end

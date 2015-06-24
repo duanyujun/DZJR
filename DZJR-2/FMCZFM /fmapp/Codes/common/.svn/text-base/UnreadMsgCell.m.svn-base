@@ -1,0 +1,170 @@
+//
+//  UnreadMsgCell.m
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-12-23.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "UnreadMsgCell.h"
+#import "APAvatarImageView.h"
+
+@interface UnreadMsgCell()
+
+@property (nonatomic,weak) APAvatarImageView    *carLogoImageView;              //用户车Logo图片
+@property (nonatomic,weak) UILabel            *nameLabel;                     //用户名称标签
+@property (nonatomic,weak) UIImageView        *sexImageView;                  //性别指示图片
+@property (nonatomic,weak) UILabel            *createTimeLabel;               //创建时间
+@property (nonatomic,weak) RichTextLabel      *contentLabel;                  //内容
+@property (nonatomic,weak) RichTextLabel      *commentedContentLabel;         //被评论的内容
+@property (nonatomic,weak) UIView             *seperatorLineView;             //分隔线视图
+@property (nonatomic,weak) UIView             *indicatorView;                 //指示图片
+@end
+
+@implementation UnreadMsgCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    
+    if (self) {
+        //选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:self.bounds];
+        [selectedView setBackgroundColor:[UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1]];
+        self.selectedBackgroundView = selectedView;
+        
+        ///默认背景色
+        UIView  *whiteBackGroundView = [[UIView alloc]init];
+        [whiteBackGroundView setBackgroundColor:KTableViewCellBackGroundColor];
+        self.backgroundView = whiteBackGroundView;
+        
+        //车型图片
+        APAvatarImageView *carLogoImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(7.5f,8, 29, 29)
+                                                                           borderColor:[UIColor whiteColor]
+                                                                           borderWidth:1.0f];
+
+        self.carLogoImageView = carLogoImageView;
+        [self addSubview:carLogoImageView];
+        
+        //用户名称标签
+        UILabel *userNameLabel = [[UILabel alloc] init];
+        userNameLabel.font = [UIFont systemFontOfSize:15.5f];
+        [userNameLabel setBackgroundColor:[UIColor clearColor]];
+        [userNameLabel setTextColor:KDefaultOrNightTextColor];
+        self.nameLabel = userNameLabel;
+        [self addSubview:userNameLabel];
+        
+        //性别指示图片
+        UIImageView *sexImageView = [[UIImageView alloc] init];
+        self.sexImageView = sexImageView;
+        [self addSubview:sexImageView];
+        
+        //创建时间
+        UILabel *createTimeLabel = [[UILabel alloc] init];
+        createTimeLabel.font = [UIFont systemFontOfSize:11.0f];
+        createTimeLabel.textAlignment = UITextAlignmentRight;
+        [createTimeLabel setBackgroundColor:[UIColor clearColor]];
+        createTimeLabel.textColor = KSubTitleContentTextColor;
+        self.createTimeLabel = createTimeLabel;
+        [self addSubview:createTimeLabel];
+        
+        //问题内容
+        RichTextLabel *contentRichTextLabel = [[RichTextLabel alloc] init];
+        contentRichTextLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        contentRichTextLabel.highlightedTextColor = [UIColor whiteColor];
+        contentRichTextLabel.numberOfLines = 0;
+        contentRichTextLabel.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        contentRichTextLabel.backgroundColor = [UIColor clearColor];
+        self.contentLabel = contentRichTextLabel;
+        [self addSubview:contentRichTextLabel];
+
+        //指示视图
+        UIView *indicatorView = [[UIView alloc] init];
+        indicatorView.backgroundColor = [UIColor colorWithRed:232/255.0f green:232/255.0f blue:232/255.0f alpha:1.0f];
+        self.indicatorView = indicatorView;
+        [self addSubview:indicatorView];
+        
+        //被回复的内容
+        RichTextLabel *commentedContentRichTextLabel = [[RichTextLabel alloc] init];
+        commentedContentRichTextLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        commentedContentRichTextLabel.highlightedTextColor = [UIColor whiteColor];
+        commentedContentRichTextLabel.numberOfLines = 0;
+        commentedContentRichTextLabel.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        commentedContentRichTextLabel.backgroundColor = [UIColor clearColor];
+        self.commentedContentLabel = commentedContentRichTextLabel;
+        [self addSubview:commentedContentRichTextLabel];
+        
+        //添加分隔线
+        UIView *underLineSeparatorView = [[UIView alloc] init];
+        underLineSeparatorView.backgroundColor =KDefaultOrNightSepratorColor;
+        self.seperatorLineView = underLineSeparatorView;
+        [self.contentView addSubview:underLineSeparatorView];
+    }
+    
+    return self;
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+}
+
+-(void)displayUnreadMsg:(UnreadMsgInfo* )unreadMsgInfo
+{
+    
+    //车Logo图片
+    [self.carLogoImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",
+                                                                 KMediaServerImagesInforURL,
+                                                                 unreadMsgInfo.publishUserInfo.userAvatar]]
+                          placeholderImage:kImgDefaultCar];
+    [self.carLogoImageView setContentMode:UIViewContentModeScaleToFill];
+    [self.carLogoImageView setClipsToBounds:YES];
+    [self.carLogoImageView setUserInteractionEnabled:YES];
+    self.carLogoImageView.frame = CGRectMake(7.5f, 8, 29, 29);
+    
+    //名称
+    self.nameLabel.text = unreadMsgInfo.publishUserInfo.userName;
+    CGSize userNameLabelSize = [self.nameLabel.text sizeWithFont:self.nameLabel.font];
+    self.nameLabel.frame = CGRectMake(50, 14, userNameLabelSize.width, 20);
+    
+    //提问者性别
+    self.sexImageView.frame = CGRectMake(50 + userNameLabelSize.width, 14, 16, 16);
+    if (unreadMsgInfo.publishUserInfo.userSex == 1) {//性别为男
+        self.sexImageView.image =kImgSexMan;
+    }else {//性别为女
+        self.sexImageView.image = kImgSexWomman;
+    }
+    
+    //创建时间
+    self.createTimeLabel.text = unreadMsgInfo.createTime;
+    CGSize createTimeLabelSize = [self.createTimeLabel.text sizeWithFont:self.createTimeLabel.font];
+    self.createTimeLabel.frame = CGRectMake(KProjectScreenWidth-15 - createTimeLabelSize.width ,
+                                            18,
+                                            createTimeLabelSize.width,
+                                            createTimeLabelSize.height);
+    
+    //问题内容
+    CGFloat contentLabelHeight = [unreadMsgInfo getContentHeight:265];
+    self.contentLabel.attString = unreadMsgInfo.attributedContent;
+    self.contentLabel.frame = CGRectMake(50 ,43, 265,contentLabelHeight);
+    [self.contentLabel setNeedsDisplay];
+
+    
+    //被回复的问题内容
+    CGFloat commentedcontentLabelHeight = [unreadMsgInfo getCommentHeight:265];
+    if (commentedcontentLabelHeight != 0) {
+        self.commentedContentLabel.attString = unreadMsgInfo.attributedCommentedContent;
+        self.commentedContentLabel.frame = CGRectMake(60 ,43 + contentLabelHeight + 20, 230,commentedcontentLabelHeight);
+        [self.commentedContentLabel setNeedsDisplay];
+
+        //指示视图
+        self.indicatorView.frame = CGRectMake(50,43 + contentLabelHeight + 12, 3, 16 + commentedcontentLabelHeight);
+        //分隔线
+        self.seperatorLineView.frame = CGRectMake(0,43 + contentLabelHeight + 20 + commentedcontentLabelHeight + 22 - 0.5, KProjectScreenWidth, 0.5);
+    }else{
+        //分隔线
+        self.seperatorLineView.frame = CGRectMake(0,43 + contentLabelHeight + 20 - 0.5, KProjectScreenWidth, 0.5);
+    }
+   
+}
+@end

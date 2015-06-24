@@ -1,0 +1,119 @@
+//
+//  CurrentUserInformation.h
+//  F103CZFW
+//
+//  Created by 张利广 on 13-5-21.
+//  Copyright (c) 2013年 zhang liguang. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import <CoreLocation/CoreLocation.h>
+@interface CurrentUserInformation : NSObject<NSCoding>
+{
+    
+}
+
+///用户ID
+@property (nonatomic,copy) NSString *userID;
+///用户名
+@property (nonatomic, copy) NSString *userName;
+///用户性别 0为女，1为男
+@property (nonatomic, assign) NSInteger userSex;
+////用户会员状态（1为试用 2会员 3过期 4省外）
+@property (nonatomic, assign) NSInteger userVipState;
+//用户背景图
+@property (nonatomic,strong) NSString  *backgroundImage;
+////用户手机号
+@property (nonatomic, copy) NSString *userMobile;
+////用户所在的城市代码
+@property (nonatomic, copy) NSString *userCityCode;
+////用户登录状态
+@property (nonatomic, assign) NSInteger userLoginState;
+////用户上传的爱车照片地址
+@property (nonatomic, copy) NSString *userCarPicture;
+////用户手机运营商类别（2：联通8：电信9：移动0：非山东）
+@property (nonatomic, assign) NSInteger userMobileOperatorType;
+////用户当前位置经纬度
+@property (nonatomic, assign) CLLocationCoordinate2D userCoordinate;
+////用户当前位置是山东省
+@property (nonatomic, assign) BOOL userCurrentLocationIsShanDongProvince;
+////用户注册时填写的城市名称
+@property (nonatomic, copy) NSString *userCityName;
+////业务业务信息
+@property(nonatomic , copy) NSString  *userCarBusinessCode;
+
+//用户车信息
+@property (nonatomic, copy) NSString *userAvatar;
+////用户车Logo图片地址
+@property (nonatomic, copy) NSString *userCarBrandImageUrl;
+
+////用户车型名称(如 2013款奥迪A8L 55 TFSI quattro 专享版)
+@property (nonatomic, copy) NSString *userCarTypeName;
+
+////用户车系名称（如：别克GL8商务）
+@property (nonatomic, copy) NSString *userCarSeriesName;
+
+@property (nonatomic, copy) NSString *userCarNo;                      //用户车牌号
+
+@property (nonatomic, copy) NSString *userCarColor;                   //用户车牌颜色
+
+@property (nonatomic, copy) NSString *userCarEngineNumber;            //用户车发动机号
+//第一套车信息
+@property(nonatomic , copy) NSString  *userCarNoFirst;                //用户第一套车牌车牌号
+
+@property(nonatomic , copy) NSString  *userCarEngineFirst;            //用户第一套车牌发动机号
+
+@property(nonatomic , copy) NSString  *userCarColorFirst;             //用户第一套车牌车牌颜色
+//第二套车信息
+@property(nonatomic , copy) NSString  *userCarNoSecond;               //用户第二套车牌车牌号
+
+@property(nonatomic , copy) NSString  *userCarEngineSecond;           //用户第二套车牌发动机号
+
+@property(nonatomic , copy) NSString  *userCarColorSecond;            //用户第二套车牌车牌颜色
+
+@property(nonatomic , copy) NSString  *userCarDefaultCode;            //默认车辆编号信息；
+
+@property(nonatomic , copy) NSString  *userFisrtCarIsUpdate;          //用户第一套车辆违章需要更新
+
+@property(nonatomic , copy) NSString  *userSecondCarIsUpdate;         //用户第二套车辆违章需要更新
+
+
+///用户个人头像地址对应的Key;
+@property(nonatomic , copy) NSString  *userPersonalPhotoImagesURLKey;
+///用户个人音频介绍信息
+@property (nonatomic, copy) NSDictionary *userPersonalAudioInforDictionary;
+///用户个人个性签名
+@property(nonatomic , copy) NSString *userPersonalSignatureString;
+///个人等级信息内容
+@property(nonatomic , copy) NSString  *userPersonalGradeString;
+///个人积分信息内容
+@property(nonatomic , copy) NSString  *userPersonalScoreString;
+///是否显示用户上传照片在互动详情
+///@See 显示用户爱车图片
+@property (nonatomic,assign) BOOL       showUserCarImages;
+
+///用户个人金币总量内容
+///@See 用于参加活动，设置摇一摇类型
+@property (nonatomic,copy) NSString *userPersonalGoldCoinCount;
+//用户关注状态（取消关注，关注）
+@property (nonatomic,copy) NSString *userAttentionString;
+
+
+
+/** 初始化用户本地通用数据信息
+ 
+ *
+ *  @paras userInfoDictionary 最新获取的用户数据信息内容，NSMutableDictionary格式
+ */
++(void)initializaionUserInformation:(NSDictionary *)userInfoDictionary;
+
+/** 获取用户本地通用数据信息
+    
+ *
+ *  @return paras 用户信息实体类，单例模式
+ */
++(CurrentUserInformation *)sharedCurrentUserInfo;
+
+
+
+@end

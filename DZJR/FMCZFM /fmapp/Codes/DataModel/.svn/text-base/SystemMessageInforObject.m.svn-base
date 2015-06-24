@@ -1,0 +1,89 @@
+//
+//  SystemMessageInforObject.m
+//  fmapp
+//
+//  Created by 张利广 on 14-10-14.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "SystemMessageInforObject.h"
+
+@implementation SystemMessageInforObject
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    
+    return self;
+}
+
++(id)initSystemMessageItemInformationWithUnserializedJSONDic:(NSDictionary *)dictionary{
+    
+    if (dictionary.count <= 0 ) {
+        return Nil;
+    }
+    SystemMessageInforObject *systemMsgInfor = [[SystemMessageInforObject alloc]init];
+
+    
+    systemMsgInfor.systemMsgInforStyle = (SystemMessageStyle)IntForKeyInUnserializedJSONDic(dictionary, @"type");
+    [systemMsgInfor setSystemMsgId:StringForKeyInUnserializedJSONDic(dictionary, @"id")];
+    [systemMsgInfor setSystemMsgCreateDateString:StringForKeyInUnserializedJSONDic(dictionary, @"createtime")];
+    [systemMsgInfor setSystemMsgProjectNameContent:StringForKeyInUnserializedJSONDic(dictionary, @"title")];
+    
+    if (systemMsgInfor.systemMsgInforStyle == SystemMsgForPayStyle){
+        
+        [systemMsgInfor setSystemMsgStyleSubtitleString:@"购买成功通知"];
+        [systemMsgInfor setSystemMsgStyleTitleString:StringForKeyInUnserializedJSONDic(dictionary, @"content")];        
+        [systemMsgInfor setSystemMsgVoucherNumberString:StringForKeyInUnserializedJSONDic(dictionary, @"card_no")];
+        [systemMsgInfor setSystemMsgVerificationOrEffectiveDate:[NSString stringWithFormat:@"%@逾期无效",StringForKeyInUnserializedJSONDic(dictionary, @"end_time")]];
+        
+    }
+    else if (systemMsgInfor.systemMsgInforStyle == SystemMsgForConsumeStyle){
+        [systemMsgInfor setSystemMsgStyleSubtitleString:@"消费验证通知"];
+        [systemMsgInfor setSystemMsgStyleTitleString:StringForKeyInUnserializedJSONDic(dictionary, @"content")];
+        [systemMsgInfor setSystemMsgVoucherNumberString:StringForKeyInUnserializedJSONDic(dictionary, @"card_no")];
+        [systemMsgInfor setSystemMsgVerificationOrEffectiveDate:StringForKeyInUnserializedJSONDic(dictionary, @"business_name")];
+    }
+    else if (systemMsgInfor.systemMsgInforStyle == SystemMsgForUserRefundStyle){
+        [systemMsgInfor setSystemMsgStyleSubtitleString:@"退款成功通知"];
+        [systemMsgInfor setSystemMsgStyleTitleString:StringForKeyInUnserializedJSONDic(dictionary, @"content")];
+        [systemMsgInfor setSystemMsgVoucherNumberString:StringForKeyInUnserializedJSONDic(dictionary, @"card_no")];
+        [systemMsgInfor setSystemMsgVerificationOrEffectiveDate:StringForKeyInUnserializedJSONDic(dictionary, @"business_name")];
+        [systemMsgInfor setSystemMsgVerificationOrEffectiveDate:[NSString stringWithFormat:@"%@逾期无效",StringForKeyInUnserializedJSONDic(dictionary, @"end_time")]];
+
+    }
+    else if (systemMsgInfor.systemMsgInforStyle == SystemMsgForSharkWinningStyle) {
+        [systemMsgInfor setSystemMsgStyleSubtitleString:@"摇一摇中奖通知"];
+        [systemMsgInfor setSystemMsgStyleTitleString:StringForKeyInUnserializedJSONDic(dictionary, @"content")];
+    }
+    else if (systemMsgInfor.systemMsgInforStyle == SystemMsgForActivitySelected) {
+        [systemMsgInfor setSystemMsgStyleSubtitleString:@"活动选中通知"];
+        [systemMsgInfor setSystemMsgStyleTitleString:StringForKeyInUnserializedJSONDic(dictionary, @"content")];
+        [systemMsgInfor setSystemActivityId:StringForKeyInUnserializedJSONDic(dictionary, @"activityId")];
+    }
+    return systemMsgInfor;
+}
+
+-(NSString *)returnCardIdWithString:(NSString *)cardStr
+{
+    
+    NSMutableString *cStr=[[NSMutableString alloc]initWithString:cardStr];
+    
+    int len=[cardStr length];
+    
+    int num=len/5;
+    
+    
+    for(int i=0;i<num;i++)
+    {
+        [cStr insertString:@" " atIndex:4*(i+1)+i];
+    }
+    
+    return cStr;
+    
+    return nil;
+    
+}
+
+@end

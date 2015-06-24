@@ -1,0 +1,45 @@
+//
+//  WARVChatPanelView.h
+//  WhatsAppRecordVoice
+//
+//  Created by xjz on 14-3-18.
+//  Copyright (c) 2014年 xjz. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+/*
+ WARVChatPanelView *view = [[WARVChatPanelView alloc] init];
+ view.delegate = delegate;
+ [view showInView:superView];
+ */
+
+@class WARVChatPanelView;
+
+@protocol WARVChatPanelViewDelegate <NSObject>
+
+@required
+
+//点击表情按钮
+- (void)chatPanelViewExpessClick:(WARVChatPanelView *)view;
+//点击键盘按钮
+- (void)chatPanelViewKeyboardClick:(WARVChatPanelView *)view;
+//点击图片按钮
+- (void)chatPanelViewImageClick:(WARVChatPanelView *)view;
+//录音结束
+- (void)chatPanelViewFinishedRecord:(WARVChatPanelView *)view withData:(AMRInfo* )audioData;
+//发送信息
+- (void)chatPanelViewSendMsg:(WARVChatPanelView *)view withData:(NSString* )textData;
+@end
+
+@interface WARVChatPanelView : UIView
+
+@property (nonatomic, strong) UITextView *textField;
+
+@property (nonatomic , strong)  NSMutableDictionary *contentExpressionDictionary;
+
+- (void)resetButton;
+//delegate
+@property (nonatomic, weak) id<WARVChatPanelViewDelegate> delegate;
+
+@end

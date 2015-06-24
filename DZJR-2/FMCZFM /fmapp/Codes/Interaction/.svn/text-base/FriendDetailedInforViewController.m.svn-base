@@ -1,0 +1,1317 @@
+//
+//  FriendDetailedInforViewController.m
+//  FM_CZFW
+//
+//  Created by 张利广 on 14-4-21.
+//  Copyright (c) 2014年 Ma Yiming. All rights reserved.
+//
+
+#import "FriendDetailedInforViewController.h"
+#import "CurrentUserInformation.h"
+#import "ImageContentScrollView.h"
+#import "LoginController.h"
+#import "HTTPClient+Friends.h"
+#import "APAvatarImageView.h"
+#import "UserGradeView.h"
+#import "FlatGroupedStyleCell.h"
+#import "FMImageView.h"
+#import "ActivityInfo.h"
+#import "ShareWebViewController.h"
+#import "PublishQuestionViewController.h"
+#import "FMAudioManager.h"
+#import "StationActivityDescriptionWebView.h"
+#import "RightBarItemMenusView.h"
+#import "ChatViewController.h"
+#import "PersonalLoveCarController.h"
+#import "CreateFriendCircleController.h"
+
+#define KSeparatorBeginPointX               20.0f
+
+#define kHeaderImageViewTag                 10002
+#define kTableViewBgImageViewTag            10003
+
+
+#define KCellHeaderTitleLableTag            1310121
+#define KCellCommonContentTag               1310122
+
+#define KCellUserPersonalImageViewTag       1310123
+#define KCellUserNameLabelTag               1310124
+#define KCellUserSexImageViewTag            1310125
+#define KCellUserlevelInforViewTag          1310116
+#define KCellUserPersonalSignatureLableTag  1310127
+
+#define KCellUserPersonalCarNameLabelTag    1310128
+#define KCellUserPersonalAddressLabelTag    1310129
+
+#define KUserChatButtonTag                  1310131
+#define KUserAddBlackListButtonTag          1310132
+#define KUserAudioButtonTag                 1310133
+#define KUserAudioPlayTag                   1310134
+
+#define KUserImageFirstButtonTag            1310141
+
+#define KUserActivityFirstButtonTag         1410121
+#define KUserAddBlackListSheetTag           1420121
+#define KUserChangeHeaderImage              1420122
+
+
+#define kHeaderImageHeight 350
+#define kDisplayHederImageHeight 200
+
+#define KRightBarModeratorTag              1500000
+#define KRightBarFriendTag                 1500001
+
+
+#define kPersonalBaseInfo       1             //基本信息
+#define kPersonalVoiceInfo      2             //语音简介
+#define kPersonalCarInfo        3             //车型
+#define kPersonalCarImage       4             //爱车图片
+#define kPersonalLocation       5             //位置
+#define kPersonalActivity       6             //参加活动
+#define KPersonalAttendance     7             //活动到场率
+#define KPersonCircle           8             //圈子
+
+#define kPersonalBaseCell       @"baseInfoCell"
+#define kPersonalCommonCell     @"commonCell"
+#define kPersonalActivityCell   @"activityCell"
+#define kPersonalVoiceCell      @"voiceCell"
+#define kPersonalCarImageCell   @"carImageCell"
+#define KPersonCircleCell       @"circle"
+
+
+@interface FriendDetailedInforViewController () <UIActionSheetDelegate,UITableViewDataSource,
+                                                UITableViewDelegate,FMAudioManagerDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate>
+
+@property (nonatomic , weak)UITableView                 *mainTableView;
+/*!
+ *@breif 用户详细资料实体信息内容
+ **/
+@property (nonatomic , strong)UserInfo                  *userFriendUserInfo;
+
+@property (nonatomic, strong) NSString                  *userFriendId;
+
+//用户背景图
+@property (nonatomic,weak) UIImageView                 *backgroundImage;
+
+//属性信息
+@property (nonatomic , strong)NSMutableArray            *userInfoArray;
+
+//底部工具栏
+@property (nonatomic , weak)UIView                      *bottomBar;
+
+//是否正在play
+@property (nonatomic , assign)BOOL                      bAudioPlaying;
+
+//语音介绍播放按钮
+@property (nonatomic , weak)UIButton                    *audioPlayButton;
+
+
+
+@property (nonatomic, strong)FMAudioManager             *audioManager;
+@property (nonatomic, weak)   AFHTTPRequestOperation    *requestDataOperation;
+@property (nonatomic,strong)  UIView                  *backgroundView;
+//关注按钮
+@property (nonatomic,weak)  UIButton                  *attentionBtn;
+@property (nonatomic,strong) NSString                 *currentUserName;
+@property (nonatomic , weak)  APAvatarImageView       *userCarTypeImageView;
+@property (nonatomic , strong)      RightBarItemMenusView   *rightBarMenusView;
+//关注用户列表
+@property (nonatomic,strong)NSMutableArray                  *friendsLists;
+
+//关注按键Str
+@property (nonatomic,copy)NSString                          *userAttentionString;
+@property (nonatomic,weak)UIImageView                       *backheaderImageView;
+
+@end
+
+@implementation FriendDetailedInforViewController
+
+- (id)init{
+    self = [super init];
+    if (self) {
+    }
+    return self;
+}
+
+
+- (id)initWithUserInfo:(UserInfo *)userInfo
+{
+    self = [super init];
+    if (self) {
+        self.userFriendUserInfo = userInfo;
+        
+        self.audioManager = [[FMAudioManager alloc] init];
+        self.audioManager.delegate = self;
+        
+    }
+    return self;
+}
+
+- (id)initWithUserId:(NSString *)userId
+{
+    self = [super init];
+    if (self) {
+        self.friendsLists=[[NSMutableArray alloc]init];
+        self.userFriendUserInfo = [[UserInfo alloc] init];
+        self.userFriendUserInfo.userID = userId;
+        self.audioManager = [[FMAudioManager alloc] init];
+        self.audioManager.delegate = self;
+    }
+    return self;
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    
+    self.userFriendId = [[NSString alloc] initWithFormat:@"%@", self.userFriendUserInfo.userID];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(changeMyInformation:)
+                                                 name:FMChangeMyInformationNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(initWithUserSetUpPhotoImageNotification:)
+                                                 name: FMUserBrandImageModifyNotification
+                                               object: nil];
+
+    
+    [self settingNavTitle:@"个人资料"];
+    //获取关注列表
+    if (!self.userAttentionString) {
+        self.userAttentionString=@"关注";
+    }
+
+    //初始化用户详情界面框架内容
+    [self setContentView];
+    [self updateUserInfo];
+    
+    [self getUserDetailInfo];
+    
+
+}
+
+- (void)initWithUserEditSelfInformationButtonEvent:(id)sender{
+
+    
+    PersonalLoveCarController *viewController = [[PersonalLoveCarController alloc]init];
+    [self.navigationController pushViewController:viewController animated:YES];
+
+}
+- (void)viewDidUnload
+{
+    [self.audioManager stopPlay];
+    
+    if (HUISystemVersionBelow(kHUISystemVersion_6_0))
+        [super viewDidUnload];
+    
+    [self.requestDataOperation cancel];
+    self.userFriendUserInfo = nil;
+    self.audioManager = nil;
+    self.userInfoArray = nil;
+
+}
+
+
+#pragma mark -
+#pragma mark - 初始化用户详情界面框架内容
+- (void)setContentView{
+    
+    //////
+    //由于头部个性签名内容为动态变化，故，设置为TableView
+    //////
+    //头部视图
+    UIImageView *headerImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight)/ - 2.0f, self.view.bounds.size.width, kHeaderImageHeight)];
+    self.backgroundImage=headerImageView;
+    headerImageView.tag = kHeaderImageViewTag;
+    
+    UIImage *headerImage=[UIImage imageNamed:@"MyHeader.jpg"];
+    headerImageView.image = headerImage;
+    [self.view addSubview:headerImageView];
+    
+    //背景视图
+    UIView *tableViewBgImageView = [[UIView alloc] initWithFrame:CGRectMake(0, kDisplayHederImageHeight, self.view.bounds.size.width, 1000)];
+    tableViewBgImageView.tag = kTableViewBgImageViewTag;
+    tableViewBgImageView.backgroundColor = KDefaultOrNightScrollViewColor;
+    self.backgroundView=tableViewBgImageView;
+    [self.view addSubview:self.backgroundView];
+    
+    UIView *v=[[UIView alloc]initWithFrame:CGRectMake(0, 0, KProjectScreenWidth, 170)];
+    v.backgroundColor=[UIColor clearColor];
+    
+    UIButton *btn=[UIButton buttonWithType:UIButtonTypeCustom];
+    [btn setFrame:v.bounds];
+    [btn addTarget:self action:@selector(ChangeHeaderImage:) forControlEvents:UIControlEventTouchUpInside];
+    btn.backgroundColor=[UIColor clearColor];
+    [v addSubview:btn];
+
+    
+    UITableView * selfMainTableView = [[UITableView alloc]initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 380) style:UITableViewStylePlain];
+//    [selfMainTableView setBackgroundColor: [FMThemeManager.skin scrollViewBackgroudColor]];
+    [selfMainTableView setBackgroundColor:[UIColor clearColor]];
+
+    [selfMainTableView setDelegate:self];
+    [selfMainTableView setDataSource:self];
+    [selfMainTableView setShowsVerticalScrollIndicator:NO];
+    [selfMainTableView setSeparatorStyle:UITableViewCellSeparatorStyleNone];
+
+    self.mainTableView = selfMainTableView;
+    self.mainTableView.tableHeaderView=v;
+
+    [self.view addSubview:self.mainTableView];
+    
+    //车型图片
+    APAvatarImageView *carTypeImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(20, 125, 80, 80)
+                                                                       borderColor:[UIColor whiteColor]
+                                                                       borderWidth:1.0];
+    [carTypeImageView setClipsToBounds:YES];
+    carTypeImageView.userInteractionEnabled=YES;
+    
+    
+    [carTypeImageView setContentMode:UIViewContentModeScaleAspectFill];
+    carTypeImageView.image = kImgDefaultCar;
+    
+    carTypeImageView.alpha=1;
+    self.userCarTypeImageView=carTypeImageView;
+    [self.mainTableView addSubview:carTypeImageView];
+    
+    if (![self.userFriendUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        
+        UIButton *attentionBtn=[UIButton buttonWithType:UIButtonTypeCustom];
+//        [attentionBtn setFrame:CGRectMake(0, 0, 60, 40)];
+        attentionBtn.backgroundColor=[UIColor clearColor];
+        [attentionBtn setTitle:self.userAttentionString forState:UIControlStateNormal];
+        [attentionBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [attentionBtn addTarget:self action:@selector(attentionBtnSelected:) forControlEvents:UIControlEventTouchUpInside];
+        self.attentionBtn=attentionBtn;
+        attentionBtn.titleLabel.font=[UIFont systemFontOfSize:15];
+        
+        [self updateRightNavframe];
+        
+
+        //按钮
+        UIView* bottomBar = [[UIView alloc] initWithFrame:CGRectMake(0,
+                                                                     self.view.frame.size.height - 50,
+                                                                     self.view.frame.size.width,
+                                                                     50)];
+        bottomBar.backgroundColor = colorAddAlpha([FMThemeManager.skin backgroundColor],0.95);
+        //bottomBar.alpha = 0.5;
+        if ([self.userFriendUserInfo isMobileUser]) {
+
+            UIButton *blackButton = [UIButton buttonWithType:UIButtonTypeCustom];
+            blackButton.tag = KUserAddBlackListButtonTag;
+            blackButton.frame = CGRectMake(0,0,
+                                           bottomBar.bounds.size.width/2,
+                                           bottomBar.bounds.size.height);
+            blackButton.titleLabel.font = kFontWithDefaultSize;
+            [blackButton setBackgroundImage:createImageWithColor([UIColor clearColor]) forState:UIControlStateNormal];
+            [blackButton setBackgroundImage
+             :createImageWithColor(KDefaultOrNightButtonHighlightColor) forState:UIControlStateHighlighted];
+//            [blackButton setTitle:self.userAttentionString forState:UIControlStateNormal];
+            [blackButton setTitle:@"屏蔽此人" forState:UIControlStateNormal];
+
+            [blackButton setTitleColor:KTitleTextColor forState:UIControlStateNormal];
+            [blackButton addTarget:self action:@selector(userButtonClick:) forControlEvents:UIControlEventTouchUpInside];
+           // self.attentionBtn=blackButton;
+            [bottomBar addSubview:blackButton];
+            
+            UIButton *chatButton = [UIButton buttonWithType:UIButtonTypeCustom];
+            chatButton.tag = KUserChatButtonTag;
+            chatButton.frame = CGRectMake( bottomBar.bounds.size.width/2,0,
+                                           bottomBar.bounds.size.width/2,
+                                           bottomBar.bounds.size.height);
+            [chatButton setBackgroundImage:createImageWithColor([UIColor clearColor]) forState:UIControlStateNormal];
+            [chatButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor) forState:UIControlStateHighlighted];
+            
+            [chatButton setTitle:@"发私信" forState:UIControlStateNormal];
+            [chatButton setTitleColor:[UIColor colorWithRed:45.0f/255.0f
+                                                      green:188.0f/255.0f
+                                                       blue:150.0f/255.0f
+                                                      alpha:1.0] forState:UIControlStateNormal];
+            chatButton.titleLabel.font = kFontWithDefaultSize;
+
+            [chatButton addTarget:self action:@selector(userButtonClick:) forControlEvents:UIControlEventTouchUpInside];
+            [bottomBar addSubview:chatButton];
+        }else{
+            
+
+            UIButton *chatButton = [UIButton buttonWithType:UIButtonTypeCustom];
+            chatButton.tag = KUserChatButtonTag;
+            chatButton.frame = bottomBar.bounds;
+            [chatButton setBackgroundImage:createImageWithColor([UIColor clearColor]) forState:UIControlStateNormal];
+            [chatButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor) forState:UIControlStateHighlighted];
+            [chatButton setTitle:@"发消息" forState:UIControlStateNormal];
+            [chatButton setTitleColor:[UIColor colorWithRed:45.0f/255.0f
+                                                      green:188.0f/255.0f
+                                                       blue:150.0f/255.0f
+                                                      alpha:1.0] forState:UIControlStateNormal];
+            chatButton.titleLabel.font = kFontWithDefaultSize;
+
+            [chatButton addTarget:self action:@selector(userButtonClick:) forControlEvents:UIControlEventTouchUpInside];
+            [bottomBar addSubview:chatButton];
+        }
+        //上边框
+        UIView *topLineSeparatorView = [[UIView alloc] initWithFrame:CGRectMake(0,0,self.view.bounds.size.width,0.5)];
+        topLineSeparatorView.backgroundColor = [[FMThemeManager skin] sepratorColor];
+        [bottomBar addSubview:topLineSeparatorView];
+        if ([self.userFriendUserInfo isMobileUser]) {
+            //分割视图
+            UIImageView *divisionImageView = [[UIImageView alloc] initWithFrame:CGRectMake(self.view.bounds.size.width/2, 0, 1, 50)];
+            [divisionImageView setImage:[UIImage imageNamed:@"RoadCondition_Division.png"]];
+            [bottomBar addSubview:divisionImageView];
+        }
+        [self.view addSubview:bottomBar];
+        self.bottomBar = bottomBar;
+    }
+    else
+    {
+        [self initWithHeaderNavigationRightButton];
+
+    }
+    
+}
+#pragma mark -
+#pragma mark - 初始化右侧可编辑按键
+- (void)initWithHeaderNavigationRightButton{
+    if (HUISystemVersionAboveOrIs(kHUISystemVersion_7_0)) {
+        UIBarButtonItem *savePassword = [[UIBarButtonItem alloc]initWithTitle:@"编辑" style:UIBarButtonItemStylePlain target:self action:@selector(initWithUserEditSelfInformationButtonEvent:)];
+        [savePassword setTintColor:[FMThemeManager.skin navigationTextColor]];
+        [self.navigationItem setRightBarButtonItem:savePassword];
+    }else{
+        ////设置右侧Item
+        UIButton *rightItemButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [rightItemButton setBackgroundImage:[UIImage imageNamed:@"RightItem.png"]
+                                   forState:UIControlStateNormal];
+        [rightItemButton setFrame:CGRectMake(0, 0, 49, 29)];
+        [rightItemButton setTitle:@"编辑" forState:UIControlStateNormal];
+        [rightItemButton addTarget:self action:@selector(initWithUserEditSelfInformationButtonEvent:) forControlEvents:UIControlEventTouchUpInside];
+        rightItemButton.titleLabel.font = [UIFont systemFontOfSize:12.0f];
+        UIBarButtonItem *rightItem = [[UIBarButtonItem alloc] initWithCustomView:rightItemButton];
+        self.navigationItem.rightBarButtonItem = rightItem;
+    }
+}
+
+-(void)attentionBtnSelected:(UIButton *)btn
+{
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+        
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+        
+    }else{//用户已经登录
+        
+        if([self.userAttentionString isEqualToString:@"关注"])
+        {
+            [self initWithUserAddAttentionFriendOperation];
+        }
+        else
+        {
+            [self initWIthUserDelegateAttentionFriendOperation];
+            
+        }
+    }
+
+}
+-(void)updateRightNavframe
+{
+    
+    
+    if (![self.userFriendUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID])
+    {
+    if ([self.userAttentionString isEqualToString:@"关注"]) {
+        [self.attentionBtn setFrame:CGRectMake(0, 0, 30, 40)];
+    }
+    else
+    {
+        [self.attentionBtn setFrame:CGRectMake(0, 0, 60, 40)];
+ 
+    }
+    
+    UIBarButtonItem *item=[[UIBarButtonItem alloc]initWithCustomView:self.attentionBtn];
+    self.navigationItem.rightBarButtonItem=item;
+        
+    }
+
+}
+- (void)viewWillLayoutSubviews
+{
+    
+    CGRect rc = self.view.bounds;
+    self.bottomBar.frame = CGRectMake(0,
+                                 rc.size.height - 50,
+                                 rc.size.width,
+                                 50);
+    self.mainTableView.frame = rc;
+}
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+#pragma mark -
+#pragma mark -UIScrollViewDelegate
+- (void) scrollViewDidScroll:(UIScrollView *)scrollView{
+    CGFloat contentOffsetY = scrollView.contentOffset.y;
+    UIImageView *headerImageView = (UIImageView *)[self.view viewWithTag:kHeaderImageViewTag];
+    UIImageView *tableViewBgImageView = (UIImageView *)[self.view viewWithTag:kTableViewBgImageViewTag];
+    if (contentOffsetY <= 0) {
+        headerImageView.frame = CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight + contentOffsetY)/-2, self.view.bounds.size.width, kHeaderImageHeight);
+        
+        if (contentOffsetY < (kDisplayHederImageHeight - kHeaderImageHeight)) {
+            headerImageView.frame = CGRectMake(0, (kDisplayHederImageHeight - kHeaderImageHeight) - contentOffsetY, self.view.bounds.size.width, kHeaderImageHeight);
+        }
+    }else{
+        headerImageView.frame = CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight)/-2 - contentOffsetY, self.view.bounds.size.width, kHeaderImageHeight);
+    }
+    tableViewBgImageView.frame = CGRectMake(0, kDisplayHederImageHeight - contentOffsetY, self.view.bounds.size.width, 1000);
+}
+
+- (void)updateUserInfo
+{
+    //用户背景图
+    if (!IsStringEmptyOrNull(self.userFriendUserInfo.backgroundImage) ) {
+        
+        NSString *imageUrl=[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,self.userFriendUserInfo.backgroundImage];
+        [self.backgroundImage setImageWithURL:[NSURL URLWithString:imageUrl]];
+    }
+    else
+    {
+        UIImage *headerImage=[UIImage imageNamed:@"MyHeader.jpg"];
+        self.backgroundImage.image = headerImage;
+
+    }
+    if (self.userFriendUserInfo.is_friends) {
+        
+     self.userAttentionString=@"取消关注";
+
+    }
+    else
+    {
+      self.userAttentionString=@"关注";
+    }
+    [self.attentionBtn setTitle:self.userAttentionString forState:UIControlStateNormal];
+    [self updateRightNavframe];
+
+    if(self.userInfoArray == nil){
+        self.userInfoArray = [NSMutableArray array];
+    }else{
+        [self.userInfoArray removeAllObjects];
+    }
+    [self.userInfoArray addObject:[NSNumber numberWithInteger:kPersonalBaseInfo]];
+    
+    if (!IsStringEmptyOrNull(self.userFriendUserInfo.audioURL)) {
+        [self.userInfoArray addObject:[NSNumber numberWithInteger:kPersonalVoiceInfo]];
+    }
+    if (!IsStringEmptyOrNull(self.userFriendUserInfo.circle)) {
+        [self.userInfoArray addObject:[NSNumber numberWithInteger:KPersonCircle]];
+    }
+    if (![self.userFriendUserInfo.userCarSeriesName isEqualToString:@"未知车型"]) {
+        [self.userInfoArray addObject:[NSNumber numberWithInteger:kPersonalCarInfo]];
+    }
+    if ([self.userFriendUserInfo.images count]) {
+        [self.userInfoArray addObject:[NSNumber numberWithInteger:kPersonalCarImage]];
+    }
+    if (!IsStringEmptyOrNull(self.userFriendUserInfo.userCityName)) {
+        [self.userInfoArray addObject:[NSNumber numberWithInteger:kPersonalLocation]];
+    }
+
+    ///活动到场率
+    if ([self.userFriendUserInfo.userRole isEqualToString:@"0"]) {
+        if (self.userFriendUserInfo.userPersonalEnrollRatio) {
+            [self.userInfoArray addObject:[NSNumber numberWithInteger:KPersonalAttendance]];
+        }
+    }
+
+    [self.mainTableView reloadData];
+    
+    [self.userCarTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@thumb",
+                                                                     KMediaServerImagesInforURL,
+                                                                     self.userFriendUserInfo.userCarImage]]
+                              placeholderImage:kImgDefaultCar];
+}
+#pragma mark -
+#pragma mark - 获取用户信息
+- (void)getUserDetailInfo {
+    __weak __typeof(&*self)weakSelf = self;
+    [self startWaitting];
+    //请求车友详细信息
+    [FMHTTPClient getFriendsDetailInfo:self.userFriendUserInfo.userID
+     WithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID                                  completion:^(WebAPIResponse *response) {
+                                     Log(@"%@",response.responseObject);
+                                     dispatch_async(dispatch_get_main_queue(), ^(void){
+                                         [weakSelf stopWaitting];
+                                         
+                                         if(response.code == WebAPIResponseCodeSuccess){
+                                             NSDictionary* dataDic = [response.responseObject objectForKey:kDataKeyData];
+                                             if ([dataDic isKindOfClass:[NSDictionary class]]) {
+                                                 weakSelf.userFriendUserInfo = [UserInfo userWithUnserializedJSONDic:dataDic];
+                                                 [weakSelf updateUserInfo];
+                                             }
+
+                                         }else{
+                                             
+                                         }
+                                     });
+                                 }];
+}
+
+#pragma mark - Method For UITableViewDataSource,UITableViewDelegate
+
+///设置组
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
+    
+    return [self.userFriendUserInfo.activity count] > 0 ? 2 : 1;
+}
+
+///设置行
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    
+    NSInteger numberOfRows = 0;
+    ///头部第一组
+    if (section == 0) {
+        numberOfRows = [self.userInfoArray count];
+    }
+    ///第二组
+    else if (section == 1){
+        numberOfRows = 1;
+    }
+    return numberOfRows;
+}
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    CGFloat heightForRow = 0.0f;
+    if (indexPath.section == 0) {
+        NSInteger nPropType = [[self.userInfoArray objectAtIndex:indexPath.row] integerValue];
+        switch (nPropType) {
+            case kPersonalBaseInfo:
+            {
+                //基本信息
+                CGSize  contentSize = [self.userFriendUserInfo.userPersonalSignature sizeWithFont:kFontWithDefaultSize
+                                                                               constrainedToSize :CGSizeMake(KProjectScreenWidth-100, MAXFLOAT)
+                                                                                    lineBreakMode:NSLineBreakByWordWrapping];
+                if (contentSize.height >= 20.0f) {
+                    heightForRow =  70 + contentSize.height;
+                }else{
+                    heightForRow = 85;
+                }
+            }
+                break;
+            case kPersonalVoiceInfo:
+            case kPersonalCarInfo:
+            case kPersonalLocation:
+            case KPersonalAttendance:
+            case KPersonCircle:
+                heightForRow = 48.0f;
+                break;
+            case kPersonalCarImage:
+                heightForRow = 72.0f;
+            default:
+                break;
+        }
+//        if (indexPath.row==0) {
+//            heightForRow+=100;
+//        }
+    }
+    else if(indexPath.section == 1){
+        //最近活动
+        heightForRow = 110.0;
+    }
+    return heightForRow;
+}
+- (UITableViewCell *)_createTableCell:(NSString* )cellIdentifier
+{
+    FlatGroupedStyleCell * cell = [[FlatGroupedStyleCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                   reuseIdentifier:cellIdentifier];
+    cell.sepLineLeft = KSeparatorBeginPointX;
+
+    //头部标题
+    UILabel *headerTitleLabel = [[UILabel alloc]init];
+    [headerTitleLabel setTag:KCellHeaderTitleLableTag];
+    [headerTitleLabel setTextColor:[UIColor grayColor]];
+    [headerTitleLabel setFont:[UIFont systemFontOfSize:14.0f]];
+    [headerTitleLabel setBackgroundColor:[UIColor clearColor]];
+    [headerTitleLabel setTextAlignment:NSTextAlignmentLeft];
+    [cell.contentView addSubview:headerTitleLabel];
+    if ([cellIdentifier isEqualToString:kPersonalBaseCell]) {
+        
+        //用户名
+        UILabel *userNameLabel = [[UILabel alloc] init];
+        userNameLabel.tag = KCellUserNameLabelTag;
+        userNameLabel.backgroundColor = [UIColor clearColor];
+        userNameLabel.textColor = [UIColor whiteColor];
+        userNameLabel.font=[UIFont systemFontOfSize:20];
+        userNameLabel.font = kFontWithDefaultSize;
+        [cell.contentView addSubview:userNameLabel];
+        
+        //性别指示图片
+        UIImageView *userSexImageView = [[UIImageView alloc] init];
+        userSexImageView.tag = KCellUserSexImageViewTag;
+        [cell.contentView addSubview:userSexImageView];
+        
+        //用户等级
+        UserGradeView* userGradeView = [[UserGradeView alloc] initWithFrame:CGRectMake(115, 10, 200, 20)];;
+        userGradeView.tag = KCellUserlevelInforViewTag;
+        [cell.contentView addSubview:userGradeView];
+        
+        //个性签名
+        UILabel *userPersonalSignatureLable = [[UILabel alloc]init];
+        [userPersonalSignatureLable setBackgroundColor:[UIColor clearColor]];
+        [userPersonalSignatureLable setTag:KCellUserPersonalSignatureLableTag];
+        [userPersonalSignatureLable setTextColor:[[FMThemeManager skin] textColor]];
+        [userPersonalSignatureLable setFont:kFontWithDefaultSize];
+        [cell.contentView addSubview:userPersonalSignatureLable];
+    }
+    
+    else if ([cellIdentifier isEqualToString:kPersonalActivityCell]) {
+        //活动
+        for (int i = 0;i < 4;i++) {
+            FMImageView* imageView = [[FMImageView alloc] init];
+            imageView.tag = KUserActivityFirstButtonTag + i;
+            imageView.contentMode = UIViewContentModeScaleAspectFill;
+            imageView.clipsToBounds = YES;
+            [cell.contentView addSubview:imageView];
+        }
+    }
+    else{
+
+        //添加内容
+        if ([cellIdentifier isEqualToString:kPersonalCommonCell]) {
+            //文本内容
+            UILabel *carNameLabel = [[UILabel alloc]init];
+            [carNameLabel setTag:KCellCommonContentTag];
+            [carNameLabel setTextColor:[FMThemeManager.skin textColor]];
+            [carNameLabel setFont:kFontWithDefaultSize];
+            [carNameLabel setBackgroundColor:[UIColor clearColor]];
+            [carNameLabel setTextAlignment:NSTextAlignmentLeft];
+            [cell.contentView addSubview:carNameLabel];
+            
+        }else if ([cellIdentifier isEqualToString:kPersonalCarImageCell]) {
+            //爱车图片
+            for (int i = 0;i < 4;i++) {
+                FMImageView* imageView = [[FMImageView alloc] init];
+                imageView.tag = KUserImageFirstButtonTag + i;
+                imageView.contentMode = UIViewContentModeScaleAspectFill;
+                imageView.clipsToBounds = YES;
+                [cell.contentView addSubview:imageView];
+            }
+
+        }else if ([cellIdentifier isEqualToString:kPersonalVoiceCell]) {
+            //语音介绍
+            UIButton *audioButton = [UIButton buttonWithType:UIButtonTypeCustom];
+            audioButton.tag = KUserAudioButtonTag;
+            audioButton.frame = CGRectMake(90, 5, 83, 37);
+            [audioButton setBackgroundImage:[UIImage imageNamed:@"Interaction_Bubble.png"] forState:UIControlStateNormal];
+            [audioButton setBackgroundImage:[UIImage imageNamed:@"Interaction_Bubble.png"] forState:UIControlStateHighlighted];
+            [audioButton setTitleColor:KDisableTextColor forState:UIControlStateNormal];
+            audioButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentRight;
+            audioButton.contentEdgeInsets = UIEdgeInsetsMake(0,0, 0, 20);
+            audioButton.titleLabel.font = kFontWithSmallSize;
+            
+            NSString *info=[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]];
+            NSInteger m=[info integerValue];
+          
+            
+            if(m==5)
+            {
+                audioButton.alpha=0.6;
+            }
+       
+            UIImageView* imageView = [[UIImageView alloc] init];
+            imageView.image = [UIImage imageNamed:@"Interaction_audio004.png"];
+            imageView.frame = CGRectMake(15, 10, 17, 17);
+            imageView.tag = KUserAudioPlayTag;
+            imageView.animationImages = [NSArray arrayWithObjects:[UIImage imageNamed:@"Interaction_audio001.png"],
+                                         [UIImage imageNamed:@"Interaction_audio002.png"],
+                                         [UIImage imageNamed:@"Interaction_audio003.png"],
+                                         [UIImage imageNamed:@"Interaction_audio004.png"],
+                                         nil];
+            imageView.animationDuration = 1.0;
+                        [imageView stopAnimating];
+            [audioButton addSubview:imageView];
+            [audioButton addTarget:self action:@selector(userButtonClick:) forControlEvents:UIControlEventTouchUpInside];
+            [cell.contentView addSubview:audioButton];
+            self.audioPlayButton = audioButton;
+        }
+    }
+
+    //设置选中
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;//设置Cell的选中样式
+
+    return cell;
+}
+
+- (NSString* )_getCellIdentifier:(NSIndexPath *)indexPath
+{
+    switch (indexPath.section) {
+        case 0:
+        {
+            NSInteger type = [[self.userInfoArray objectAtIndex:indexPath.row] integerValue];
+            switch (type) {
+                case kPersonalBaseInfo:
+                    return kPersonalBaseCell;
+                case kPersonalCarImage:
+                    return kPersonalCarImageCell;
+                case kPersonalCarInfo:
+                case KPersonCircle:
+                case kPersonalLocation:
+                case KPersonalAttendance:
+                    return kPersonalCommonCell;
+                case kPersonalVoiceInfo:
+                    return  kPersonalVoiceCell;
+                
+                default:
+                    break;
+            }
+        }
+            break;
+        case 1:
+            return  kPersonalActivityCell;
+            break;
+        default:
+            break;
+    }
+    return nil;
+}
+- (void)_configTableCell:(UITableViewCell *)cell withType:(NSInteger)type
+{
+    UILabel *headerTitleLabel = (UILabel *)[cell.contentView viewWithTag:KCellHeaderTitleLableTag];
+    switch (type) {
+        case kPersonalBaseInfo:
+        {
+            
+            CGFloat leftFloat = 0.0;
+            //用户名
+            UILabel *userNameLabel = (UILabel *)[cell.contentView viewWithTag:KCellUserNameLabelTag];
+            userNameLabel.text = self.userFriendUserInfo.userName;
+            CGSize userNameLabelSize = [userNameLabel.text sizeWithFont:userNameLabel.font];
+            [userNameLabel setFrame:CGRectMake(115 + leftFloat, -userNameLabelSize.height-10, userNameLabelSize.width, userNameLabelSize.height)];
+            //性别
+            UIImageView *userSexImageView = (UIImageView *)[cell.contentView viewWithTag:KCellUserSexImageViewTag];
+            if (self.userFriendUserInfo.userSex == 1) {//男
+                userSexImageView.image = kImgSexMan;
+            }else {//女
+                userSexImageView.image = kImgSexWomman;
+            }
+            [userSexImageView setFrame:CGRectMake(115 + userNameLabelSize.width + 10  + leftFloat, -userNameLabelSize.height-10, 16, 16)];
+            
+
+            
+            //等级
+            UserGradeView *userGradeView = (UserGradeView* )[cell.contentView viewWithTag:KCellUserlevelInforViewTag];
+            [userGradeView setGrade:self.userFriendUserInfo.userLevel];
+            
+            //个性签名
+            headerTitleLabel.text = @"个性签名";
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 50, 65.0f, 20.0f)];
+            
+            UILabel *signatureLabel = (UILabel *)[cell.contentView viewWithTag:KCellUserPersonalSignatureLableTag];
+            
+            if (!IsStringEmptyOrNull(self.userFriendUserInfo.userPersonalSignature))
+            {
+                [signatureLabel setText:self.userFriendUserInfo.userPersonalSignature];
+            }else{
+                [signatureLabel setText:@"未编辑"];
+            }
+            CGSize titleSize = [signatureLabel.text  sizeWithFont:signatureLabel.font
+                                                constrainedToSize:CGSizeMake(KProjectScreenWidth-100, MAXFLOAT)
+                                                    lineBreakMode:NSLineBreakByCharWrapping];
+            [signatureLabel setLineBreakMode:NSLineBreakByCharWrapping];
+            [signatureLabel setNumberOfLines:0];
+            [signatureLabel setTextAlignment:NSTextAlignmentLeft];
+            [signatureLabel setFrame:CGRectMake(90, 50, KProjectScreenWidth-100, titleSize.height)];
+        }
+            break;
+        case kPersonalCarInfo:
+        {
+            if([self.userFriendUserInfo isMobileUser]){
+                [headerTitleLabel setText:@"车型"];
+            }else{
+                headerTitleLabel.text = @"身份";
+            }
+
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 14.0f,45.0f, 20.0f)];
+            ///车型内容
+            UILabel *carNameLabel = (UILabel *)[cell.contentView viewWithTag:KCellCommonContentTag];
+            carNameLabel.text = self.userFriendUserInfo.userCarTypeName;
+            [carNameLabel setFrame:CGRectMake(90.0f, 11, 220.0f, 24)];
+            
+        }
+             break;
+        case KPersonCircle:
+        {
+            [headerTitleLabel setText:@"所在圈子"];
+            
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 14.0f,65.0f, 20.0f)];
+            ///车型内容
+            UILabel *carNameLabel = (UILabel *)[cell.contentView viewWithTag:KCellCommonContentTag];
+            carNameLabel.text = self.userFriendUserInfo.circle;
+            carNameLabel.textColor=KContentTextCanEditColor;
+            [carNameLabel setFrame:CGRectMake(90.0f, 11, 220.0f, 24)];
+        }
+            break;
+
+        case kPersonalCarImage:
+        {
+            if([self.userFriendUserInfo isMobileUser]){
+                headerTitleLabel.text = @"爱车图片";
+            }else{
+                headerTitleLabel.text = @"主播靓照";
+            }
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 25.5, 65.0f, 20.0f)];
+            
+            NSMutableArray* keyList = [NSMutableArray array];
+            for (FMImage* im in self.userFriendUserInfo.images) {
+                if (IsStringEmptyOrNull(im.url)) {
+                    continue;
+                }
+                [keyList addObject:im.url];
+            }
+            
+            for (int i = 0;i < 4 ;i++) {
+                FMImageView* imageView = (FMImageView* )[cell.contentView viewWithTag:KUserImageFirstButtonTag + i];
+                if (i >= [self.userFriendUserInfo.images count]) {
+                    imageView.hidden = YES;
+                    continue;
+                }
+                imageView.hidden = NO;
+                [imageView setAlbum:keyList currentIndex:i];
+                imageView.frame = CGRectMake(90 + i * (52 + 5), 10, 52, 52);
+            }
+        }
+             break;
+        case kPersonalLocation:
+        {
+             headerTitleLabel.text = @"当前位置";
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 14, 65.0f, 20.0f)];
+            
+            ///用户地址内容
+            UILabel *userAddressLabel = (UILabel *)[cell.contentView viewWithTag:KCellCommonContentTag];
+            [userAddressLabel setText:self.userFriendUserInfo.userCityName];
+            [userAddressLabel setFrame:CGRectMake(90.0f, 10.0f, 220.0f, 25)];
+            
+        }
+             break;
+        case kPersonalVoiceInfo:
+        {
+            headerTitleLabel.text = @"语音介绍";
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 16.5, 65.0f, 20.0f)];
+            UIButton *audioButton = (UIButton *)[cell.contentView viewWithTag:KUserAudioButtonTag];
+            audioButton.frame = CGRectMake(90, 5, 83, 37);
+            NSString *strLength = [NSString stringWithFormat:@"%d\"",self.userFriendUserInfo.audioLength];
+            [audioButton setTitle:strLength forState:UIControlStateNormal];
+            
+        }
+            break;
+            
+        case KPersonalAttendance:
+        {
+            headerTitleLabel.text = @"活动到场率";
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 14.0f, 200, 20.0f)];
+            ///活动到场率
+            UILabel *userAddressLabel = (UILabel *)[cell.contentView viewWithTag:KCellCommonContentTag];
+            [userAddressLabel setText:self.userFriendUserInfo.userPersonalEnrollRatio];
+            [userAddressLabel setFrame:CGRectMake(100.0f, 10.0f, 220.0f, 25)];
+        }
+            break;
+        case kPersonalActivity:
+        {
+            headerTitleLabel.text = @"最近参与活动";
+            [headerTitleLabel setFrame:CGRectMake(KSeparatorBeginPointX, 5, 200, 20.0f)];
+            for (int i = 0;i < 4 ;i++) {
+                FMImageView* imageView = (FMImageView* )[cell.contentView viewWithTag:KUserActivityFirstButtonTag + i];
+                if (i >= [self.userFriendUserInfo.activity count]) {
+                    imageView.hidden = YES;
+                    continue;
+                }
+                imageView.hidden = NO;
+                NSString *info=[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]];
+                NSInteger m=[info integerValue];
+                
+                if(m==5)
+                {
+
+                    imageView.alpha=0.6;
+                }
+
+                ActivityInfo* activityInfo = [self.userFriendUserInfo.activity objectAtIndex:i];
+                [imageView setServerImageWithKey:activityInfo.activityImage isThumb:NO holdImage:nil];
+                imageView.clickBlock = ^(void) {
+                    
+                    if ([activityInfo.activityForStateStyle integerValue] == 1||[activityInfo.activityForStateStyle integerValue] == 2) {
+                        
+                        StationActivityDescriptionWebView *descriptionWebView =
+                                            [[StationActivityDescriptionWebView alloc]initWithDescriptionWebViewWithURL:nil
+                                                                                                             withWiADId:activityInfo.activityId
+                                                                                                              withImage:imageView.image];
+                        [descriptionWebView setTitle:@"活动详情"];
+                        
+                        
+                        [descriptionWebView setActivityStyle:activityInfo.stop_sign];
+                        
+                        
+                        [self.navigationController pushViewController:descriptionWebView animated:YES];
+                    }else{
+                        
+                        NSString *urlString = [NSString stringWithFormat:@"%@/Activity/Album/?id=%@&source=%@",kBaseAPIURL,activityInfo.activityId,KProjectCityCodeString];
+//                        ShareWebViewController *webViewController = [[ShareWebViewController alloc]initWithWebURLString:urlString withTitle:@"活动剪影" withStyle:InitNavigationWebStyle withImageInfor:nil];
+                        ShareWebViewController *webViewController = [[ShareWebViewController alloc]initWithWebURLString:urlString withTitle:@"活动剪影" withStyle:InitNavigationWebStyle  withImageInfor:nil withShareWebDataStyle:WebDataForDescriptionDataStyle withDataInforID:activityInfo.activityId];
+                        [webViewController setIsNeedShareWebInfor:NO];
+                        [self.navigationController pushViewController:webViewController animated:YES];
+                    }
+                };
+                imageView.frame = CGRectMake(KSeparatorBeginPointX + i * (64 + 10), 35, 64, 64);
+            }
+        }
+            break;
+        default:
+            break;
+    }
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    NSString* cellIdentifier = [self _getCellIdentifier:indexPath];
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    
+    int type = 0;
+    if (indexPath.section == 0) {
+        type = [[self.userInfoArray objectAtIndex:indexPath.row] integerValue];
+    }else{
+        type = kPersonalActivity;  
+    }
+    
+    if (!cell) {
+        cell = [self _createTableCell:cellIdentifier];
+        
+    }
+    [(FlatGroupedStyleCell* )cell setFirstCell:NO];
+    [(FlatGroupedStyleCell* )cell setLastCell:NO];
+    
+    if(indexPath.row == 0) {
+        [(FlatGroupedStyleCell* )cell setFirstCell:YES];
+    }
+    if(indexPath.row == [tableView numberOfRowsInSection:indexPath.section] - 1) {
+        [(FlatGroupedStyleCell* )cell setLastCell:YES];
+    }
+    [self _configTableCell:cell withType:type];
+    return cell;
+}
+-(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+    NSInteger cellIndex=[[self.userInfoArray objectAtIndex:indexPath.row] integerValue];
+    
+    if (cellIndex==8) {
+        CreateFriendCircleController *viewController=[[CreateFriendCircleController alloc]initWithCreateCircleWithCircleName:self.userFriendUserInfo.circle AndWithCircleId:self.userFriendUserInfo.circleId];
+        
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+
+}
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    if (section == [tableView numberOfSections] - 1) {
+        return  80.0f;
+    }
+    return  30.0;
+
+}
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section
+{
+    UIView *__view = [[UIView alloc] initWithFrame:CGRectMake(0,
+                                                              0,
+                                                              CGRectGetWidth(tableView.bounds),
+                                                              [self tableView:tableView heightForFooterInSection:section])];
+    [__view setBackgroundColor:[UIColor clearColor]];
+    return __view;
+}
+
+#pragma mark - 用户操作按键事件
+- (void)userButtonClick:(id)sender{
+    UIButton    *sendButton = (UIButton *)sender;
+    
+    ///发送私信设置
+    if (sendButton.tag == KUserChatButtonTag) {
+        
+        
+        NSMutableDictionary *paramDictionary = [[NSMutableDictionary alloc]init];
+        AddObjectForKeyIntoDictionary(self.userFriendUserInfo.userID, @"id", paramDictionary);
+        AddObjectForKeyIntoDictionary(self.userFriendUserInfo.userName, @"name", paramDictionary);
+        ///
+        if(![self.userFriendUserInfo isMobileUser]){
+            AddObjectForKeyIntoDictionary(self.userFriendUserInfo.userName, @"role", paramDictionary);
+        }
+        ChatViewController *chatViewController = [[ChatViewController alloc] initWithPeerInfo:self.userFriendUserInfo];
+        chatViewController.whetherBackRootView=NO;
+        [self.navigationController pushViewController:chatViewController animated:YES];
+        
+    }
+    else if (sendButton.tag == KUserAddBlackListButtonTag){
+        
+        ////设置车Logo或主持人、产品经理图片视图frame
+        if([self.userFriendUserInfo isMobileUser]){
+
+            if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+                
+                LoginController *registerController = [[LoginController alloc] init];
+                FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+                [self presentModalViewController:navController animated:YES];
+                
+            }else{//用户已经登录
+
+                
+                UIActionSheet *sheetView = [[UIActionSheet alloc]initWithTitle:@"屏蔽此人，你将不再看到对方的任何帖子和回复，也不再收到对方发来的私信"
+                                                                      delegate:self
+                                                             cancelButtonTitle:@"取消"
+                                                        destructiveButtonTitle:@"屏蔽此人"
+                                                             otherButtonTitles:nil];
+                [sheetView setTag:KUserAddBlackListSheetTag];
+                [sheetView showInView:self.view];
+
+
+            }
+        }
+    }else if (sendButton.tag == KUserAudioButtonTag){
+        UIImageView* imageView = (UIImageView* )[sendButton viewWithTag:KUserAudioPlayTag];
+        if (self.bAudioPlaying) {
+            [imageView stopAnimating];
+            self.bAudioPlaying = NO;
+            [self.audioManager stopPlay];
+        }else{
+            [imageView startAnimating];
+            self.bAudioPlaying = YES;
+            [self.audioManager playURL:self.userFriendUserInfo.audioURL];
+        }
+    }
+}
+
+#pragma mark - UIActionSheetDelegate
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex{
+    
+    if (actionSheet.tag == KUserAddBlackListSheetTag) {
+        
+        ////设置加入黑名单中
+        if (buttonIndex == 0) {
+            __weak __typeof(&*self)weakSelf = self;
+            WaittingMBProgressHUD(self.view, @"发送中...");
+            //请求车友详细信息
+            [FMHTTPClient addToBlackList:[CurrentUserInformation sharedCurrentUserInfo].userID
+                             blackUserId:self.userFriendUserInfo.userID
+                                    completion:^(WebAPIResponse *response) {
+                                        
+                                        dispatch_async(dispatch_get_main_queue(), ^(void){
+                                            
+                                            if(response.code == WebAPIResponseCodeSuccess){
+                                                SuccessMBProgressHUD(weakSelf.view, @"屏蔽成功");
+                                            }else{
+                                                FailedMBProgressHUD(weakSelf.view, @"屏蔽失败");
+                                            }
+                                        });
+                                    }];
+        }
+    }
+    else if (actionSheet.tag==KUserChangeHeaderImage)
+    {
+        if (buttonIndex != 2) {//取消
+            //选择照片
+            UIImagePickerController *imagePickerController = [[UIImagePickerController alloc] init];
+            imagePickerController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+            [self class];
+            
+            imagePickerController.delegate = self;
+            
+            imagePickerController.allowsEditing = NO;
+            if(buttonIndex == 0){//拍照
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+            }else if(buttonIndex == 1){//相册
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+            }
+            
+            [self presentModalViewController:imagePickerController animated:YES];
+
+      }
+    }
+}
+#pragma mark -FMAudioManagerDelegate
+-(void)audioPlayStatus:(NSInteger)status
+{
+    __weak __typeof(&*self)weakSelf = self;
+    if (status !=0 ) {
+         dispatch_async(dispatch_get_main_queue(), ^{
+            UIImageView* imageView = (UIImageView* )[weakSelf.audioPlayButton viewWithTag:KUserAudioPlayTag];
+            if (imageView == nil) {
+                return;
+            }
+            [imageView stopAnimating];
+            weakSelf.bAudioPlaying = NO;
+         });
+    }
+}
+
+#pragma mark -
+#pragma mark -关注好友
+- (void)initWithUserAddAttentionFriendOperation
+{
+    __weak __typeof(&*self)weakSelf = self;
+    WaittingMBProgressHUD(self.view, @"发送中...");
+    //请求车友详细信息
+    [FMHTTPClient addToAttentionList:[CurrentUserInformation sharedCurrentUserInfo].userID attentionUserId:self.userFriendUserInfo.userID completion:^(WebAPIResponse *response) {
+        Log(@"%@",response.responseObject);
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                SuccessMBProgressHUD(weakSelf.view, @"关注成功");
+               self.userAttentionString=@"取消关注";
+              [self.attentionBtn setTitle:self.userAttentionString forState:UIControlStateNormal];
+                [self updateRightNavframe];
+
+                [self.attentionDelegate initWithFriendDetaildWithAttentionInfo:self.userAttentionString AndWithUserId:self.userFriendUserInfo.userID];
+
+            }else{
+                FailedMBProgressHUD(weakSelf.view, @"关注失败");
+            }
+        });
+
+    }];
+}
+- (void)initWIthUserDelegateAttentionFriendOperation
+{
+    WaittingMBProgressHUD(HUIKeyWindow, @"取消中...");
+    [FMHTTPClient CancelToAttentionList:[CurrentUserInformation sharedCurrentUserInfo].userID attentionUserId:self.userFriendUserInfo.userID completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                FinishMBProgressHUD(HUIKeyWindow);
+
+                self.userAttentionString=@"关注";
+                [self.attentionBtn setTitle:self.userAttentionString forState:UIControlStateNormal];
+                [self updateRightNavframe];
+
+                [self.attentionDelegate initWithFriendDetaildWithAttentionInfo:self.userAttentionString AndWithUserId:self.userFriendUserInfo.userID];
+            }
+            else{
+                FailedMBProgressHUD(HUIKeyWindow, @"取消失败");
+            }
+            
+        });
+    }];
+}
+
+-(void)ChangeHeaderImage:(UIButton *)btn
+{
+    if ([self.userFriendId isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        UIActionSheet *takePictureActionSheet = [[UIActionSheet alloc] initWithTitle:@"编辑背景图片" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"拍照",@"从相册选择", nil];
+        takePictureActionSheet.tag=KUserChangeHeaderImage;
+        [takePictureActionSheet showInView:self.view.window];
+
+    }
+    
+}
+#pragma mark -
+#pragma mark -UIImagePickerControllerDelegate
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
+{
+    
+    UIImage *imageinfo = [info objectForKey:@"UIImagePickerControllerOriginalImage"];
+    //UIImageWriteToSavedPhotosAlbum(imageinfo, nil, nil, nil);//将照片保存到相册
+    CGSize imageSize = imageinfo.size;
+    
+    
+    CGFloat imageHeight = imageSize.height * 640 /imageSize.width;
+    imageSize.width = 640;
+    imageSize.height = imageHeight;
+    
+    
+    UIGraphicsBeginImageContext(imageSize);
+    [imageinfo drawInRect: CGRectMake(0, 0, imageSize.width,imageSize.height)];
+    UIImage *smallImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    [picker dismissModalViewControllerAnimated:YES];
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+    self.navigationItem.rightBarButtonItem.enabled = YES;//保存按钮可用
+    //上传图片
+    [self publishQuestionHeaderImageWithImage:smallImage];
+    
+}
+
+- (void)initWithSetupUserPersonalHeaderImageWithImageWithImageParamInfor:(NSDictionary *)imageParam{
+  
+    NSArray *imageArray =@[imageParam];
+    NSString *imageParamString = [NSString stringWithFormat:@"%@",[imageArray JSONString]];
+    [FMHTTPClient getSetupUserPersonalBackGroundPhotoImageForInteractiveWithUserID:[CurrentUserInformation sharedCurrentUserInfo].userID withImageParamString:imageParamString withcompletion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            if (response.code == WebAPIResponseCodeSuccess) {
+                FinishMBProgressHUD(HUIKeyWindow);
+                
+                
+                NSString *imageUrl=[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,[imageParam objectForKey:@"pic_url"]];
+                [self.backgroundImage setImageWithURL:[NSURL URLWithString:imageUrl]];
+            }else{
+                FailedMBProgressHUD(HUIKeyWindow,@"修改失败");
+            }
+        });
+    }];
+}
+
+- (void) publishQuestionHeaderImageWithImage:(UIImage *)headerImage
+{
+    WaittingMBProgressHUD(HUIKeyWindow,@"正在发布...");
+    //首先上传图片
+    UIImage* imageData =headerImage;
+    [FMImageClient imageUpload:imageData
+                     imageType:@"1"
+                    completion:^(WebAPIResponse* response){
+                        
+                        dispatch_async(dispatch_get_main_queue(), ^(void){
+                            
+                            Log(@"response.responseObject is %@",response.responseObject)
+                            if (response.code == WebAPIResponseCodeSuccess) {
+                                
+
+                                NSDictionary* dic = [response.responseObject objectForKey:kDataKeyData];
+                                NSString* strKey = [dic objectForKey:@"pic_url"];
+                                
+                                
+                                FMImage* im = [[FMImage alloc] init];
+                                im.url = strKey;
+                                im.imageSize = CGSizeMake([[dic objectForKey:@"pic_width"] floatValue],
+                                                          [[dic objectForKey:@"pic_height"] floatValue]);
+                                if (dic.count >=3) {
+                                    [self initWithSetupUserPersonalHeaderImageWithImageWithImageParamInfor:dic];
+                                }
+                                
+                            }else{
+                                
+                                Log(@"image is here ")
+                                FailedMBProgressHUD(HUIKeyWindow,@"发布失败");
+                            }
+                        });
+                    }];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
+    
+    [picker dismissModalViewControllerAnimated:YES];
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+}
+- (void)initWithUserSetUpPhotoImageNotification:(NSNotification *)notification{
+    
+    [self getUserDetailInfo];
+}
+- (void) changeMyInformation:(NSNotification *) notification
+{
+    [self getUserDetailInfo];
+}
+@end

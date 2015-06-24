@@ -1,0 +1,20 @@
+//
+//  UserInformationController.h
+//  fmapp
+//
+//  Created by 张利广 on 14-5-21.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+#import "UserInfoDelegate.h"
+
+/** 用户个人信息内容
+ 
+ *@See 包括用户个人姓名、性别、手机号、个性签名、等级及积分等相关信息
+ **/
+@interface UserInformationController : FMViewController<UserInfoDelegate,UIAlertViewDelegate,UIActionSheetDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate>
+@property (nonatomic,assign)BOOL   delegateStyle;
+- (id)initWithUserEditInforDelegate:(id<UserInfoDelegate>)m_userEidtDelegate;
+
+@end

@@ -1,0 +1,334 @@
+//
+//  AtPersonViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-17.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "AtPersonViewController.h"
+#import "HTTPClient+Interaction.h"
+#import "LocalDataManagement.h"
+#include <libkern/OSAtomic.h>
+#include "APAvatarImageView.h"
+
+#define kLeftItemButtonTag      1000
+#define kMainTableViewTag       1001
+#define kPhotoImageViewTag      1002
+#define kNameLabelTag           1003
+#define kProgramaLabelLabelTag  1004
+
+@interface AtPersonViewController ()
+@property (nonatomic,copy) NSArray      *currentEmceeArray;             //当前主持人
+@property (nonatomic,copy) NSArray      *serviceArray;                  //客服数组
+@property (nonatomic,copy) NSArray      *emceeArray;                    //主持人数组
+@property (nonatomic,weak) UITableView  *tableView;
+@end
+
+@implementation AtPersonViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        self.enableCustomNavbarBackButton = NO;
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    
+    self.view.backgroundColor=KDefaultOrNightScrollViewColor;
+    [self settingNavTitle:@"主持人"];//设置标题
+    [self settingNavigationBarItem];
+    //添加列表视图
+    UITableView *mainTableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    mainTableView.backgroundColor=KDefaultOrNightScrollViewColor;
+    mainTableView.delegate = self;
+    mainTableView.dataSource = self;
+    mainTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    [self.view addSubview:mainTableView];
+    self.tableView = mainTableView;
+    
+    BOOL isWiFi = [FMHTTPClient isWiFiConnection];
+    if(!isWiFi){
+        NSDictionary *dic = [FMLocalManager getUserFileWithUserFileType:FMEmceeAndServiceDataFile];
+        if (dic != nil) {
+            
+            self.emceeArray = [dic objectForKey:@"Emcee"];
+            self.serviceArray = [dic objectForKey:@"Service"];
+            [self.tableView reloadData];
+            
+        }
+    }
+    [self getEmceeData];//获取数据
+}
+
+- (void)viewWillLayoutSubviews
+{
+    CGRect rc = self.view.bounds;
+
+    self.tableView.frame = rc;
+}
+- (void)viewDidUnload
+{
+    if (HUISystemVersionBelow(kHUISystemVersion_6_0))
+        [super viewDidUnload];
+    self.currentEmceeArray = nil;
+    self.serviceArray = nil;
+    self.emceeArray = nil;
+    self.tableView.dataSource = nil;
+    self.tableView.delegate = nil;
+}
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+#pragma mark -设置导航栏左右按钮
+- (void) settingNavigationBarItem
+{
+
+    
+    self.navButtonSize = KNavSize;
+    //取消
+    [self setLeftNavButtonFA:FMIconCancelCross
+                   withFrame:kNavButtonRect
+                actionTarget:self
+                      action:@selector(navigationBarItemClicked:)];
+
+}
+- (void) navigationBarItemClicked:(id) sender
+{
+    [self dismissModalViewControllerAnimated:YES];
+}
+
+#pragma mark -获取主持人和客服数据
+- (void) getEmceeData
+{
+    __block volatile int32_t ncount = 0;    //请求完成个数
+    __weak __typeof(&*self)weakSelf = self;
+    if (self.emceeArray == nil) {
+        //主持人列表和客服
+        [FMHTTPClient getEmceeList:^(WebAPIResponse *response) {
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                NSDictionary* dataDic = [response.responseObject objectForKey:kDataKeyData];
+                
+                
+                //客服
+                if ([[dataDic objectForKey:@"service"] isKindOfClass:[NSArray class]]){
+                    weakSelf.serviceArray = [dataDic objectForKey:@"service"];
+                    Log(@"weakSelf.serviceArray  i s%@",weakSelf.serviceArray )
+                }
+                //主持人
+                if ([[dataDic objectForKey:@"emcee"] isKindOfClass:[NSArray class]]){
+                    weakSelf.emceeArray = [dataDic objectForKey:@"emcee"];
+                }
+                if(OSAtomicIncrement32(&ncount) > 1)
+                {
+                     dispatch_async(dispatch_get_main_queue(), ^(void){
+                         [weakSelf.tableView reloadData];
+                         
+                     });
+                }
+                dispatch_async(dispatch_get_main_queue(), ^(void){
+                    //将数据保存在本地
+                    NSDictionary *dataDic = [[NSDictionary alloc] initWithObjectsAndKeys:self.emceeArray,@"Emcee",
+                                             self.serviceArray,@"Service",nil];
+                    [FMLocalManager writeUserDataToFileWithDictionary:dataDic andUserDataType:FMEmceeAndServiceDataFile];
+                });
+            }
+        }];
+    }else{
+        OSAtomicIncrement32(&ncount);
+    }
+    
+    //当前主持人
+    [FMHTTPClient getCurrentEmcee:^(WebAPIResponse *response) {
+        if(response.code == WebAPIResponseCodeSuccess){
+            
+            if ([[response.responseObject objectForKey:kDataKeyData] isKindOfClass:[NSArray class]]){
+                weakSelf.currentEmceeArray = [response.responseObject objectForKey:kDataKeyData];
+            }
+            if(OSAtomicIncrement32(&ncount) > 1)
+            {
+                 dispatch_async(dispatch_get_main_queue(), ^(void){
+                     [weakSelf.tableView reloadData];
+
+                 });
+            }
+        }
+    }];
+    
+}
+
+#pragma mark -
+#pragma mark -UITableViewDelegate UITableViewDataSource
+
+- (NSInteger) numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 3;
+}
+
+- (NSInteger) tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    NSInteger numberOfRows = 0;
+    
+    if (section == 0) {
+        numberOfRows = self.currentEmceeArray.count;
+    }else if(section == 1){
+        numberOfRows = self.emceeArray.count;
+    }else if(section == 2){
+        numberOfRows = self.serviceArray.count;
+    }
+    
+    return numberOfRows;
+}
+
+- (UITableViewCell *) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Cell"];
+    
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"Cell"];
+        
+        cell.backgroundView.backgroundColor=KDefaultOrNightBackGroundColor;
+        cell.backgroundColor=KDefaultOrNightBackGroundColor;
+        //选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:cell.bounds];
+        [selectedView setBackgroundColor:KDefaultOrNightCellSelected];
+
+        cell.selectedBackgroundView = selectedView;
+        
+        //头像
+        UIImageView *imageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(10, 8, 40, 40)
+                                                                     borderColor:[UIColor whiteColor]
+                                                                     borderWidth:1.0];
+        imageView.contentMode = UIViewContentModeScaleAspectFill;
+        imageView.clipsToBounds = YES;
+        imageView.tag = kPhotoImageViewTag;
+
+        imageView.backgroundColor = [UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1];
+        [cell.contentView addSubview:imageView];
+
+        //名称
+        UILabel *nameLabel = [[UILabel alloc] initWithFrame:CGRectMake(56, 18, 100, 20)];
+        nameLabel.tag = kNameLabelTag;
+        nameLabel.textColor = KDefaultOrNightTextColor;
+        nameLabel.backgroundColor = [UIColor clearColor];
+        nameLabel.font = [UIFont systemFontOfSize:15.0f];
+        [cell.contentView addSubview:nameLabel];
+        
+        //栏目名称
+        UILabel *programaLabel = [[UILabel alloc] init];
+        programaLabel.numberOfLines = 0;
+        programaLabel.lineBreakMode = UILineBreakModeWordWrap;
+        programaLabel.textAlignment = UITextAlignmentLeft;
+        programaLabel.tag = kProgramaLabelLabelTag;
+        programaLabel.textColor = KSubTitleContentTextColor;
+        programaLabel.backgroundColor = [UIColor clearColor];
+        programaLabel.font = [UIFont systemFontOfSize:12.0f];
+        [cell.contentView addSubview:programaLabel];
+
+        //分割线
+        UIView *separatorView = [[UIView alloc] initWithFrame:CGRectMake(0, 55.5f, KProjectScreenWidth, 0.5f)];
+//        separatorView.backgroundColor = [UIColor colorWithRed:200/255.0f green:200/255.0f blue:200/255.0f alpha:1];
+        separatorView.backgroundColor = KDefaultOrNightSepratorColor;
+
+        [cell.contentView addSubview:separatorView];
+    }
+    
+    NSArray *peopleDataArray = nil;
+    if (indexPath.section == 0) {
+        peopleDataArray = self.currentEmceeArray;
+    }else if(indexPath.section == 1){
+        peopleDataArray = self.emceeArray;
+    }else if(indexPath.section == 2){
+        peopleDataArray = self.serviceArray;
+    }
+    
+    NSDictionary *personInfoDictionary = [peopleDataArray objectAtIndex:indexPath.row];
+    
+    //设置名称
+    UILabel *nameLabel = (UILabel *)[cell.contentView viewWithTag:kNameLabelTag];
+    nameLabel.text = [personInfoDictionary objectForKey:@"name"];
+    
+    //设置栏目 即副标题
+    UILabel *programaLabel = (UILabel *)[cell.contentView viewWithTag:kProgramaLabelLabelTag];
+    programaLabel.text = [personInfoDictionary objectForKey:@"note"];
+    CGSize programaLabelSize = [programaLabel.text sizeWithFont:programaLabel.font constrainedToSize:CGSizeMake(156, MAXFLOAT) lineBreakMode:NSLineBreakByWordWrapping];
+    [programaLabel setFrame:CGRectMake(KProjectScreenWidth - 10 - programaLabelSize.width, (56 - programaLabelSize.height)/2.0f, programaLabelSize.width, programaLabelSize.height)];
+    
+    //设置图片地址
+    UIImageView *photoImageView = (UIImageView *)[cell.contentView viewWithTag:kPhotoImageViewTag];
+    photoImageView.image = [UIImage imageNamed:@"QuestionAndAnswers_ AcquiesceEmcee.png"];
+    NSString *imageUrlString = [NSString stringWithFormat:@"%@",[personInfoDictionary objectForKey:@"head"]];
+    if (![imageUrlString isEqualToString:@""]) {
+        NSString *imageUrl = [NSString stringWithFormat:@"%@%@thumbh",KMediaServerImagesInforURL,imageUrlString];
+        Log(@"imageUrl is %@",imageUrl);
+        [photoImageView setImageWithURL:[NSURL URLWithString:imageUrl]];
+    }
+    return cell;
+}
+
+- (UIView *) tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section
+{
+    UIView *cellHeaderView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, 320, 23)];
+//    cellHeaderView.backgroundColor = [UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1];
+    cellHeaderView.backgroundColor = KDefaultOrNightScrollViewColor;
+
+    
+    //设置标题
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 0, 100, 23)];
+    titleLabel.textColor = KDefaultOrNightTextColor;
+      [titleLabel setBackgroundColor: [UIColor clearColor]];
+
+    titleLabel.font = [UIFont systemFontOfSize:12.0f];
+    if (section == 0) {
+        titleLabel.text = @"正在直播主持人";
+    }else if(section == 1){
+        titleLabel.text = @"主持人";
+    }else if(section == 2){
+        titleLabel.text = @"产品经理";
+    }
+    [cellHeaderView addSubview:titleLabel];
+    return cellHeaderView;
+}
+
+- (CGFloat) tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    return 23.0f;
+}
+
+- (CGFloat) tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 56.0f;
+}
+
+- (void) tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    NSArray *peopleDataArray = nil;
+    if (indexPath.section == 0) {
+        peopleDataArray = self.currentEmceeArray;
+    }else if(indexPath.section == 1){
+        peopleDataArray = self.emceeArray;
+    }else if(indexPath.section == 2){
+        peopleDataArray = self.serviceArray;
+    }
+    
+    NSDictionary *personInfoDictionary = [peopleDataArray objectAtIndex:indexPath.row];
+    if(self.delegate){
+        [self.delegate selectedPerson:personInfoDictionary];
+    }
+    
+    [self dismissModalViewControllerAnimated:YES];//销毁窗体
+
+}
+@end

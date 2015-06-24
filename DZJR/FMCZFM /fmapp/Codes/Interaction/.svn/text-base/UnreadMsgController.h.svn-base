@@ -1,0 +1,27 @@
+//
+//  UnreadMsgController.h
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-12-23.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@protocol QuestionDelegate;
+@interface UnreadMsgController : FMViewController
+
+
+/** 用于设置，用户个人的信息内容**/
+- (id)initWithUserPersonalQuestionDelegate:(id<QuestionDelegate>)m_delegate;
+@end
+
+@protocol QuestionDelegate <NSObject>
+
+- (void) deleteQuestionSucceed;//删除问题成功
+
+@optional
+- (void) haveReadMsgWithCount:(NSInteger) readCount;//已读一条消息
+- (void) haveReadAllMsg;//已读全部消息
+
+@end

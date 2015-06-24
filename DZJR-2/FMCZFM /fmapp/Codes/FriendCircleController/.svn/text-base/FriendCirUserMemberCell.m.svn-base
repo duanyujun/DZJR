@@ -1,0 +1,221 @@
+//
+//  FriendCirUserMemberCell.m
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FriendCirUserMemberCell.h"
+#import "APAvatarImageView.h"
+#import "FontAwesome.h"
+
+#define KCellNameKMaxWidth      (KProjectScreenWidth/3-20)                              ///名字的最大长度
+#define KCellSignaBGMaxWidth    (KProjectScreenWidth - (80+KProjectScreenWidth/3) -15)  ///签名的背景最大长度
+
+
+@interface FriendCirUserMemberCell ()
+///用户头像
+@property (nonatomic , weak) APAvatarImageView          *memberUserPhotoImage;
+///用户名字
+@property (nonatomic , weak) UILabel                    *memberUserNameLabel;
+///用户性别男
+@property (nonatomic , weak) UILabel                    *memberUserSexManLabel;
+///用户性别女
+@property (nonatomic , weak) UILabel                    *memberUserSexWomanLabel;
+///用户个性签名
+@property (nonatomic , weak) UILabel                    *memberUserSignatureLabel;
+
+@property (nonatomic , strong)UserInfo                  *memberUserInfor;
+///签名背景色
+@property (nonatomic , weak) UIView                     *memberSignatureBGView;
+
+@end
+
+@implementation FriendCirUserMemberCell
+
+
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        // Initialization code
+        //设置选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:self.bounds];
+        [selectedView setBackgroundColor:KDefaultOrNightBackGroundColor];
+        self.selectedBackgroundView = selectedView;
+        
+        ///默认背景色
+        self.backgroundColor = [[FMThemeManager skin] backgroundColor];
+        self.contentView.backgroundColor = [UIColor clearColor];
+        
+        //添加车型图片
+        APAvatarImageView *carLogoImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(12.0f, 9.0, 47, 47)
+                                                                           borderColor:[UIColor whiteColor]
+                                                                           borderWidth:1.0f];
+        [self.contentView addSubview:carLogoImageView];
+        self.memberUserPhotoImage = carLogoImageView;
+        
+        
+        
+        
+        //添加用户名称标签
+        UILabel *userLable = [[UILabel alloc] init];
+        [userLable setFrame:CGRectMake(78.0f, 20.0f,  KProjectScreenWidth/3, 25.0f)];
+        userLable.font = [UIFont systemFontOfSize:15.0f];
+        userLable.textColor = [FMThemeManager.skin textColor];
+        [userLable setBackgroundColor:[UIColor clearColor]];
+        self.memberUserNameLabel = userLable;
+        [self.contentView addSubview:userLable];
+        
+        
+        
+        //性别
+        UILabel *memberUserSexManLabel = [FontAwesome labelWithFAIcon:FMIconMale size:13.0f
+                                                                color:[UIColor colorWithRed:129.0f/255.0f
+                                                                                      green:193.0f/255.0f
+                                                                                       blue:254.0f/255.0f
+                                                                                      alpha:1.0f]];
+        [memberUserSexManLabel setTextAlignment:NSTextAlignmentCenter];
+        [memberUserSexManLabel setFrame:CGRectMake(3.0f, 0.0, 20.0f, 20.0f)];
+        [memberUserSexManLabel setBackgroundColor:[UIColor clearColor]];
+        self.memberUserSexManLabel = memberUserSexManLabel;
+        [self.contentView addSubview:self.memberUserSexManLabel];
+        
+        //性别
+        UILabel *sexWomanView = [FontAwesome labelWithFAIcon:FMIconFemale size:13.0f
+                                                       color:[UIColor colorWithRed:253.0f/255.0f
+                                                                             green:170.0f/255.0f
+                                                                              blue:172.0f/255.0f
+                                                                             alpha:1.0f]];
+        [sexWomanView setTextAlignment:NSTextAlignmentCenter];
+        [sexWomanView setFrame:CGRectMake(3.0f, 0.0, 20.0f, 20.0f)];
+        [sexWomanView setBackgroundColor:[UIColor clearColor]];
+        self.memberUserSexWomanLabel = sexWomanView;
+        [self.contentView addSubview:self.memberUserSexWomanLabel];
+        
+        
+        
+        UIView  *signatureBGView = [[UIView alloc]init];
+        [signatureBGView setFrame:CGRectMake((80+KProjectScreenWidth/3), 15,KCellSignaBGMaxWidth,
+                                             42)];
+        [signatureBGView setBackgroundColor:[UIColor colorWithRed:245.0f/255.0f
+                                                            green:245.0f/255.0f
+                                                             blue:245.0f/255.0f
+                                                            alpha:1.0f]];
+        self.memberSignatureBGView = signatureBGView ;
+        [self.contentView addSubview:self.memberSignatureBGView];
+        
+        //右侧Label
+        UILabel *signatureLabel = [[UILabel alloc] initWithFrame:CGRectMake(5.0f, 2.0f,
+                                                                            (signatureBGView.frame.size.width - 10),
+                                                                            38)];
+        signatureLabel.lineBreakMode = UILineBreakModeWordWrap;
+        signatureLabel.numberOfLines = 2;
+        signatureLabel.textAlignment = UITextAlignmentLeft;
+        signatureLabel.font = [UIFont systemFontOfSize:12.0f];
+        signatureLabel.textColor = KSubTitleContentTextColor;
+        [signatureBGView addSubview:signatureLabel];
+        self.memberUserSignatureLabel = signatureLabel;
+        
+        
+        //添加分隔线
+        UIView *underLineSeparatorView = [[UIView alloc] initWithFrame:CGRectMake(78.0f, 65.0f, (KProjectScreenWidth - 78.0f), 0.5f)];
+        underLineSeparatorView.backgroundColor = [FMThemeManager.skin sepratorColor];
+        [self.contentView addSubview:underLineSeparatorView];
+        
+    }
+    return self;
+}
+
+- (void)awakeFromNib
+{
+    // Initialization code
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+    
+    // Configure the view for the selected state
+}
+
+
+- (void)initWithFriendCirUserMemberDataInfor:(UserInfo *)itemUserInfor{
+    
+    self.memberUserInfor = itemUserInfor;
+    //车Logo图片
+    NSString *imageUrl = [NSString stringWithFormat:@"%@%@thumb",KMediaServerImagesInforURL,itemUserInfor.userCarImage];
+    [self.memberUserPhotoImage setImageWithURL:[NSURL URLWithString:imageUrl] placeholderImage:kImgDefaultCar];
+    
+    [self.memberUserNameLabel setText:itemUserInfor.userName];
+    
+    [self.memberUserSignatureLabel setText:itemUserInfor.userPersonalSignature];
+    
+    [self layoutIfNeeded];
+}
+
+
+- (void)layoutSubviews{
+    
+    CGSize  userNameSize = [self.memberUserNameLabel.text sizeWithFont:self.memberUserNameLabel.font];
+    
+    ///用户名以及用户性别
+    if (userNameSize.width > KCellNameKMaxWidth) {
+        [self.memberUserNameLabel setFrame:CGRectMake(78.0f, 20.0f, KCellNameKMaxWidth, 25.0f)];
+        if (self.memberUserInfor.userSex == 1) {
+            [self.memberUserSexManLabel setHidden:NO];
+            [self.memberUserSexWomanLabel setHidden:YES];
+            [self.memberUserSexManLabel setFrame:CGRectMake((KCellNameKMaxWidth + 65), 20.0f, 20, 25.0f)];
+        }
+        else{
+            [self.memberUserSexWomanLabel setHidden:NO];
+            [self.memberUserSexManLabel setHidden:YES];
+            [self.memberUserSexWomanLabel setFrame:CGRectMake((KCellNameKMaxWidth + 65), 20.0f, 20, 25.0f)];
+            
+        }
+    }else{
+        [self.memberUserNameLabel setFrame:CGRectMake(78.0f, 20.0f, userNameSize.width, 25.0f)];
+        if (self.memberUserInfor.userSex == 1) {
+            [self.memberUserSexManLabel setHidden:NO];
+            [self.memberUserSexWomanLabel setHidden:YES];
+            [self.memberUserSexManLabel setFrame:CGRectMake((userNameSize.width + 78), 20.0f, 20, 25.0f)];
+            
+        }
+        else{
+            [self.memberUserSexWomanLabel setHidden:NO];
+            [self.memberUserSexManLabel setHidden:YES];
+            [self.memberUserSexWomanLabel setFrame:CGRectMake((userNameSize.width + 78), 20.0f, 20, 25.0f)];
+        }
+    }
+    
+    
+    ///用户个性签名
+    if(IsStringEmptyOrNull(self.memberUserSignatureLabel.text)){
+        [self.memberUserSignatureLabel setHidden:YES];
+        [self.memberSignatureBGView setHidden:YES];
+    }else{
+        [self.memberUserSignatureLabel setHidden:NO];
+        [self.memberSignatureBGView setHidden:NO];
+        
+        CGSize  signatureSize = [self.memberUserSignatureLabel.text sizeWithFont:self.memberUserSignatureLabel.font];
+        
+        if ((signatureSize.width +10)>= KCellSignaBGMaxWidth) {
+            [self.memberSignatureBGView setFrame:CGRectMake((80+KProjectScreenWidth/3), 15,KCellSignaBGMaxWidth,
+                                                            42)];
+            [self.memberUserSignatureLabel setFrame:CGRectMake(5.0f, 2.0f,(KCellSignaBGMaxWidth - 10),
+                                                               38)];
+        }
+        else{
+            
+            CGFloat signaBGMaxWidth = signatureSize.width +10;
+            
+            [self.memberSignatureBGView setFrame:CGRectMake((KProjectScreenWidth - 15.0 - signaBGMaxWidth), 15,signaBGMaxWidth,
+                                                            42)];
+            [self.memberUserSignatureLabel setFrame:CGRectMake(5.0f, 2.0f,signatureSize.width,38)];
+        }
+    }
+}
+
+@end

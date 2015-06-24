@@ -1,0 +1,57 @@
+//
+//  MessageListCellData.h
+//  fmapp
+//
+//  Created by SDYK on 14-10-16.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+typedef NS_ENUM(NSInteger, MessageCellType){
+    IMForInteractionType = 1,                   /**< 默认IM消息类型*/
+    IMForSystemMessageType,                     /**< 系统通知消息类型*/
+    IMForTrafficMessageType,                    /**< 电台资讯通知消息类型*/
+    IMForCarFriendsPartyType,                   /**< 车友聚会消息类型*/
+    IMForBusinessRecommendType,                 /**< 精品推荐通知消息类型*/
+    ImForFriendCircleType,                      /**< 朋友圈消息通知类别*/
+};
+
+@interface MessageCellData : NSObject
+
+@property (nonatomic, assign) MessageCellType  cellType;
+@property (nonatomic, copy)   NSString    *userId;
+@property (nonatomic, copy)   NSString    *userName;
+@property (nonatomic, copy)   NSString    *userIconKey;
+@property (nonatomic, assign) NSInteger   userSex;
+@property (nonatomic, copy)   NSString    *lastContent;
+@property (nonatomic, copy)   NSString    *signature;
+@property (nonatomic,copy)    NSString    *distance;
+///未读个数内容
+@property (nonatomic, assign) NSInteger     unreadMsgCount;
+///消息创建事件
+@property (nonatomic, copy)  NSString       *msgCreateDateTime;
+///消息时间戳儿
+@property (nonatomic, assign) NSInteger     msgTimeStamp;
+/// 用户个人发布的带属性的问题内容
+@property (nonatomic,strong) NSAttributedString *msgLastAttributedContent;
+///圈子中的问题ID
+@property (nonatomic , copy) NSString       *fcQuestionID;
+
+///未读功能模块消息标示
+@property (nonatomic , assign)NSInteger     unReadFlag;
+
+
+-(void)makeAttributeContent;
+
+/// JSON反序列化用户消息Cell中信息
++ (id)initUserMsgWithUnserializedJSONDic:(NSDictionary *)dic;
+
+///序列化消息列表中的数据内容
+///@See 根据 (NSDictionary *)dic 获取 MessageCellData实例信息
++ (id)initUserMessageCellDataWithUnserializedJSONDic:(NSDictionary *)dic;
+
+
+- (GLfloat)getContentHeight:(GLfloat)containerWidth;
+
+@end

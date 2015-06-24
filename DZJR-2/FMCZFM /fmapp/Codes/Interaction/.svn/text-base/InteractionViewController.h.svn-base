@@ -1,0 +1,24 @@
+//
+//  InteractionViewController.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+#import "UnreadMsgController.h"
+typedef NS_ENUM(NSInteger, QuestionResquestType)
+{
+    QuestionResquestTypeAll                    = 0,         //全部互动消息
+    QuestionResquestTypeEmcee                  = 1,         //直播贴
+    QuestionResquestTypeMyAttention            = 2,         //我的关注
+    QuestionResquestTypeMe                     = 3,         //我的帖子
+    QuestionResquestTypeMyAnswer               = 4          //我的回复
+};
+
+@interface InteractionViewController : FMViewController<UITableViewDataSource, UITableViewDelegate,QuestionDelegate,UIActionSheetDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate>
+
+
+@end

@@ -1,0 +1,118 @@
+//
+//  FriendCirclePushView.m
+//  fmapp
+//
+//  Created by apple on 14/11/5.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FriendCirclePushView.h"
+
+#define kChatViewMargin         8
+#define kChatViewButtonSize     26
+#define kChatViewIconSize       24
+
+
+#define KPublishExpressHeight           216         //表情键盘高度
+#define kCancelButtonItemTag            100
+#define kPublishButtonItemTag           101
+#define kKeyboardButtonTag              102
+#define kExpressButtonTag               103
+
+@interface FriendCirclePushView () <ExpressViewDelegate,UITextViewDelegate>
+
+@property (nonatomic,assign)NSInteger        lastRow;
+@property (nonatomic, strong) UIButton *cameraButton;
+@property (nonatomic, strong) UIButton *expressButton;
+
+
+@end
+
+
+@implementation FriendCirclePushView
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+        self.lastRow = 1;
+        ///默认背景色
+        self.backgroundColor = [[FMThemeManager skin] backgroundColor];
+        self.layer.shadowColor = [[UIColor blackColor] CGColor];
+        self.layer.shadowOpacity = 0.4f;
+        self.layer.shadowOffset = CGSizeZero;
+        self.layer.shadowRadius = 2.0f;
+        
+        CGRect rc = self.frame;
+
+        
+        //表情或键盘按钮
+        UIButton *keyboardOrExpressionButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        keyboardOrExpressionButton.tag = kExpressButtonTag;
+        keyboardOrExpressionButton.titleLabel.font = [UIFont systemFontOfSize:30.0];
+        [keyboardOrExpressionButton simpleButtonWithImageColor:[FMThemeManager.skin baseTintColor]];
+        [keyboardOrExpressionButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+        [keyboardOrExpressionButton setFrame:CGRectMake(kChatViewMargin,
+                                                        (rc.size.height - kChatViewButtonSize)/2.0,
+                                                        kChatViewButtonSize,
+                                                        kChatViewButtonSize)];
+        [keyboardOrExpressionButton addAwesomeIcon:FMIconExpression beforeTitle:YES];
+        keyboardOrExpressionButton.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin;
+        self.expressButton=keyboardOrExpressionButton;
+        [self addSubview:keyboardOrExpressionButton];
+        
+        // 拍照按钮
+        UIButton *cameraButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        cameraButton.titleLabel.font = [UIFont systemFontOfSize:30.0f];
+        [cameraButton simpleButtonWithImageColor:[FMThemeManager.skin baseTintColor]];
+        [cameraButton addTarget:self action:@selector(sendImageClick:) forControlEvents:UIControlEventTouchUpInside];
+        [cameraButton setFrame:CGRectMake(kChatViewMargin*2 + kChatViewButtonSize,
+                                          (rc.size.height - kChatViewButtonSize)/2.0,
+                                          kChatViewButtonSize,
+                                          kChatViewButtonSize)];
+        [cameraButton addAwesomeIcon:FMIconCamera beforeTitle:YES];
+        cameraButton.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin;
+        [self addSubview:cameraButton];
+        self.cameraButton = cameraButton;
+        
+        //发布按钮
+        UIButton *publishButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        publishButton.tag = kPublishButtonItemTag;
+        publishButton.titleLabel.font = [UIFont systemFontOfSize:24.0];
+        [publishButton simpleButtonWithImageColor:[FMThemeManager.skin baseTintColor]];
+        [publishButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+        [publishButton setFrame:CGRectMake(rc.size.width - 2 * kChatViewMargin - kChatViewButtonSize,
+                                           (rc.size.height - kChatViewButtonSize)/2.0,
+                                           kChatViewButtonSize,
+                                           kChatViewButtonSize)];
+        publishButton.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
+        [publishButton addAwesomeIcon:FMIconRadio beforeTitle:YES];
+        [self addSubview:publishButton];
+
+
+        
+        //文本框
+        UITextView *commentTextView = [[UITextView alloc] initWithFrame:CGRectMake(CGRectGetMaxX(cameraButton.frame) + kChatViewMargin,
+                                                                                   5,
+                                                                                   CGRectGetMinX(publishButton.frame) - CGRectGetMaxX(cameraButton.frame) - 2*kChatViewMargin,
+                                                                                   rc.size.height - 10)];
+        commentTextView.font = kFontWithDefaultSize;
+        [commentTextView setDelegate:self];
+        commentTextView.layer.borderWidth = 0.8;
+        commentTextView.layer.borderColor = [[[FMThemeManager skin] baseTintColor] CGColor];
+        commentTextView.backgroundColor = [UIColor clearColor];
+        commentTextView.textColor = [[FMThemeManager skin] textColor];
+        commentTextView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        commentTextView.returnKeyType = UIReturnKeySend;
+        self.commentView = commentTextView;
+        [self addSubview:commentTextView];
+        
+        
+        
+    }
+    return self;
+}
+
+
+@end

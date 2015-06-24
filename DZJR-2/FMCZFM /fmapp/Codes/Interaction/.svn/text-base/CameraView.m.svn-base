@@ -1,0 +1,268 @@
+//
+//  CameraView.m
+//  CameraTest
+//
+//  Created by mac on 8/26/13.
+//  Copyright (c) 2013 mac. All rights reserved.
+//
+
+#import "CameraView.h"
+
+@implementation CameraView
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+        self.userInteractionEnabled = YES;
+        
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(orientationDidChange:)
+                                                     name:UIDeviceOrientationDidChangeNotification
+                                                   object:nil];
+    }
+    return self;
+}
+
+- (void)startCamera
+{
+    if (!_captureSession.running)
+    {
+        [_captureSession startRunning];
+    }
+}
+
+- (void)stopCamera
+{
+    if (_captureSession.running)
+    {
+        [_captureSession stopRunning];
+    }
+}
+
+- (void)showCamera:(void (^)(BOOL))complition
+{
+    _captureSession = [[AVCaptureSession alloc] init];
+    
+    // 设置采集的大小
+    _captureSession.sessionPreset = AVCaptureSessionPreset1280x720;
+    
+    
+    // ---------------- 添加 input - 输入设备 -  配置 device
+    
+    [self addCaputureDeviceInput];
+    
+    // ---------------- 添加 output - 输出设备 - 配置 device
+    
+    [self addCaputureDeviceOutput];
+    
+    // ---------------- 添加 添加到视图中 --
+    
+    _previewLayer = [[AVCaptureVideoPreviewLayer layerWithSession:_captureSession] retain];
+    _previewLayer.frame = self.bounds;
+    _previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+    
+    [self.layer addSublayer:_previewLayer];
+    
+    if (_captureDeviceInput)
+    {
+        [self startCamera];
+        if (complition) {
+            complition(YES);
+        }
+        
+    }
+}
+
+- (void)captureImage:(void (^)(BOOL, UIImage *))cameraFinished
+{
+    //获取连接
+    __block AVCaptureConnection * videoConnection = nil;
+    
+    [_captureOutput.connections enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
+     {
+         AVCaptureConnection * connection = (AVCaptureConnection *)obj;
+         
+         [[connection inputPorts] enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
+         {
+             AVCaptureInputPort * port = (AVCaptureInputPort *)obj;
+             
+             if ([[port mediaType] isEqualToString:AVMediaTypeVideo])
+             {
+                 videoConnection = [connection retain];
+                 *stop = YES;
+             }
+
+         }];
+         
+         if (videoConnection)
+         {
+             *stop = YES;
+             
+         }
+         
+     }];
+    
+    __block UIImage * image = nil;
+    
+    if (videoConnection)
+    {
+        //  -- 获取图片 - 为一个异步操作 -- 
+        [_captureOutput captureStillImageAsynchronouslyFromConnection:videoConnection
+                                                    completionHandler:^(CMSampleBufferRef imageDataSampleBuffer, NSError *error)
+         {
+
+             [self stopCamera];
+             
+             @autoreleasepool
+             {
+                 NSData * imageD = [AVCaptureStillImageOutput jpegStillImageNSDataRepresentation:imageDataSampleBuffer];
+               
+                 UIImage * image1 = [UIImage imageWithData:imageD];
+                  NSData *imageData = UIImageJPEGRepresentation(image1 , 0.2);
+                 image = [UIImage imageWithData:imageData];
+                 self.cameraImage = image;
+                 
+                 if (cameraFinished)
+                 {
+                     cameraFinished(YES,image);
+                 }
+                 
+             }
+         }];
+    }
+
+    [videoConnection release];
+
+}
+
+#pragma mark  ---------- Info ----------------
+
+// input --
+- (void)addCaputureDeviceInput
+{
+    _currentDevicePositon = AVCaptureDevicePositionBack; //后摄像头
+    
+    _captureDeviceInput = [[self caputureDeviceInputWithPosition:_currentDevicePositon] retain];
+    
+    if (_captureDeviceInput)
+    {
+        [_captureSession addInput:_captureDeviceInput];
+    }
+    else
+    {
+        [[[[UIAlertView alloc]
+           initWithTitle:nil
+           message:@"打开设备失败"
+           delegate:nil
+           cancelButtonTitle:@"好"
+           otherButtonTitles:nil, nil] autorelease] show];
+        
+    }
+}
+
+// output --
+- (void)addCaputureDeviceOutput
+{
+    _captureOutput = [[AVCaptureStillImageOutput alloc] init];
+    _captureOutput.outputSettings = [NSDictionary dictionaryWithObjectsAndKeys:
+                                     AVVideoCodecJPEG, AVVideoCodecKey,
+                                     nil
+                                     ];
+    [_captureSession addOutput:_captureOutput];
+}
+
+
+//返回 input 设备 --
+- (AVCaptureDeviceInput *)caputureDeviceInputWithPosition:(AVCaptureDevicePosition)position
+{
+    NSArray * devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+    
+    __block AVCaptureDeviceInput * catureInput = nil;
+    
+    [devices enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
+     {
+         AVCaptureDevice * device = (AVCaptureDevice *)obj;
+         
+         if (device.position == position)
+         {
+             NSError * error = nil;
+             
+             // -- 焦点 - 曝光 - 黑白色 -- 自动 --
+             if ([device lockForConfiguration:&error]) {
+                 if ([device isFocusModeSupported:AVCaptureFocusModeContinuousAutoFocus])
+                     device.focusMode = AVCaptureFocusModeContinuousAutoFocus;
+                 if ([device isExposureModeSupported:AVCaptureExposureModeContinuousAutoExposure])
+                     device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
+                 if ([device isWhiteBalanceModeSupported:AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance])
+                     device.whiteBalanceMode = AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance;
+                 
+                 [device unlockForConfiguration];
+                 
+             }
+             catureInput = [(AVCaptureDeviceInput *)[AVCaptureDeviceInput deviceInputWithDevice:device
+                                                                                          error:&error] retain];
+         }
+         
+     }];
+    
+    return [catureInput autorelease];
+}
+
+#pragma mark  ---------- Other ----------------
+
+- (void)orientationDidChange:(NSNotification *)note
+{
+    //UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
+}
+
+
+//摄像头的前后切换
+- (void)sithchDevices
+{
+    [_captureSession beginConfiguration];
+    
+    AVCaptureDevicePosition positon = _currentDevicePositon;
+    
+    if (_currentDevicePositon == AVCaptureDevicePositionBack)
+    {
+        _currentDevicePositon = AVCaptureDevicePositionFront;
+    }
+    else
+    {
+        _currentDevicePositon = AVCaptureDevicePositionBack;
+    }
+    
+    [_captureSession removeInput:[self caputureDeviceInputWithPosition:positon]];
+    [_captureSession addInput:[self caputureDeviceInputWithPosition:_currentDevicePositon]];
+    
+}
+
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter]
+     removeObserver:self
+     name:UIDeviceOrientationDidChangeNotification
+     object:nil];
+    
+    [_captureSession release];
+    [_captureDeviceInput release];
+    [_captureOutput release];
+    [_previewLayer release];
+    
+    
+    [super dealloc];
+}
+
+/*
+// Only override drawRect: if you perform custom drawing.
+// An empty implementation adversely affects performance during animation.
+- (void)drawRect:(CGRect)rect
+{
+    // Drawing code
+}
+*/
+
+@end

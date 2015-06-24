@@ -1,0 +1,456 @@
+//
+//  SearchOrCityOrInformationTableViewCell.m
+//  fmapp
+//
+//  Created by 张利广 on 14-6-11.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+
+
+#define KUserCallPhoneButtonTag 1710111                 ///拨打电话按键
+#define KUserDeleteItemDataButtonTag 1710112            ///删除内容按键
+#define KBackGroundGroundForNightColor         [UIColor blackColor]
+
+#import "SearchOrCityOrInformationTableViewCell.h"
+#import "CurrentUserInformation.h"
+#import "FMImageView.h"
+#import "APAvatarImageView.h"
+#import "RichTextLabel.h"
+
+
+@interface SearchOrCityOrInformationTableViewCell ()
+@property (nonatomic , strong) SearchAndReceiveDataInfor        *selectedCellInfor;
+@property (nonatomic , weak)    UIView                          *fooderBackGroundView;
+
+@property (nonatomic,weak)      UIView                    *backView;
+
+/*!
+ @brief 用户个人头像图片内容
+ *@See 若有个人头像，则优先显示个人头像；否则则若有爱车图片，则显示爱车图片；
+ *@See 否则若仅只有选择车型，则显示车型图片；否则显示默认图片
+ **/
+@property (nonatomic , weak)UIImageView                         *userPhotoImageView;
+/*!
+ @brief 用户个人的名字标签
+ */
+@property (nonatomic,weak) UILabel                              *userNameLabel;
+
+/*!
+ @brief 用户个人的性别指示图片
+ */
+@property (nonatomic,weak) UIImageView                          *userSexImageView;
+
+/*!
+ @brief 用户个人的信息发布时间标签
+ */
+@property (nonatomic,weak) UILabel                              *userSendInforDateLabel;
+
+/*!
+ *@brief 用户个人地址内容标签
+ */
+@property (nonatomic,weak) UILabel                              *userPersonalAddressLabel;
+
+/*!
+ *@brief 用户个人图片内容
+ */
+@property (nonatomic,weak)  FMImageView                         *userContentImageView;
+
+/*!
+ @brief 用户拨打电话按键
+ */
+@property (nonatomic,retain) UIButton                           *userCallOrReceiveButton;
+/*!
+ @brief 用户删除信息按键
+ */
+@property (nonatomic,retain) UIButton                           *userDeleteInformButton;
+
+/*!
+@brief 用户个人问题内容
+*/
+@property (nonatomic,retain) RichTextLabel                      *richContentLabel;
+
+@property (nonatomic , assign)  InitWithTableViewCellStyle      initTableViewCellStyle;
+
+
+
+/** 初始化用户操作按键响应事件
+ 
+ *@return void
+ **/
+- (void)initWithUserOperationButtonEventClicked:(id)sender;
+
+/** 初始化 找到了模块Cell界面
+ 
+ *@return void
+ **/
+- (void)initWithUserSearchModelCellFrame;
+
+@end
+
+@implementation SearchOrCityOrInformationTableViewCell
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        
+        
+        //self.contentView.backgroundColor=[[FMThemeManager skin] backgroundColor];
+
+        [self setBackgroundColor:[UIColor clearColor]];
+
+        //设置选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:self.bounds];
+        [selectedView setBackgroundColor: KDefaultOrNightScrollViewColor];
+        self.selectedBackgroundView = selectedView;
+        UIView  *whiteBackGroundView = [[UIView alloc]init];
+        whiteBackGroundView.backgroundColor=KDefaultOrNightScrollViewColor;
+        self.backgroundView = whiteBackGroundView;
+        
+        UIView  *backView = [[UIView alloc]init];
+        backView.backgroundColor=KDefaultOrNightBackGroundColor;
+        backView.layer.cornerRadius=3;
+        self.backView=backView;
+        [self.contentView addSubview:backView];
+
+        CGFloat addHeight=5.0f;
+        
+        ////用户个人头像
+        APAvatarImageView *photoImageView = [[APAvatarImageView alloc]initWithFrame:CGRectMake(5.0f, 12.0f+addHeight, 27.0f, 27.0f) borderColor:[UIColor whiteColor] borderWidth:1.0f];
+        [photoImageView setBackgroundColor:[UIColor clearColor]];
+        [photoImageView setFrame:CGRectMake(12.0f, 12.0f+10, 27.0f, 27.0f)];
+        [photoImageView setImage: kImgDefaultCar];
+        photoImageView.contentMode = UIViewContentModeScaleAspectFill;
+        [photoImageView setClipsToBounds:YES];
+        self.userPhotoImageView = photoImageView;
+        [backView addSubview:self.userPhotoImageView];
+        
+        ///拨打电话按键设置
+        UIButton    *callButton = [[UIButton alloc]initWithFrame:CGRectMake(KProjectScreenWidth-75-16, 15.0f+addHeight, 60.0f, 27.0f)];
+        [callButton setBackgroundColor:[UIColor clearColor]];
+        [callButton.titleLabel setFont:[UIFont systemFontOfSize:15.0f]];
+        [callButton addTarget:self action:@selector(initWithUserOperationButtonEventClicked:)
+             forControlEvents:UIControlEventTouchUpInside];
+        [callButton setTag:KUserCallPhoneButtonTag];
+        [callButton.layer setBorderWidth:0.5];
+        [callButton.layer setMasksToBounds:YES];
+        [callButton.layer setCornerRadius:4.0f];
+        [callButton  setTitle:@"联系我"
+                     forState:UIControlStateNormal];
+//        [callButton setTitleColor:[[ThemeManager sharedThemeManager].skin navigationBarTintColor]
+//                         forState:UIControlStateNormal];
+        [callButton setTitleColor: KDefaultOrNightBaseColor forState:UIControlStateNormal];
+
+        
+        [callButton setTitleColor:[UIColor colorWithRed:145.0f/255.0f
+                                                  green:196.0f/255.0f
+                                                   blue:155.0f/255.0f
+                                                  alpha:1.0f]
+                         forState:UIControlStateHighlighted];
+          [callButton.layer setBorderColor:[KDefaultOrNightBaseColor CGColor]];
+        self.userCallOrReceiveButton = callButton;
+        [backView addSubview:self.userCallOrReceiveButton];
+        
+        
+        ///添加用户名称标签
+        UILabel *nameLabel = [[UILabel alloc] init];
+        nameLabel.font = [UIFont systemFontOfSize:14.5f];
+        [nameLabel setTextColor:KSubTitleContentTextColor];
+        [nameLabel setBackgroundColor:[UIColor clearColor]];
+        self.userNameLabel = nameLabel;
+        [backView addSubview:self.userNameLabel];
+        
+        ///添加用户性别指示图片
+        UIImageView *sexImageView = [[UIImageView alloc] init];
+        self.userSexImageView = sexImageView;
+        [backView addSubview:self.userSexImageView];
+        
+        ///用户个人发布时间内容
+        UILabel *sendDataLable = [[UILabel alloc]init];
+        [sendDataLable setFrame:CGRectMake(50.0f,33+addHeight, 100.0f, 20.0f)];
+        [sendDataLable setFont:[UIFont systemFontOfSize:12.5]];
+        
+        [sendDataLable setBackgroundColor:[UIColor clearColor]];
+        [sendDataLable setTextColor:KSubTitleContentTextColor];
+        self.userSendInforDateLabel = sendDataLable;
+        [backView addSubview:self.userSendInforDateLabel];
+        
+        
+        //富文本内容
+        RichTextLabel *_contentRichTextLabel = [[RichTextLabel alloc] init];
+        _contentRichTextLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        _contentRichTextLabel.highlightedTextColor = [UIColor whiteColor];
+        _contentRichTextLabel.numberOfLines = 0;
+        _contentRichTextLabel.textColor=KDefaultOrNightTextColor;
+
+        _contentRichTextLabel.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        _contentRichTextLabel.backgroundColor = [UIColor clearColor];
+        if(ThemeCategory==5)
+        {
+            self.userSexImageView.alpha=0.6;
+
+        }
+
+        self.richContentLabel = _contentRichTextLabel;
+        self.richContentLabel.alpha=1;
+        [backView addSubview:self.richContentLabel];
+        
+        FMImageView *contentImage = [[FMImageView alloc]init];
+        [contentImage setBackgroundColor:KUIImageViewDefaultColor];
+        self.userContentImageView = contentImage;
+        if (ThemeCategory==5) {
+            self.userContentImageView.alpha=0.6;
+        }
+        [backView addSubview:self.userContentImageView];
+        
+        
+        ///删除按键
+        
+        UIButton    *deleteButton = [[UIButton alloc] init];
+        [deleteButton  setTitle:@"删除" forState:UIControlStateNormal];
+        [deleteButton.titleLabel setFont:[UIFont systemFontOfSize:12.0f]];
+        [deleteButton setTitleColor: KDefaultOrNightBaseColor forState:UIControlStateNormal];
+        [deleteButton setTitleColor:[UIColor colorWithRed:145.0f/255.0f
+                                                    green:196.0f/255.0f
+                                                     blue:155.0f/255.0f
+                                                    alpha:1.0f]
+                           forState:UIControlStateHighlighted];
+        [deleteButton addTarget:self action:@selector(initWithUserOperationButtonEventClicked:)
+               forControlEvents:UIControlEventTouchUpInside];
+        [deleteButton setTag:KUserDeleteItemDataButtonTag];
+        self.userDeleteInformButton = deleteButton;
+        [backView addSubview:self.userDeleteInformButton];
+        
+        
+        
+        UIView *fooderView= [[UIView alloc]init];
+        [fooderView setBackgroundColor:KDefaultOrNightScrollViewColor];
+        [fooderView.layer setBorderWidth:0.5];
+        [fooderView.layer setBorderColor:[KDefaultOrNightScrollViewColor CGColor]];
+        self.fooderBackGroundView = fooderView;
+        
+        //self.fooderBackGroundView.backgroundColor=KBackGroundGroundForNightColor;
+        //[fooderView.layer setBorderColor:[[UIColor clearColor] CGColor]];
+
+        [backView addSubview:self.fooderBackGroundView];
+        
+    }
+    return self;
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+
+#pragma mark - 初始化单个单元格信息，及显示方式
+- (void)initWithTableViewCellDataInformation:(SearchAndReceiveDataInfor *)m_itemDataInfor withInitCellStyle:(InitWithTableViewCellStyle)m_Style withDataStyle:(NSInteger)m_dataStyle{
+    
+    self.selectedCellInfor = m_itemDataInfor;
+    
+    self.initTableViewCellStyle = m_Style;
+        
+    ///找到了
+    if (self.initTableViewCellStyle == InitWithSearchStyle) {
+        if (m_dataStyle == 1|| m_dataStyle == 2) {
+            [self.userCallOrReceiveButton  setTitle:@"联系我" forState:UIControlStateNormal];
+        }else{
+            [self.userCallOrReceiveButton setHidden:YES];
+        }
+    }
+    ///顺风车
+    else if (self.initTableViewCellStyle == InitWithCityFreeStyle){
+         [self.userCallOrReceiveButton  setTitle:@"联系我" forState:UIControlStateNormal];
+    }
+    
+    
+    if (!IsStringEmptyOrNull(self.selectedCellInfor.userPersonalCarLogoURLString)) {
+        [self.userPhotoImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",
+                                                                       KMediaServerImagesInforURL,
+                                                                       self.selectedCellInfor.userPersonalCarLogoURLString]]
+                                placeholderImage:kImgDefaultCar];
+    }
+    ///是否为用户本人上传，若不是，则底部上移30像素。
+    CGFloat isCanDeleteHeight = 0;
+    if (![[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:m_itemDataInfor.userPersonalId]) {
+        isCanDeleteHeight = 30.0f;
+    }
+    
+    if (m_itemDataInfor.userPersonalSendImageSizeInfor.height >0) {
+        
+        [self.userContentImageView setFrame:CGRectMake(50, 56 + m_itemDataInfor.userPersonalContentHeight + 10, m_itemDataInfor.userPersonalSendImageSizeInfor.width,m_itemDataInfor.userPersonalSendImageSizeInfor.height)];
+        [self.userContentImageView setImageViewWithURL:m_itemDataInfor.userPersonalLargeImageURLString largeUrl:m_itemDataInfor.userPersonalLargeImageURLString holdImage:[UIImage imageNamed:@""]];
+        
+        
+        if (self.initTableViewCellStyle==InitWithCityFreeStyle) {
+            [self.userContentImageView setFrame:CGRectMake(50, 56 + m_itemDataInfor.userPersonalContentHeight + 20, m_itemDataInfor.userPersonalSendImageSizeInfor.width,m_itemDataInfor.userPersonalSendImageSizeInfor.height)];
+
+        }
+        
+        
+
+        ///若为自己发布的，则显示删除按键
+        if ([[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:m_itemDataInfor.userPersonalId]) {
+            //删除按键
+            [self.userDeleteInformButton setFrame:CGRectMake(0, self.selectedCellInfor.userPersonalContentHeight +60.0f+10+self.selectedCellInfor.userPersonalSendImageSizeInfor.height+25, 40.0f, 20.0f)];
+        }
+        
+//        [self.fooderBackGroundView setFrame:CGRectMake(0.0f, m_itemDataInfor.userPersonalContentHeight +m_itemDataInfor.userPersonalSendImageSizeInfor.height + 114.0f - isCanDeleteHeight+15, KProjectScreenWidth, 20.0f)];
+        
+        self.backView.frame=CGRectMake(8, 5, KProjectScreenWidth-16, m_itemDataInfor.userPersonalContentHeight +m_itemDataInfor.userPersonalSendImageSizeInfor.height + 114.0f - isCanDeleteHeight+15);
+        
+        if (self.initTableViewCellStyle!=InitWithCityFreeStyle) {
+            self.backView.frame=CGRectMake(8, 5, KProjectScreenWidth-16, m_itemDataInfor.userPersonalContentHeight +m_itemDataInfor.userPersonalSendImageSizeInfor.height + 114.0f - 30+15+12);
+        }
+    }else{
+//        [self.fooderBackGroundView setFrame:CGRectMake(0.0f, m_itemDataInfor.userPersonalContentHeight +104.0f - isCanDeleteHeight+15, KProjectScreenWidth, 20.0f)];
+        
+        self.backView.frame=CGRectMake(8, 5, KProjectScreenWidth-16,m_itemDataInfor.userPersonalContentHeight +104.0f - isCanDeleteHeight+15);
+
+        
+        if (self.initTableViewCellStyle!=InitWithCityFreeStyle) {
+
+        self.backView.frame=CGRectMake(8, 5, KProjectScreenWidth-16,m_itemDataInfor.userPersonalContentHeight +104.0f - 30+15+12);
+        }
+        
+        ///若为自己发布的，则显示删除按键
+        if ([[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:m_itemDataInfor.userPersonalId]) {
+            //删除按键
+            [self.userDeleteInformButton setFrame:CGRectMake(10, self.selectedCellInfor.userPersonalContentHeight +60.0f+self.selectedCellInfor.userPersonalSendImageSizeInfor.height+15, 40.0f, 20.0f)];
+        }
+
+    }
+    ///找到了数据显示
+    if (self.initTableViewCellStyle == InitWithSearchStyle) {
+        [self initWithUserSearchModelCellFrame];
+    }
+    else if (self.initTableViewCellStyle == InitWithCityFreeStyle){
+        
+        if (m_dataStyle == 1) {
+            //发布信息者车牌号
+            self.userNameLabel.text = m_itemDataInfor.userPersonalCarNumberString;
+            [self.userNameLabel setFrame:CGRectMake(50.0f, 14.0f, 100, 19.0f)];
+            ///发布者名字
+            NSString    *nameString = [[NSString alloc]initWithFormat:@"%@",m_itemDataInfor.userPersonalNameString];
+            [self.userSendInforDateLabel setText:nameString];
+            CGSize userNameLabelSize = [m_itemDataInfor.userPersonalNameString sizeWithFont:self.userNameLabel.font];
+            self.userSendInforDateLabel.frame = CGRectMake(50, 37, userNameLabelSize.width, userNameLabelSize.height);
+            
+            //发布信息者性别
+            self.userSexImageView.frame = CGRectMake(50 + userNameLabelSize.width, 37, 16, 16);
+            if ([m_itemDataInfor.userPersonalGender integerValue] == 1) {//性别为男
+                self.userSexImageView.image = kImgSexMan;
+            }else {//性别为女
+                self.userSexImageView.image = kImgSexWomman;
+            }
+            ///发布内容
+            self.richContentLabel.attString = m_itemDataInfor.attributedQuestionContent;
+            [self.richContentLabel setFrame:CGRectMake(14 ,60+10, KProjectScreenWidth-20-24,m_itemDataInfor.userPersonalContentHeight)];
+
+        }
+        else if (m_dataStyle == 2){
+            //发布信息者名称
+            self.userNameLabel.text = m_itemDataInfor.userPersonalNameString;
+            CGSize userNameLabelSize = [m_itemDataInfor.userPersonalNameString sizeWithFont:self.userNameLabel.font];
+            self.userNameLabel.frame = CGRectMake(50, 14+5, userNameLabelSize.width, userNameLabelSize.height);
+            
+            //发布信息者性别
+            self.userSexImageView.frame = CGRectMake(50 + userNameLabelSize.width, 14+5, 16, 16);
+            if ([m_itemDataInfor.userPersonalGender integerValue] == 1) {//性别为男
+                self.userSexImageView.image = kImgSexMan;
+            }else {//性别为女
+                self.userSexImageView.image = kImgSexWomman;
+            }
+            
+            ///用户发布信息的日期
+            NSString    *sendData = [[NSString alloc]initWithFormat:@"%@",m_itemDataInfor.userPersonalSendDataInforString];
+            [self.userSendInforDateLabel setText:sendData];
+            
+            ///发布内容
+            [self.richContentLabel setAttString:m_itemDataInfor.attributedQuestionContent];
+            [self.richContentLabel setFrame:CGRectMake(14 ,58+10, KProjectScreenWidth-20-24,m_itemDataInfor.userPersonalContentHeight)];
+        }
+
+    }
+
+}
+
+#pragma mark - 初始化用户操作按键响应事件
+- (void)initWithUserOperationButtonEventClicked:(id)sender{
+    UIButton *operationButton = (UIButton *)sender;
+    
+    if (operationButton.tag == KUserCallPhoneButtonTag) {
+        if (self.userSelectedCellDelegate) {
+            [self.userSelectedCellDelegate initWithUserOperationButtonTypeStyle:ButtonForCallPhoneStyle withIndexPath:self.selectedCellIndexPath];
+        }
+    }else if (operationButton.tag == KUserDeleteItemDataButtonTag){
+        if (self.userSelectedCellDelegate) {
+            [self.userSelectedCellDelegate initWithUserOperationButtonTypeStyle:ButtonForDeleteOperationStyle withIndexPath:self.selectedCellIndexPath];
+        }
+    }
+}
+
+#pragma mark - 初始化 找到了模块Cell界面
+- (void)initWithUserSearchModelCellFrame{
+    //发布信息者名称
+    self.userNameLabel.text = self.selectedCellInfor.userPersonalNameString;
+    CGSize userNameLabelSize = [self.selectedCellInfor.userPersonalNameString sizeWithFont:self.userNameLabel.font];
+    self.userNameLabel.frame = CGRectMake(50, 14+5, userNameLabelSize.width, userNameLabelSize.height);
+    
+    //发布信息者性别
+    self.userSexImageView.frame = CGRectMake(50 + userNameLabelSize.width, 14+5, 16, 16);
+    if ([self.selectedCellInfor.userPersonalGender integerValue] == 1) {//性别为男
+        self.userSexImageView.image = kImgSexMan;
+    }else {//性别为女
+        self.userSexImageView.image = kImgSexWomman;
+    }
+    
+    ///用户发布信息的日期
+    NSString    *sendData = [[NSString alloc]initWithFormat:@"%@",self.selectedCellInfor.userPersonalSendDataInforString];
+    [self.userSendInforDateLabel setText:sendData];
+    ///发布内容
+    self.richContentLabel.attString = self.selectedCellInfor.attributedQuestionContent;
+    
+    [self.richContentLabel setFrame:CGRectMake(14 ,58+10, KProjectScreenWidth-20-24,self.selectedCellInfor.userPersonalContentHeight)];
+    
+    
+    
+    CGFloat isCanDeleteHeight = 0;
+    if (![[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:self.selectedCellInfor.userPersonalId]) {
+        isCanDeleteHeight = 30.0f;
+    }
+
+    
+    self.userPhotoImageView.frame=CGRectMake(12.0f, 12.0f+6, 27.0f, 27.0f);
+    
+    
+    self.userNameLabel.frame = CGRectMake(50, 14+10, userNameLabelSize.width, userNameLabelSize.height);
+    
+    //发布信息者性别
+    self.userSexImageView.frame = CGRectMake(50 + userNameLabelSize.width, 14+10, 16, 16);
+    if ([self.selectedCellInfor.userPersonalGender integerValue] == 1) {//性别为男
+        self.userSexImageView.image = kImgSexMan;
+    }else {//性别为女
+        self.userSexImageView.image = kImgSexWomman;
+    }
+    
+    [self.richContentLabel setFrame:CGRectMake(14 ,58, KProjectScreenWidth-20-24,self.selectedCellInfor.userPersonalContentHeight)];
+    
+    self.userSendInforDateLabel.frame = CGRectMake(14, self.backView.frame.size.height-10-22, 100, 20);
+//
+//    self.backView.frame=CGRectMake(8, 5, KProjectScreenWidth-16,self.selectedCellInfor.userPersonalContentHeight +104.0f - isCanDeleteHeight+15+10);
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:self.selectedCellInfor.userPersonalId]) {
+
+        //删除按键
+   [self.userDeleteInformButton setFrame:CGRectMake(self.userSendInforDateLabel.frame.origin.x+self.userSendInforDateLabel.frame.size.width+10, self.userSendInforDateLabel.frame.origin.y, 40.0f, 20.0f)];
+    }
+
+
+}
+
+@end

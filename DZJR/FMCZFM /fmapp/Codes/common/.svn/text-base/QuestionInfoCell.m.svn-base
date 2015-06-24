@@ -1,0 +1,846 @@
+//
+//  QuestionInfoCell.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-12.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "QuestionInfoCell.h"
+#import "RichTextLabel.h"
+#import "FMImageView.h"
+#import "APAvatarImageView.h"
+#import "CurrentUserInformation.h"
+#import "FontAwesome.h"
+
+#define kQuestionCellNameHeight             14
+#define kQuestionCellMargin                 10
+#define kImageGap                           10
+#define KMulImageSize                       60
+#define KReplyBtnTag                        70
+
+typedef NS_ENUM(NSInteger, QuestionDisplayType)
+{
+    QuestionDisplayTypeQuestionList                    = 0,         //显示问题列表
+    QuestionDisplayTypeQuestionDetail                  = 1,         //显示问题详情
+    QuestionDisplayTypeReply                           = 2,         //显示回复
+    QuestionDisplayTypeCircleList                      = 3          //显示圈子
+    
+};
+
+
+@interface QuestionInfoCell ()
+
+
+@property (nonatomic,weak) APAvatarImageView*userCarLogoImageView;      //用户车Logo图片
+@property (nonatomic,weak) UILabel          *userNameLabel;             //用户名称标签
+@property (nonatomic,weak) UIImageView      *userSexImageView;          //用户性别指示图片
+@property (nonatomic,weak) UILabel          *userCarSeriesNameLabel;    //用户车系名称标签（如：别克GL8商务）
+@property (nonatomic,strong) NSMutableArray *contentImageViews;         //问题内容图片FMImageView
+@property (nonatomic,weak) UILabel          *detailInfoLabel;           //详细信息（时间和城市）
+@property (nonatomic,weak) UIImageView      *browseImageView;           //浏览统计前图标
+@property (nonatomic,weak) UILabel          *browseStatisticsLabel;     //浏览统计字段
+@property (nonatomic,weak) UIButton         *deleteButton;              //删除按钮
+@property (nonatomic,weak) UILabel          *commentQuestionImageView;  //评论问题指示视图
+@property (nonatomic,weak) UILabel          *commentQuestionTimesLabel; //评论次数Label
+@property (nonatomic,weak) UIView           *seperatorLineView;         //分隔线视图
+@property (nonatomic,weak) RichTextLabel    *label;                     //内容视图
+@property (nonatomic,assign) QuestionDisplayType displayType;          //当前问题
+@property (nonatomic,weak)UIButton          *replyBtn;
+@property (nonatomic,weak)UIImageView       *replyImageView;
+@property (nonatomic,assign)CGRect          cellRect;
+@end
+
+
+@implementation QuestionInfoCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        self.userInteractionEnabled = YES;
+        
+//        UILongPressGestureRecognizer *longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+//                                                                                                          action:@selector(cellLongPressed:)];
+//        [self addGestureRecognizer:longPressRecognizer];
+        
+        // Initialization code
+        //设置选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:self.bounds];
+//        [selectedView setBackgroundColor:[UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1]];
+        [selectedView setBackgroundColor:KDefaultOrNightBackGroundColor];
+
+        self.selectedBackgroundView = selectedView;
+        ///默认背景色
+        self.backgroundColor = [[FMThemeManager skin] backgroundColor];
+        self.contentView.backgroundColor = [UIColor clearColor];
+        
+        //添加车型图片
+        APAvatarImageView *carLogoImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(7.5f, 12, 27, 27)
+                                                                           borderColor:[UIColor whiteColor]
+                                                                           borderWidth:1.0f];
+        [self addSubview:carLogoImageView];
+        self.userCarLogoImageView = carLogoImageView;
+        
+        //添加用户名称标签
+        UILabel *userLable = [[UILabel alloc] init];
+        userLable.font = [UIFont systemFontOfSize:14];
+        [userLable setTextColor:KSubTitleContentTextColor];
+        [userLable setBackgroundColor:[UIColor clearColor]];
+        self.userNameLabel = userLable;
+        [self addSubview:userLable];
+        
+        //添加用户性别指示图片
+        UIImageView *userSexImageView = [[UIImageView alloc] init];
+        self.userSexImageView = userSexImageView;
+        [self addSubview:userSexImageView];
+        if(ThemeCategory==5)
+        {
+            userSexImageView.alpha=0.6;
+            userLable.alpha=0.6;
+        }
+        //添加用户车系标签
+        UILabel *userCarSeriesNameLabel = [[UILabel alloc] init];
+        userCarSeriesNameLabel.font = [UIFont systemFontOfSize:12.0f];
+        userCarSeriesNameLabel.textAlignment = UITextAlignmentRight;
+        [userCarSeriesNameLabel setBackgroundColor:[UIColor clearColor]];
+        userCarSeriesNameLabel.textColor = KSubTitleContentTextColor;
+        self.userCarSeriesNameLabel = userCarSeriesNameLabel;
+        [self addSubview:self.userCarSeriesNameLabel];
+        
+        //问题详情
+        RichTextLabel* richLable = [[RichTextLabel alloc] initWithFrame:self.bounds];
+        richLable.lineBreakMode = NSLineBreakByCharWrapping;
+        richLable.textColor = KDisableTextColor;
+        richLable.highlightedTextColor = [UIColor whiteColor];
+        richLable.numberOfLines = 0;
+        richLable.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        richLable.backgroundColor = [UIColor clearColor];
+        [self addSubview:richLable];
+        self.label = richLable;
+        
+        //添加创建时间和城市
+        UILabel *detailInfoLabel = [[UILabel alloc] init];
+        detailInfoLabel.font = [UIFont systemFontOfSize:12.0f];
+        [detailInfoLabel setBackgroundColor:[UIColor clearColor]];
+        detailInfoLabel.textColor = KSubTitleContentTextColor;
+        self.detailInfoLabel = detailInfoLabel;
+        [self addSubview:detailInfoLabel];
+        
+        //删除按钮
+        UIButton *deleteButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [deleteButton setBackgroundImage:createImageWithColor([UIColor clearColor]) forState:UIControlStateNormal];
+        [deleteButton setBackgroundImage:createImageWithColor([UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1]) forState:UIControlStateHighlighted];
+        [deleteButton setTitle:@"删除" forState:UIControlStateNormal];
+        [deleteButton setTitleColor:KContentTextCanEditColor forState:UIControlStateNormal];
+        deleteButton.titleLabel.font = [UIFont systemFontOfSize:10.0f];
+        deleteButton.hidden = YES;
+        [deleteButton addTarget:self action:@selector(deleteButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+        deleteButton.enabled = YES;
+        self.deleteButton = deleteButton;
+        [self addSubview:deleteButton];
+        
+        UIButton *replyButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [replyButton setBackgroundImage:[UIImage imageNamed:@"questionReply.png"] forState:UIControlStateNormal];
+        [replyButton addTarget:self action:@selector(questionReplyClicked:) forControlEvents:UIControlEventTouchUpInside];
+        //[replyButton addTarget:self action:@selector(hideReplyView:) forControlEvents:UIControlEventTouchUpInside];
+        replyButton.enabled = YES;
+        self.replyBtn = replyButton;
+        [self addSubview:replyButton];
+        
+        UIImageView *replyImageView=[[UIImageView alloc]initWithImage:[UIImage imageNamed:@"questionReplyBtn.png"]];
+        replyImageView.userInteractionEnabled=YES;
+        self.replyImageView=replyImageView;
+        [self.replyImageView setHidden:YES];
+        [self addSubview:replyImageView];
+        
+//        NSArray *arrBtnTitle=[[NSArray alloc]initWithObjects:@"私信",@"复制",@"举报", nil];
+//        
+//        for (int i=0; i<3; i++) {
+//            UIButton *btn=[UIButton buttonWithType:UIButtonTypeCustom];
+//            [btn setTitle:arrBtnTitle[i] forState:UIControlStateNormal];
+//            btn.titleLabel.font=[UIFont systemFontOfSize:14];
+//            [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+//            [btn setBackgroundColor:[UIColor clearColor]];
+//            [btn addTarget:self action:@selector(replyMoreBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+//            [btn setFrame:CGRectMake(i*50-1, 0, 49, 30)];
+//            btn.tag=KReplyBtnTag+i;
+//            
+//            [self.replyImageView addSubview:btn];
+//            
+//            if (i>0) {
+//                UIView *sepView=[[UIView alloc]initWithFrame:CGRectMake(50*i-1, 5, 1, 20)];
+//                sepView.backgroundColor=KSubNumbeiTextColor;
+//                [self.replyImageView addSubview:sepView];
+//            }
+//        
+//        }
+        
+//        ///浏览统计设置
+//        UIImageView *browseImage = [[UIImageView alloc]init];
+//        [browseImage setBackgroundColor:[UIColor clearColor]];
+//        [browseImage setImage:[UIImage imageNamed:@"BrowseStatisticsImage.png"]];
+//        self.browseImageView = browseImage;
+//        [self.browseImageView setHidden:YES];
+//        [self addSubview:self.browseImageView];
+//        
+//        ///浏览统计设置
+//        UILabel *browseStatistics = [[UILabel alloc] init];
+//        browseStatistics.font = [UIFont systemFontOfSize:11.0f];
+//        [browseStatistics setBackgroundColor:[UIColor clearColor]];
+//        browseStatistics.textColor = KSubTitleContentTextColor;
+//        [browseStatistics setTextAlignment:NSTextAlignmentRight];
+//        [browseStatistics setHidden:YES];
+//        self.browseStatisticsLabel = browseStatistics;
+//        [self addSubview:self.browseStatisticsLabel];
+        
+        //评论指示视图
+//        UILabel* commentTimesImageView = [FontAwesome labelWithFAIcon:FMIconReplyCount
+//                                                                 size:15.0
+//                                                                color:[[FMThemeManager skin] baseTintColor]];
+        UILabel* commentTimesImageView = [FontAwesome labelWithFAIcon:FMIconReply
+                                                                 size:15.0
+                                                                color:KSubTitleContentTextColor];
+
+        self.commentQuestionImageView = commentTimesImageView;
+        [self addSubview:commentTimesImageView];
+        
+        //评论次数Label
+        UILabel *commentTimesLabel = [[UILabel alloc] init];
+        commentTimesLabel.font = [UIFont systemFontOfSize:12.0f];
+        [commentTimesLabel setBackgroundColor:[UIColor clearColor]];
+        commentTimesLabel.textColor = KSubTitleContentTextColor;
+        self.commentQuestionTimesLabel = commentTimesLabel;
+        [self addSubview:commentTimesLabel];
+        
+        //添加分隔线
+        UIView *underLineSeparatorView = [[UIView alloc] init];
+        underLineSeparatorView.backgroundColor = [[FMThemeManager skin] sepratorColor];
+        self.seperatorLineView = underLineSeparatorView;
+        [self.contentView addSubview:underLineSeparatorView];
+        
+    }
+    return self;
+}
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+#pragma mark -长按cell
+- (void) cellLongPressed:(UILongPressGestureRecognizer *) longPressGestureRecognizer
+{
+    if (longPressGestureRecognizer.state == UIGestureRecognizerStateEnded) {
+        return;
+    }else if (longPressGestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        
+        [self becomeFirstResponder];
+        if ([self.delegate respondsToSelector:@selector(questionCellLongPressed:)]) {
+            [self.delegate questionCellLongPressed:self];
+        }
+        
+    }
+    return;
+}
+
+- (void)userTouchCellUserLogoImageView:(UITapGestureRecognizer *)recognizer{
+    if ([self.delegate respondsToSelector:@selector(questionCellPrassClickeDetailed:)]) {
+        [self.delegate questionCellPrassClickeDetailed:self];
+    }
+}
+
+//- (BOOL)canBecomeFirstResponder
+//{
+//    return YES;
+//}
+-(void)layoutSubviews
+{
+    if(self.cellType==0||self.cellType==2)
+    {
+        [self layoutInteractionSubviews];
+    }
+    else
+    {
+        [self layoutFriendDetailSubviews];
+    }
+}
+//互动页面cell布局
+- (void)layoutInteractionSubviews
+{
+    if(self.curQuestion == nil)
+        return;
+    self.userCarLogoImageView.contentMode = UIViewContentModeScaleAspectFill;
+    if(self.displayType==QuestionDisplayTypeQuestionList)
+    {
+        self.userCarLogoImageView.frame=CGRectMake(7.5f, 17, 27, 27);
+    }
+    else
+    {
+        
+        self.userCarLogoImageView.frame=CGRectMake(7.5f, 18+5, 27, 27);
+    }
+    
+    GLfloat textLeftMargin = 50;
+    CGRect rc = self.bounds;
+    
+    if (self.displayType == QuestionDisplayTypeQuestionDetail) {
+        textLeftMargin = kQuestionCellMargin;
+        self.userCarLogoImageView.hidden = YES;
+        self.userNameLabel.hidden = YES;
+        self.userCarSeriesNameLabel.hidden = YES;
+        self.commentQuestionImageView.hidden = YES;
+    }else{
+        self.userCarLogoImageView.hidden = NO;
+        self.userNameLabel.hidden = NO;
+        self.userCarSeriesNameLabel.hidden= NO;
+        self.commentQuestionImageView.hidden = NO;
+    }
+    
+    //提问者名称
+    if (self.displayType==QuestionDisplayTypeCircleList) {
+        
+        self.userNameLabel.textColor=KContentTextCanEditColor;
+    }
+    
+    CGSize userNameLabelSize = [self.userNameLabel.text sizeWithFont:self.userNameLabel.font];
+    //    self.userNameLabel.frame = CGRectMake(textLeftMargin, kQuestionCellMargin, userNameLabelSize.width, userNameLabelSize.height);
+    self.userNameLabel.frame = CGRectMake(textLeftMargin-10,13+5+(40-userNameLabelSize.height)/2, userNameLabelSize.width, userNameLabelSize.height);
+    if (self.displayType==QuestionDisplayTypeQuestionList) {
+        self.userNameLabel.frame = CGRectMake(textLeftMargin-10,13+(40-userNameLabelSize.height)/2, userNameLabelSize.width, userNameLabelSize.height);
+        
+    }
+    //提问者性别
+    self.userSexImageView.frame = CGRectMake(textLeftMargin + userNameLabelSize.width-8, 12+(40-userNameLabelSize.height)/2, 16, 16);
+    
+    textLeftMargin=10;
+    GLfloat contentLabelHeight = 0;
+    GLfloat contentLabelWidth = rc.size.width - 10 - kQuestionCellMargin;
+    if (self.displayType == QuestionDisplayTypeQuestionList) {
+        contentLabelHeight = [self.curQuestion getShortContentHeight:contentLabelWidth];
+    }else{
+        
+        contentLabelHeight = [self.curQuestion getContentHeight:contentLabelWidth];
+    }
+    GLfloat textOrginY = 0;
+    if (self.displayType == QuestionDisplayTypeQuestionDetail) {
+        textOrginY = kQuestionCellMargin;
+    }else{
+        textOrginY = 32 + 2 * kQuestionCellMargin;
+    }
+    //问题内容
+    self.label.frame = CGRectMake(textLeftMargin ,
+                                  textOrginY,
+                                  contentLabelWidth,
+                                  contentLabelHeight);
+    //设置问题照片
+    textLeftMargin=50;
+    
+    int i = 0;
+    CGFloat imageOrgX = textLeftMargin;
+    CGFloat imageOrgY = self.label.frame.origin.y + contentLabelHeight + kQuestionCellMargin+2;
+    for (FMImageView* imageView in self.contentImageViews) {
+        FMImage* im = [self.curQuestion.images objectAtIndex:i];
+        if ([self.contentImageViews count] == 1) {
+            imageView.frame = CGRectMake(imageOrgX, imageOrgY,im.imageSize.width,im.imageSize.height);
+            
+        if (im.imageSize.width>KProjectScreenWidth-100) {
+                imageView.frame = CGRectMake((KProjectScreenWidth-im.imageSize.width)/2, imageOrgY,im.imageSize.width,im.imageSize.height);
+                
+            }
+
+        }else{
+            imageView.frame = CGRectMake(imageOrgX, imageOrgY,KMulImageSize,KMulImageSize);
+        }
+        i++;
+        if (i % 3 == 0) {
+            imageOrgX = textLeftMargin;
+            imageOrgY += KMulImageSize + kImageGap;
+        }else{
+            imageOrgX += KMulImageSize + kImageGap;
+        }
+        imageView.backLayer.frame=imageView.bounds;
+    }
+    textLeftMargin=10;
+    
+    //设置时间和城市名称
+    CGSize timeSize = [self.detailInfoLabel.text sizeWithFont:self.detailInfoLabel.font];
+    if (self.displayType==QuestionDisplayTypeQuestionDetail) {
+        self.detailInfoLabel.frame = CGRectMake(textLeftMargin,
+                                                rc.size.height - timeSize.height - kQuestionCellMargin/2,
+                                                timeSize.width,
+                                                timeSize.height);
+    }
+    else
+    {
+        self.detailInfoLabel.frame = CGRectMake(textLeftMargin,
+                                                rc.size.height - timeSize.height - kQuestionCellMargin/2-15,
+                                                KProjectScreenWidth-40-textLeftMargin,
+                                                timeSize.height);
+    }
+    //删除
+    if (self.displayType != QuestionDisplayTypeQuestionList) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:self.curQuestion.publishUserInfo.userID]) {
+            self.deleteButton.hidden = YES;
+            if (self.curQuestion.whetherDelete) {
+            self.deleteButton.hidden = NO;
+
+            }
+            [self.deleteButton setFrame:CGRectMake(textLeftMargin + timeSize.width + 4,
+                                                   self.detailInfoLabel.frame.origin.y,
+                                                   40,
+                                                   timeSize.height)];
+            
+            
+            ///若属于回复列表内容的
+            if (self.displayType != QuestionDisplayTypeReply) {
+                [self.browseStatisticsLabel setHidden:NO];
+                CGSize browseStatisticsSize = [self.browseStatisticsLabel.text sizeWithFont:self.browseStatisticsLabel.font];
+                [self.browseImageView setHidden:NO];
+                [self.browseImageView setFrame:CGRectMake(rc.size.width - 10-browseStatisticsSize.width -15, rc.size.height - timeSize.height - kQuestionCellMargin/2, 12, 12)];
+                [self.browseStatisticsLabel setFrame:CGRectMake(rc.size.width - 10-browseStatisticsSize.width, rc.size.height - timeSize.height - kQuestionCellMargin/2, browseStatisticsSize.width, browseStatisticsSize.height)];
+            }
+        }
+        
+    }
+    //评论次数Label
+    CGSize commentQuestionTimesSize = [self.commentQuestionTimesLabel.text sizeWithFont:self.commentQuestionTimesLabel.font];
+    self.commentQuestionTimesLabel.frame = CGRectMake(rc.size.width - commentQuestionTimesSize.width - kQuestionCellMargin,
+                                                      self.detailInfoLabel.frame.origin.y,
+                                                      commentQuestionTimesSize.width,
+                                                      commentQuestionTimesSize.height);
+    //评论次数指示视图
+    self.commentQuestionImageView.frame = CGRectMake(self.commentQuestionTimesLabel.frame.origin.x - 15 - 6.5,
+                                                     self.detailInfoLabel.frame.origin.y,
+                                                     15,
+                                                     14);
+    //分隔线
+    self.seperatorLineView.frame = CGRectMake(0,
+                                              rc.size.height - 0.5,
+                                              rc.size.width,
+                                              0.5);
+}
+- (void) displayQuestion:(QuestionInfo* )question
+{
+
+    self.curQuestion = question;
+    if (!self.cellType) {
+    self.displayType = QuestionDisplayTypeQuestionList;
+    }
+    else
+    {
+    self.displayType = QuestionDisplayTypeCircleList;
+  
+    }
+    [self.userCarLogoImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@thumb",
+                                                                     KMediaServerImagesInforURL,
+                                                                     question.publishUserInfo.userAvatar]]
+                              placeholderImage:kImgDefaultCar];
+    
+    self.userNameLabel.text = question.publishUserInfo.userName;
+    
+    if (question.publishUserInfo.userSex == 1) {//性别为男
+        self.userSexImageView.image = kImgSexMan;
+    }else {//性别为女
+        self.userSexImageView.image = kImgSexWomman;
+    }
+    [self.userSexImageView setHidden:NO];
+    //车系名称
+    self.userCarSeriesNameLabel.text = question.publishUserInfo.userCarSeriesName;
+
+    //问题内容
+    self.label.attString = question.attributedQuestionSmallContent;
+    
+//[self.label.attString addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:20] range:NSMakeRange(0,self.label.attString.length)];
+    //设置问题照片
+    for (FMImageView* imageView in self.contentImageViews) {
+        [imageView removeFromSuperview];
+    }
+    if (self.contentImageViews == nil) {
+        self.contentImageViews = [NSMutableArray array];
+    }else{
+        
+        [self.contentImageViews removeAllObjects];
+    }
+    NSMutableArray* keyList = [NSMutableArray array];
+    for (FMImage* im in question.images) {
+        if (IsStringEmptyOrNull(im.url)) {
+            continue;
+        }
+        [keyList addObject:im.url];
+    }
+    NSInteger i = 0;
+    for (FMImage* im in question.images) {
+        if (IsStringEmptyOrNull(im.url)) {
+            continue;
+        }
+        FMImageView *contentImageView = [[FMImageView alloc] init];
+        contentImageView.backgroundColor =KUIImageViewDefaultColor;
+        contentImageView.contentMode = UIViewContentModeScaleAspectFill;
+        contentImageView.clipsToBounds = YES;
+        [self addSubview:contentImageView];
+        //只有正常状态的问题才真正加载图片
+        if (question.status == QuestionStatusNormal) {
+            [contentImageView setAlbum:keyList currentIndex:i++];
+        }
+        [self.contentImageViews addObject:contentImageView];
+        
+    }
+
+    //设置时间和当前位置
+    self.detailInfoLabel.text = [NSString stringWithFormat:@"%@  %@",question.createTime,question.publishUserInfo.userStreet];
+ //   self.detailInfoLabel.text = [NSString stringWithFormat:@"%@",question.createTime];
+
+
+    //评论次数Label
+    self.commentQuestionTimesLabel.text = [NSString stringWithFormat:@"%@", question.commentTimes];
+   // [self.commentQuestionImageView setImage:[UIImage imageNamed:@"Interaction_PrivateMessage"]];
+    [self setNeedsLayout];
+}
+- (void) displayQuestionDetail:(QuestionInfo* )question
+{
+    self.curQuestion = question;
+    self.displayType = QuestionDisplayTypeQuestionDetail;
+    
+    //问题内容
+    self.label.attString = question.attributedQuestionContent;
+    //[self.label.attString addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:20] range:NSMakeRange(0,self.label.attString.length)];
+    
+    //设置问题照片
+    for (FMImageView* imageView in self.contentImageViews) {
+        [imageView removeFromSuperview];
+    }
+    if (self.contentImageViews == nil) {
+        self.contentImageViews = [NSMutableArray array];
+    }else{
+        [self.contentImageViews removeAllObjects];
+    }
+    NSMutableArray* keyList = [NSMutableArray array];
+    for (FMImage* im in question.images) {
+        if (IsStringEmptyOrNull(im.url)) {
+            continue;
+        }
+        [keyList addObject:im.url];
+    }
+    NSInteger i = 0;
+    for (FMImage* im in question.images) {
+        if (IsStringEmptyOrNull(im.url)) {
+            continue;
+        }
+        FMImageView *contentImageView = [[FMImageView alloc] init];
+        contentImageView.backgroundColor = KUIImageViewDefaultColor;
+        contentImageView.contentMode = UIViewContentModeScaleAspectFill;
+        contentImageView.clipsToBounds = YES;
+        [self addSubview:contentImageView];
+        [contentImageView setAlbum:keyList currentIndex:i++];
+        [self.contentImageViews addObject:contentImageView];
+        
+    }
+
+    //设置时间和城市名称
+//    self.detailInfoLabel.text = [NSString stringWithFormat:@"%@  %@",question.createTime,question.publishUserInfo.userStreet];
+    //设置时间和城市名称
+    
+    self.detailInfoLabel.text = [NSString stringWithFormat:@"%@",question.createTime];
+
+    [self.seperatorLineView setHidden:YES];
+    
+    
+//    [self.browseStatisticsLabel setText:[NSString stringWithFormat:@"%d人来过",question.browseStatisticsInteger]];
+    [self setNeedsLayout];
+}
+//互动问题回复页面布局
+- (void)layoutFriendDetailSubviews
+{
+    
+    if(self.curQuestion == nil)
+        return;
+    
+    self.userCarLogoImageView.contentMode = UIViewContentModeScaleAspectFill;
+    self.userCarLogoImageView.frame=CGRectMake(10.0f, 15, 27, 27);
+    
+    GLfloat textLeftMargin = 40;
+    GLfloat textHigheMargin = 21;
+    
+    CGRect rc = self.bounds;
+    self.cellRect=rc;
+    
+    self.userCarLogoImageView.hidden = NO;
+    self.userNameLabel.hidden = NO;
+    self.userCarSeriesNameLabel.hidden= NO;
+    self.commentQuestionImageView.hidden = NO;
+    
+    //提问者名称
+    CGSize userNameLabelSize = [self.userNameLabel.text sizeWithFont:self.userNameLabel.font];
+    self.userNameLabel.frame = CGRectMake(textLeftMargin, textHigheMargin, userNameLabelSize.width, userNameLabelSize.height);
+    self.userNameLabel.textColor=KSubTitleContentTextColor;
+    
+    //提问者性别
+    self.userSexImageView.frame = CGRectMake(textLeftMargin + userNameLabelSize.width, textHigheMargin-1, 15, 15);
+    
+    GLfloat contentLabelHeight = 0;
+    GLfloat contentLabelWidth = rc.size.width - textLeftMargin - textHigheMargin;
+    
+    contentLabelHeight = [self.curQuestion getContentHeight:contentLabelWidth];
+    
+    GLfloat textOrginY = 0;
+    textOrginY = userNameLabelSize.height + 2 * textHigheMargin;
+    
+    //问题内容
+    self.label.frame = CGRectMake(textLeftMargin ,
+                                  textOrginY-10,
+                                  contentLabelWidth,
+                                  contentLabelHeight);
+    
+    
+    self.replyBtn.frame=CGRectMake(KProjectScreenWidth-65,
+                                   rc.size.height - 33,
+                                   50,
+                                   26);
+    
+    
+    //设置时间和城市名称
+    CGSize timeSize = [self.detailInfoLabel.text sizeWithFont:self.detailInfoLabel.font];
+    self.detailInfoLabel.frame = CGRectMake(textLeftMargin,
+                                            rc.size.height - timeSize.height - textHigheMargin/2,
+                                            KProjectScreenWidth-70-textLeftMargin,
+                                            timeSize.height);
+    
+    //删除
+    if (self.displayType != QuestionDisplayTypeQuestionList) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:self.curQuestion.publishUserInfo.userID]) {
+            self.deleteButton.hidden = NO;
+            [self.deleteButton setFrame:CGRectMake(textLeftMargin + timeSize.width + 4,
+                                                   self.detailInfoLabel.frame.origin.y,
+                                                   40,
+                                                   timeSize.height)];
+            
+            ///若属于回复列表内容的
+            if (self.displayType != QuestionDisplayTypeReply) {
+                [self.browseStatisticsLabel setHidden:NO];
+                CGSize browseStatisticsSize = [self.browseStatisticsLabel.text sizeWithFont:self.browseStatisticsLabel.font];
+                [self.browseImageView setHidden:NO];
+                [self.browseImageView setFrame:CGRectMake(rc.size.width - 10-browseStatisticsSize.width -15, rc.size.height - timeSize.height - textHigheMargin/2, 12, 12)];
+                [self.browseStatisticsLabel setFrame:CGRectMake(rc.size.width - 10-browseStatisticsSize.width, rc.size.height - timeSize.height - textHigheMargin/2, browseStatisticsSize.width, browseStatisticsSize.height)];
+            }
+        }
+    }
+    
+    //评论次数指示视图
+    [self.commentQuestionImageView setHidden:YES];
+    
+    //分隔线
+    self.seperatorLineView.frame = CGRectMake(0,
+                                              rc.size.height - 0.5,
+                                              rc.size.width,
+                                              0.5);
+}
+
+//显示回复信息
+- (void) displayReply:(QuestionInfo* )question
+{
+
+//    UILongPressGestureRecognizer *longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+//                                                                                                      action:@selector(cellLongPressed:)];
+//    [self addGestureRecognizer:longPressRecognizer];
+
+    
+    //[self layoutFriendDetailSubviews];
+    self.curQuestion = question;
+    self.displayType = QuestionDisplayTypeReply;
+    
+    [self.userCarLogoImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@thumb",
+                                                                     KMediaServerImagesInforURL,
+                                                                     question.publishUserInfo.userAvatar]]
+                              placeholderImage:kImgDefaultCar];
+    
+    
+    [self.userCarLogoImageView setContentMode:UIViewContentModeScaleToFill];
+    [self.userCarLogoImageView setClipsToBounds:YES];
+    [self.userCarLogoImageView setUserInteractionEnabled:YES];
+    ///设置点击内容
+    UITapGestureRecognizer *mapViewTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(userTouchCellUserLogoImageView:)];
+    mapViewTapRecognizer.delegate = self;
+    [self.userCarLogoImageView addGestureRecognizer:mapViewTapRecognizer];
+    
+    self.userNameLabel.text = question.publishUserInfo.userName;
+    
+    if (question.publishUserInfo.userSex == 1) {//性别为男
+        self.userSexImageView.image = kImgSexMan;
+    }else {//性别为女
+        self.userSexImageView.image = kImgSexWomman;
+    }
+    //车系名称
+    //self.userCarSeriesNameLabel.text = question.createTime;
+    
+    //问题内容
+    self.label.attString = question.attributedQuestionContent;
+    //[self.label.attString addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:18] range:NSMakeRange(0,self.label.attString.length)];
+    
+    //设置问题照片
+    for (FMImageView* imageView in self.contentImageViews) {
+        [imageView removeFromSuperview];
+    }
+    if (self.contentImageViews == nil) {
+        self.contentImageViews = [NSMutableArray array];
+    }else{
+        [self.contentImageViews removeAllObjects];
+    }
+    NSMutableArray* keyList = [NSMutableArray array];
+    for (FMImage* im in question.images) {
+        [keyList addObject:im.url];
+    }
+    NSInteger i = 0;
+    for (FMImage* im in question.images) {
+        FMImageView *contentImageView = [[FMImageView alloc] init];
+        //contentImageView.backgroundColor = KUIImageViewDefaultColor;
+        contentImageView.contentMode = UIViewContentModeScaleAspectFill;
+        contentImageView.clipsToBounds = YES;
+        [self addSubview:contentImageView];
+        [contentImageView setAlbum:keyList currentIndex:i++];
+        [self.contentImageViews addObject:contentImageView];
+        
+    }
+    
+    for(UIView *v in self.replyImageView.subviews)
+    {
+        if ([v isKindOfClass:[UIButton class]]) {
+            [v removeFromSuperview];
+        }
+    }
+    
+    if ([question.publishUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        UIButton *btn=[UIButton buttonWithType:UIButtonTypeCustom];
+        [btn setTitle:@"复制" forState:UIControlStateNormal];
+        btn.titleLabel.font=[UIFont systemFontOfSize:16];
+        [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [btn setBackgroundColor:[UIColor clearColor]];
+        [btn addTarget:self action:@selector(replyMoreBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        [btn setFrame:CGRectMake(0, 0, 59, 36)];
+        btn.tag=KReplyBtnTag;
+        [self.replyImageView addSubview:btn];
+
+    }
+    else
+    {
+    NSArray *arrBtnTitle=[[NSArray alloc]initWithObjects:@"私信",@"复制",@"举报", nil];
+    
+    for (int i=0; i<3; i++) {
+        UIButton *btn=[UIButton buttonWithType:UIButtonTypeCustom];
+        [btn setTitle:arrBtnTitle[i] forState:UIControlStateNormal];
+        btn.titleLabel.font=[UIFont systemFontOfSize:16];
+        [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [btn setBackgroundColor:[UIColor clearColor]];
+        [btn addTarget:self action:@selector(replyMoreBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+        [btn setFrame:CGRectMake(i*60-1, 0, 59, 36)];
+        btn.tag=KReplyBtnTag+i;
+        
+        [self.replyImageView addSubview:btn];
+        
+        if (i>0) {
+            UIView *sepView=[[UIView alloc]initWithFrame:CGRectMake(60*i-1, 5, 1, 26)];
+            sepView.backgroundColor=KSubNumbeiTextColor;
+            [self.replyImageView addSubview:sepView];
+        }
+    }
+    }
+    
+    //self.commentQuestionImageView.image = [UIImage imageNamed:@"Interaction_QuestionDetail_Comment.png"];
+    self.commentQuestionImageView.text = [NSString fontAwesomeIconStringForEnum:FMIconNULL];
+    //设置时间和当前位置
+    
+    self.detailInfoLabel.font=[UIFont systemFontOfSize:12];
+    if ([question.publishUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        self.detailInfoLabel.text = [NSString stringWithFormat:@"%@",question.createTime];
+    }else{
+        self.detailInfoLabel.text = [NSString stringWithFormat:@"%@  %@",question.createTime,question.publishUserInfo.userStreet];
+    }
+    
+    [self setNeedsLayout];
+}
+#pragma mark -删除按钮点击时
+-(void)questionReplyClicked:(id) sender
+{
+    
+    [self.delegate replyMoreBtnClickWithSecfCell:self];
+
+    if (self.replyImageView.hidden) {
+        
+        [self OpenMoreBtnWithAnimateWithDuration];
+        
+    }
+    else
+    {
+        [self hideMoreBtnWithAnimateWithDuration];
+
+    }
+}
+- (void)OpenMoreBtnWithAnimateWithDuration
+{
+    
+    CGRect rc = self.cellRect;
+    
+    self.replyImageView.frame=CGRectMake(KProjectScreenWidth-65, rc.size.height -40, 0, 36);
+    
+    [UIView beginAnimations:@"OpenMoreBtn" context:nil];
+    [UIView setAnimationDuration:0.2f];
+    
+    if([self.curQuestion.publishUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID])
+    {
+        self.replyImageView.frame=CGRectMake(KProjectScreenWidth-65-70, rc.size.height -40, 65, 36);
+    }
+    else
+    {
+        self.replyImageView.frame=CGRectMake(KProjectScreenWidth-65-190, rc.size.height -40, 185, 36);
+        
+    }
+
+    self.replyImageView.hidden=NO;
+    
+    [UIView commitAnimations];
+    
+}
+- (void)hideMoreBtnWithAnimateWithDuration
+{
+    
+    if (!self.replyImageView.hidden) {
+        
+        [UIView beginAnimations:@"hideMoreBtn" context:nil];
+        [UIView setAnimationDuration:0.2f];
+        //    self.replyImageView.frame=CGRectMake(KProjectScreenWidth-65, rc.size.height -40, 0, 34);
+        
+        self.replyImageView.hidden=YES;
+        
+        [UIView commitAnimations];
+
+    }
+}
+
+-(void)replyMoreBtnClick:(UIButton *)btn
+{
+    [self.delegate questionReplyMoreBtnWithDetail:self.curQuestion WithSelectBtnTag:btn.tag-KReplyBtnTag];
+        [self hideMoreBtnWithAnimateWithDuration];
+    
+}
+
+- (void) deleteButtonClicked:(id) sender
+{
+    if ([self.delegate respondsToSelector:@selector(questionCellDelete:)]) {
+        [self.delegate questionCellDelete:self];
+    }
+}
+
++ (CGFloat)getQuestionImageHeight:(QuestionInfo* )question
+{
+    if ([question.images count] == 0) {
+        return  0.0;
+    }
+    if ([question.images count] == 1) {
+        FMImage* im = (FMImage* )[question.images objectAtIndex:0];
+        return im.imageSize.height + 15;
+    }else{
+        int rows = ([question.images count] - 1)/ 3 + 1;
+        return rows * KMulImageSize + (rows - 1) * kImageGap + 15;
+    }
+}
+@end

@@ -1,0 +1,514 @@
+//
+//  RadioPlayViewController.m
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-13.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "RadioPlayController.h"
+#import "JSONKit.h"
+#import "ProgramInfo.h"
+#import "EmceeInfo.h"
+#import "PublishQuestionViewController.h"
+#import "LocalDataManagement.h"
+#import <AVFoundation/AVFoundation.h>
+#import "RadioPlayer.h"
+#import "HTTPClient+Interaction.h"
+
+#define kScrollViewTag 10001
+#define kCancelItemButtonTag 10002
+#define kPlayButtonTag 10003
+#define kAtButtonTag 10004
+#define kProgramNameLabelTag 10005
+#define kLoadActivityIndicatorViewTag 10006
+#define kEmceePageControlTag 10007
+#define kPraiseButtonTag 10008
+#define kPraisedNumLabelTag 10009
+
+
+
+
+@interface RadioPlayController ()
+@property (nonatomic, weak)  AFHTTPRequestOperation *requestDataOperation;
+@end
+
+@implementation RadioPlayController
+
+- (id) init
+{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [UIColor whiteColor];
+    
+}
+
+- (void)viewDidLoad
+{
+    if ([self respondsToSelector:@selector(edgesForExtendedLayout)]){
+        self.edgesForExtendedLayout = UIRectEdgeNone;
+    }
+     
+    [self settingContentView];//设置内容视图
+    
+    [self getProgramData];//获取主持人数据
+    
+#if defined (YT)||(WF)
+    WebViewPlayerController *webViewPlayer =  [WebViewPlayerController sharedWebViewPlayer];
+    webViewPlayer.delegate = self;
+#endif
+    
+    [super viewDidLoad];
+}
+
+- (void) viewWillAppear:(BOOL)animated
+{
+    [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationSlide];//隐藏状态栏
+}
+
+- (void) viewWillDisappear:(BOOL)animated
+{
+    [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:UIStatusBarAnimationFade];//显示状态栏
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+
+- (BOOL)prefersStatusBarHidden
+{
+    return YES;
+}
+
+#pragma mark -
+#pragma mark -自定义方法
+
+#pragma mark -设置内容视图
+- (void) settingContentView
+{
+    UIImageView *bgImageView = [[UIImageView alloc] initWithFrame:self.view.bounds];
+    [bgImageView setImage:[UIImage imageNamed:@"RadioPlay_Bg.jpg"]];
+    [self.view addSubview:bgImageView];
+
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    mainScrollView.tag = kScrollViewTag;
+    mainScrollView.pagingEnabled = YES;
+    mainScrollView.showsHorizontalScrollIndicator = NO;
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    mainScrollView.delegate = self;
+    [self.view addSubview:mainScrollView];
+    
+    //节目名称
+    UILabel *programNameLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 35, KProjectScreenWidth, 30)];
+    programNameLabel.tag = kProgramNameLabelTag;
+    programNameLabel.text = @"节目内容";
+    programNameLabel.font = [UIFont systemFontOfSize:20.0f];
+    programNameLabel.backgroundColor = [UIColor clearColor];
+    programNameLabel.textAlignment = NSTextAlignmentCenter;
+    programNameLabel.textColor = [UIColor whiteColor];
+    [self.view addSubview:programNameLabel];
+    
+    //节目名称下方图片指示视图
+    UIImageView *programNameUnderLineImageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"RadioPlay_NameUnderLine.png"]];
+    [programNameUnderLineImageView setFrame:CGRectMake(34.5, 70.0f, KProjectScreenWidth-34.5*2, 4.5)];
+    [self.view addSubview:programNameUnderLineImageView];
+
+    
+    //页码显示
+    UIPageControl *emceePageControl = [[UIPageControl alloc] initWithFrame:CGRectMake(0, KProjectScreenHeight-20 - 90, KProjectScreenWidth, 10)];
+    emceePageControl.tag = kEmceePageControlTag;
+    [self.view addSubview:emceePageControl];
+
+    
+    //取消按钮
+    UIButton *cancelItemButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    cancelItemButton.tag = kCancelItemButtonTag;
+    [cancelItemButton setFrame:CGRectMake(20.0f, KProjectScreenHeight-20 - 43, 33.0f, 33.0f)];
+    [cancelItemButton setImage:[UIImage imageNamed:@"RadioPlay_CancelItem.png"] forState:UIControlStateNormal];
+    [cancelItemButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [cancelItemButton setShowsTouchWhenHighlighted:YES];//按亮
+    [self.view addSubview:cancelItemButton];
+    
+    //播放按钮
+    UIButton *playButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    playButton.tag = kPlayButtonTag;
+    [playButton setFrame:CGRectMake((KProjectScreenWidth-63)/2, KProjectScreenHeight-20 - 73, 63.0f, 63.0f)];
+    
+#if defined (YT)||(WF)
+#if TARGET_IPHONE_SIMULATOR
+    BOOL isPlayed = FALSE;
+#else
+    //    BOOL isPlayed = [[RadioPlayer sharedInstance] isPlayed];
+    BOOL isPlayed = [[WebViewPlayerController sharedWebViewPlayer] isPlayed];
+#endif
+    if (isPlayed) {
+        [playButton setImage:[UIImage imageNamed:@"RadioPlay_Stop.png"] forState:UIControlStateNormal];
+    }else{
+        [playButton setImage:[UIImage imageNamed:@"RadioPlay_Play.png"] forState:UIControlStateNormal];
+    }
+    [playButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [playButton setShowsTouchWhenHighlighted:YES];//按亮
+    BOOL isLoadedWebView = [[WebViewPlayerController sharedWebViewPlayer] isLoadedWebView];
+    if (!isLoadedWebView) {
+        playButton.hidden = YES;
+    }
+    
+    //加载指示视图
+    UIActivityIndicatorView *activityIndicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
+    activityIndicatorView.tag = kLoadActivityIndicatorViewTag;
+    if (!isLoadedWebView) {
+        [activityIndicatorView startAnimating];
+    }
+    [activityIndicatorView setHidesWhenStopped:YES];
+    
+    activityIndicatorView.frame = CGRectMake(141.5f, 460 + (HUIIsIPhone5() ? 88 : 0) - 60, 37, 37);
+    [self.view addSubview:activityIndicatorView];
+    
+    [self.view addSubview:playButton];
+    
+#else
+#if TARGET_IPHONE_SIMULATOR
+    BOOL isPlayed = FALSE;
+#else
+    BOOL isPlayed = [[RadioPlayer sharedInstance] isPlayed];
+#endif
+    if (isPlayed) {
+        [playButton setImage:[UIImage imageNamed:@"RadioPlay_Stop.png"] forState:UIControlStateNormal];
+    }else{
+        [playButton setImage:[UIImage imageNamed:@"RadioPlay_Play.png"] forState:UIControlStateNormal];
+    }
+    [playButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [playButton setShowsTouchWhenHighlighted:YES];//按亮
+
+    [self.view addSubview:playButton];
+#endif
+    
+    //@主持人
+    UIButton *atButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    atButton.tag = kAtButtonTag;
+    [atButton setFrame:CGRectMake(KProjectScreenWidth-20-33, KProjectScreenHeight-20 - 43, 33.0f, 33.0f)];
+    [atButton setImage:[UIImage imageNamed:@"RadioPlay_AtItem.png"] forState:UIControlStateNormal];
+    [atButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [atButton setShowsTouchWhenHighlighted:YES];//按亮
+    [self.view addSubview:atButton];
+    
+    //被赞次数
+    ////正常图片
+    UIImage *praiseNormalImage = [UIImage imageNamed:@"RadioPlay_Praise_Normal.png"];
+    praiseNormalImage = [praiseNormalImage stretchableImageWithLeftCapWidth:60 topCapHeight:0];
+    ////高亮图片
+    UIImage *praiseHighlightImage = [UIImage imageNamed:@"RadioPlay_Praise_Highlight.png"];
+    praiseHighlightImage = [praiseHighlightImage stretchableImageWithLeftCapWidth:60 topCapHeight:0];
+    UIButton *praiseButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    praiseButton.tag = kPraiseButtonTag;
+    [praiseButton setBackgroundImage:praiseNormalImage forState:UIControlStateNormal];
+    [praiseButton setBackgroundImage:praiseHighlightImage forState:UIControlStateHighlighted];
+    [praiseButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [praiseButton setFrame:CGRectMake(KProjectScreenWidth-80, 90, 80, 48)];
+    ////赞次数Label
+    UILabel *praisedNumLabel = [[UILabel alloc] init];
+    praisedNumLabel.textColor = [UIColor colorWithRed:197/255.0f green:199/255.0f blue:195/255.0f alpha:1.0f];
+    praisedNumLabel.font = [UIFont systemFontOfSize:12.0f];
+    praisedNumLabel.backgroundColor = [UIColor clearColor];
+    praisedNumLabel.tag = kPraisedNumLabelTag;
+    [praiseButton addSubview:praisedNumLabel];
+    
+    [self.view addSubview:praiseButton];
+}
+
+#pragma mark -按钮点击时
+- (void) buttonClicked:(id) sender
+{
+    UIButton *button = (UIButton *)sender;
+    
+    if (button.tag == kCancelItemButtonTag) {//取消Item
+        [self dismissModalViewControllerAnimated:YES];
+        
+        /*
+        if([WebViewPlayerController sharedWebViewPlayer].isLoadedWebView)
+        {
+        }*/
+    }else if(button.tag == kAtButtonTag){//@
+        
+        
+        if (self.currentProgramInfo.emceeArray.count > 0) {
+            //当前主持人信息
+            EmceeInfo *emceeInfo = [self.currentProgramInfo.emceeArray objectAtIndex:emceeIndex];
+            
+            NSDictionary *personDic = [[NSDictionary alloc] initWithObjectsAndKeys:emceeInfo.idetity,@"id",emceeInfo.name,@"name",@"2",@"role", nil];
+            PublishQuestionViewController *publishQuestionController = [[PublishQuestionViewController alloc] initWithPersonDictionary:personDic];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:publishQuestionController];
+            [self presentModalViewController:navController animated:YES];
+        }
+    }else if(button.tag == kPlayButtonTag){//播放按钮
+        
+#if defined (WF)||(YT)
+        //添加后台播放代码：
+        AVAudioSession *session = [AVAudioSession sharedInstance];
+        [session setActive:YES error:nil];
+        [session setCategory:AVAudioSessionCategoryPlayback error:nil];
+        //以及设置app支持接受远程控制事件代码。设置app支持接受远程控制事件，
+        //其实就是在dock中可以显示应用程序图标，同时点击该图片时，打开app。
+        //或者锁屏时，双击home键，屏幕上方出现应用程序播放控制按钮。
+        [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+        
+        [[WebViewPlayerController sharedWebViewPlayer] playOrStopPlay];//开始播放或停止播放
+        
+        BOOL isPlayed = [[WebViewPlayerController sharedWebViewPlayer] isPlayed];
+        [[WebViewPlayerController sharedWebViewPlayer] setIsPlayed:!isPlayed];
+        
+        if ([[WebViewPlayerController sharedWebViewPlayer] isPlayed]) {
+            [button setImage:[UIImage imageNamed:@"RadioPlay_Stop.png"] forState:UIControlStateNormal];
+        }else{
+            [button setImage:[UIImage imageNamed:@"RadioPlay_Play.png"] forState:UIControlStateNormal];
+        }
+#else
+        
+#if !TARGET_IPHONE_SIMULATOR
+        
+        
+        RadioPlayer *radioPlayer =  [RadioPlayer sharedInstance];
+        [radioPlayer setRadioUrlString:kRadioURL];
+        BOOL isPlayed = [radioPlayer isPlayed];//正在播放
+        
+        if (!isPlayed) {//正在播放
+            [radioPlayer play];
+            [button setImage:[UIImage imageNamed:@"RadioPlay_Stop.png"] forState:UIControlStateNormal];
+        }else{
+            [radioPlayer stop];
+            [button setImage:[UIImage imageNamed:@"RadioPlay_Play.png"] forState:UIControlStateNormal];
+        }
+#endif
+#endif
+    }else if(button.tag == kPraiseButtonTag){//赞按钮
+        
+        if (self.currentProgramInfo.emceeArray.count <= 0) {
+            
+            ShowImportErrorAlertView(@"本时段为重播，暂无直播节目主持人信息");
+            return;
+        }
+        
+        EmceeInfo *emceeInfo = [self.currentProgramInfo.emceeArray objectAtIndex:emceeIndex];
+        if (![praisedEmceeArray containsObject:emceeInfo.idetity]) {
+            [self praiseEmcee];
+        }
+    }
+}
+
+#pragma mark -获取节目数据
+- (void) getProgramData
+{
+    [self.requestDataOperation cancel];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient getCurrentProgram:^(WebAPIResponse *response) {
+                           
+                           dispatch_async(dispatch_get_main_queue(), ^(void){
+
+                               if(response.code == WebAPIResponseCodeSuccess){
+                                   
+                                   NSDictionary* dataDic = [response.responseObject objectForKey:kDataKeyData];
+                                   if([dataDic isKindOfClass:[NSDictionary class]]){
+                                       weakSelf.currentProgramInfo = [ProgramInfo programWithUnserializedJSONDic:dataDic];
+                                       [weakSelf freshProgramInfo];
+                                   }
+                               }
+                           });
+                       }];
+    
+    
+}
+
+- (void)freshProgramInfo
+{
+    CGRect rc = self.view.bounds;
+    //节目名称
+    UILabel *nameLabel = (UILabel *)[self.view viewWithTag:kProgramNameLabelTag];
+    nameLabel.text = self.currentProgramInfo.name;
+    
+    UIScrollView *mainScrollView = (UIScrollView *)[self.view viewWithTag:kScrollViewTag];
+    mainScrollView.backgroundColor = [UIColor colorWithRed:11/255.0f green:12/255.0f blue:9/255.0f alpha:1];
+    
+    //设置页码
+    UIPageControl *emceePageControl = (UIPageControl *)[self.view viewWithTag:kEmceePageControlTag];
+    emceePageControl.numberOfPages = self.currentProgramInfo.emceeArray.count;
+    
+    for (int i = 0; i < self.currentProgramInfo.emceeArray.count; i++) {
+
+            EmceeInfo *emceeInfo = (EmceeInfo *)[self.currentProgramInfo.emceeArray objectAtIndex:i];
+        
+            //背景图片
+            UIImageView *bgImageView = [[UIImageView alloc] initWithFrame:CGRectMake(i * rc.size.width,
+                                                                                     0,
+                                                                                     rc.size.width,
+                                                                                     rc.size.height)];
+            NSString *picStr = nil;
+            if(HUIIsIPhone5()){
+                picStr = [NSString stringWithFormat:@"%@%@thumbe",KMediaServerImagesInforURL,emceeInfo.pic];
+            }else{
+                picStr = [NSString stringWithFormat:@"%@%@thumbd",KMediaServerImagesInforURL,emceeInfo.pic];
+            }
+        Log(@"主持人内容：picStr is %@",picStr);
+            __weak UIImageView* weakImage = bgImageView;
+            if (!IsStringEmptyOrNull(emceeInfo.pic)) {
+                [bgImageView setImageWithURL:[NSURL URLWithString:picStr]
+                            placeholderImage:[UIImage imageNamed:@"RadioPlay_Bg.jpg"]
+                                   completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType){
+                                       weakImage.alpha = 0.5f;
+                                       [UIView animateWithDuration:1 animations:^{
+                                           weakImage.alpha = 1;
+                                       } completion:^(BOOL finished){
+                                           
+                                       }];
+                                   }];
+                
+   
+            }
+        
+            [mainScrollView addSubview:bgImageView];
+            
+            //灰色背景
+            UIView *frontBgView = [[UIView alloc] initWithFrame:CGRectMake(i * rc.size.width, 0, rc.size.width, rc.size.height)];
+            frontBgView.backgroundColor = [UIColor colorWithWhite:0 alpha:0.2f];
+            
+            //主持人姓名
+            UILabel *nameLabel = [[UILabel alloc] initWithFrame:CGRectMake(65.0f, 140.0f, 190, 20.0f)];
+            nameLabel.font = [UIFont systemFontOfSize:16.0f];
+            nameLabel.textColor = [UIColor whiteColor];
+            nameLabel.backgroundColor = [UIColor clearColor];
+            nameLabel.text = [NSString stringWithFormat:@"姓名：%@",emceeInfo.name];
+            [frontBgView addSubview:nameLabel];
+
+            //星座
+            UILabel *constellationLabel = [[UILabel alloc] initWithFrame:CGRectMake(65.0f, 170.0f, 190, 20.0f)];
+            constellationLabel.font = [UIFont systemFontOfSize:16.0f];
+            constellationLabel.textColor = [UIColor whiteColor];
+            constellationLabel.backgroundColor = [UIColor clearColor];
+            constellationLabel.text = [NSString stringWithFormat:@"星座：%@",emceeInfo.constellation];
+            [frontBgView addSubview:constellationLabel];
+
+            
+            //寄语
+            UILabel *sendWordLabel = [[UILabel alloc] init];
+            sendWordLabel.font = [UIFont systemFontOfSize:16.0f];
+            sendWordLabel.textColor = [UIColor whiteColor];
+            sendWordLabel.backgroundColor = [UIColor clearColor];
+            sendWordLabel.text = [NSString stringWithFormat:@"寄语：%@",emceeInfo.sendWord];
+            sendWordLabel.numberOfLines = 0;
+            CGSize sendWordSize = [sendWordLabel.text sizeWithFont:sendWordLabel.font constrainedToSize:CGSizeMake(220, CGFLOAT_MAX) lineBreakMode:NSLineBreakByTruncatingMiddle];
+            sendWordLabel.frame = CGRectMake(65, 200, 220, sendWordSize.height);
+            [frontBgView addSubview:sendWordLabel];
+
+            [mainScrollView addSubview:frontBgView];
+
+            
+            if (i == 0) {
+                UIButton *praiseButton = (UIButton *)[self.view viewWithTag:kPraiseButtonTag];
+                UILabel *praisedNumLabel = (UILabel *)[praiseButton viewWithTag:kPraisedNumLabelTag];
+                praisedNumLabel.text = [NSString stringWithFormat:@"%d",emceeInfo.praisedTime];
+                CGSize praisedNumLabelSize = [praisedNumLabel.text sizeWithFont:praisedNumLabel.font];
+                praisedNumLabel.frame = CGRectMake(50, 14, praisedNumLabelSize.width, 20);
+                praiseButton.frame = CGRectMake(KProjectScreenWidth - 50 - praisedNumLabelSize.width - 10, 90, 50 + praisedNumLabelSize.width + 10, 48);
+            }
+        }
+        mainScrollView.contentSize = CGSizeMake(rc.size.width * self.currentProgramInfo.emceeArray.count, rc.size.height);
+}
+
+#pragma mark -赞主持人
+- (void) praiseEmcee
+{
+    if (!praisedEmceeArray) {
+        praisedEmceeArray = [[NSMutableArray alloc] init];
+    }
+    //当前主持人信息
+    EmceeInfo *emceeInfo = [self.currentProgramInfo.emceeArray objectAtIndex:emceeIndex];
+    if (emceeInfo == nil) {
+        
+        ShowImportErrorAlertView(@"本时段为重播，暂无直播节目主持人信息");
+        return;
+    }
+    
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient praiseEmcee:emceeInfo.idetity
+                       completion:^(WebAPIResponse *response) {
+                           
+                           dispatch_async(dispatch_get_main_queue(), ^(void){
+
+                               if(response.code == WebAPIResponseCodeSuccess){
+                                   NSInteger priaseCount = IntForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData);
+                                   if (priaseCount > 0) {//返回datastring数值为已赞次数
+                                       UIButton *praiseButton = (UIButton *)[weakSelf.view viewWithTag:kPraiseButtonTag];
+                                       ////Normal图片
+                                       UIImage *praiseNormalImage = [UIImage imageNamed:@"RadioPlay_Praise_Highlight.png"];
+                                       praiseNormalImage = [praiseNormalImage stretchableImageWithLeftCapWidth:60 topCapHeight:0];
+                                       
+                                       [praiseButton setBackgroundImage:praiseNormalImage forState:UIControlStateNormal];
+                                       UILabel *praisedNumLabel = (UILabel *)[praiseButton viewWithTag:kPraisedNumLabelTag];
+                                       praisedNumLabel.text = @"已赞";
+                                       CGSize praisedNumLabelSize = [praisedNumLabel.text sizeWithFont:praisedNumLabel.font];
+                                       praisedNumLabel.frame = CGRectMake(50, 14, praisedNumLabelSize.width, 20);
+                                       praiseButton.frame = CGRectMake(KProjectScreenWidth- 50 - praisedNumLabelSize.width - 10, 90, 50 + praisedNumLabelSize.width + 10, 48);
+                                       
+                                       [praisedEmceeArray addObject:emceeInfo.idetity];//将赞的主持人添加到数组中
+                                   }
+                                   
+                               }
+                           });
+                       }];
+
+}
+
+
+- (void) scrollViewDidEndDecelerating:(UIScrollView *)scrollView
+{
+    emceeIndex =  scrollView.contentOffset.x/KProjectScreenWidth;
+    UIPageControl *emceePageControl = (UIPageControl *)[self.view viewWithTag:kEmceePageControlTag];
+    emceePageControl.currentPage = emceeIndex;
+    
+    
+    UIButton *praiseButton = (UIButton *)[self.view viewWithTag:kPraiseButtonTag];
+    UILabel *praisedNumLabel = (UILabel *)[praiseButton viewWithTag:kPraisedNumLabelTag];
+    
+    //当前主持人信息
+    EmceeInfo *emceeInfo = [self.currentProgramInfo.emceeArray objectAtIndex:emceeIndex];
+    if ([praisedEmceeArray containsObject:emceeInfo.idetity]) {
+        ////高亮图片
+        UIImage *praiseHighlightImage = [UIImage imageNamed:@"RadioPlay_Praise_Highlight.png"];
+        praiseHighlightImage = [praiseHighlightImage stretchableImageWithLeftCapWidth:60 topCapHeight:0];
+        [praiseButton setBackgroundImage:praiseHighlightImage forState:UIControlStateNormal];
+        praisedNumLabel.text = @"已赞";
+    }else{
+         ////正常图片
+         UIImage *praiseNormalImage = [UIImage imageNamed:@"RadioPlay_Praise_Normal.png"];
+         praiseNormalImage = [praiseNormalImage stretchableImageWithLeftCapWidth:60 topCapHeight:0];
+        
+        [praiseButton setBackgroundImage:praiseNormalImage forState:UIControlStateNormal];
+        praisedNumLabel.text = [NSString stringWithFormat:@"%d",emceeInfo.praisedTime];
+    }
+    CGSize praisedNumLabelSize = [praisedNumLabel.text sizeWithFont:praisedNumLabel.font];
+    praisedNumLabel.frame = CGRectMake(50, 14, praisedNumLabelSize.width, 20);
+    praiseButton.frame = CGRectMake(KProjectScreenWidth - 50 - praisedNumLabelSize.width - 10, 90, 50 + praisedNumLabelSize.width + 10, 48);
+}
+
+- (void)isReady{
+    UIActivityIndicatorView *loadActivityIndicatorView = (UIActivityIndicatorView *)[self.view viewWithTag:kLoadActivityIndicatorViewTag];
+    [loadActivityIndicatorView stopAnimating];//停止动画
+    
+    UIButton *playButton = (UIButton *)[self.view viewWithTag:kPlayButtonTag];
+    playButton.hidden = NO;
+}
+
+@end

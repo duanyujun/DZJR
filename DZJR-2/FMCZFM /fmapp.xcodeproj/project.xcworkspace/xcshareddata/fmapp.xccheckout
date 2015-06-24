@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>E2E945D6-5A74-4BB3-9B7A-BF822BA5E5F0</string>
+	<key>IDESourceControlProjectName</key>
+	<string>fmapp</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>4B645F71-FCCC-43A1-8D46-1DEFB93A5700</key>
+		<string>svn://120.192.86.19/iPhone/%E6%B5%8E%E5%8D%971031%E8%BD%A6%E4%B8%BB%E6%9C%8D%E5%8A%A13.0%E4%BB%A5%E4%B8%8A/FMCZFW/fmapp/Resource/CZFW</string>
+		<key>B9C6928E-D284-4424-8F2E-98992007BD16</key>
+		<string>svn://120.192.86.19:3690/iPhone/%E8%BD%A6%E4%B8%BB%E6%9C%8D%E5%8A%A1%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%90%84%E5%9C%B0%E5%B8%82%E7%BB%9F%E4%B8%80%E7%89%88</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>FMCZFM /fmapp.xcodeproj/project.xcworkspace</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>4B645F71-FCCC-43A1-8D46-1DEFB93A5700</key>
+		<string>../../../../../CZFW</string>
+		<key>B9C6928E-D284-4424-8F2E-98992007BD16</key>
+		<string>../../..</string>
+	</dict>
+	<key>IDESourceControlProjectRepositoryRootDictionary</key>
+	<dict>
+		<key>4B645F71-FCCC-43A1-8D46-1DEFB93A5700</key>
+		<string>svn://120.192.86.19</string>
+		<key>B9C6928E-D284-4424-8F2E-98992007BD16</key>
+		<string>svn://120.192.86.19:3690</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>svn://120.192.86.19:3690/iPhone/%E8%BD%A6%E4%B8%BB%E6%9C%8D%E5%8A%A1%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%90%84%E5%9C%B0%E5%B8%82%E7%BB%9F%E4%B8%80%E7%89%88/FMCZFM%20/fmapp.xcodeproj</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>110</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>B9C6928E-D284-4424-8F2E-98992007BD16</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.subversion</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>B9C6928E-D284-4424-8F2E-98992007BD16</string>
+			<key>IDESourceControlWCCName</key>
+			<string>车主服务客户端各地市统一版</string>
+		</dict>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.subversion</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>4B645F71-FCCC-43A1-8D46-1DEFB93A5700</string>
+			<key>IDESourceControlWCCName</key>
+			<string>CZFW</string>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,266 @@
+//
+//  FMAudioManager.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-28.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMAudioManager.h"
+#import <AVFoundation/AVFoundation.h>
+#import <CoreAudio/CoreAudioTypes.h>
+#import "amrFileCodec.h"
+
+@implementation AMRInfo
+@end
+
+@interface FMAudioManager () <AVAudioRecorderDelegate,AVAudioPlayerDelegate>
+
+@property (nonatomic,strong)AVAudioRecorder         *recorder;
+@property (nonatomic,strong)AVAudioPlayer           *avPlayer;
+
+@end
+
+@implementation FMAudioManager
+
+-(id)init {
+    self = [super init];
+    if (self) {
+        //Instanciate an instance of the AVAudioSession object.
+        AVAudioSession * audioSession = [AVAudioSession sharedInstance];
+        //Setup the audioSession for playback and record.
+        //We could just use record and then switch it to playback leter, but
+        //since we are going to do both lets set it up once.
+        [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord error: nil];
+        
+        UInt32 audioRouteOverride = kAudioSessionOverrideAudioRoute_Speaker;
+        AudioSessionSetProperty (kAudioSessionProperty_OverrideAudioRoute,
+								 sizeof (audioRouteOverride),
+								 &audioRouteOverride);
+        
+        //Activate the session
+        [audioSession setActive:YES error: nil];
+
+    }
+    return self;
+}
+
+-(NSTimeInterval) getAudioTime:(NSData *) data {
+    NSError * error;
+    AVAudioPlayer*play = [[AVAudioPlayer alloc] initWithData:data error:&error];
+    NSTimeInterval n = [play duration];
+    return n;
+}
+
+//0 播放 1 播放完成 2出错
+-(void)sendPlayStatus:(int)status {
+
+    if (status!=0) {
+        if (self.avPlayer!=nil) {
+            [self.avPlayer stop];
+            self.avPlayer = nil;
+
+        }
+    }
+   
+    if ([self.delegate respondsToSelector:@selector(audioPlayStatus:)]) {
+        [self.delegate audioPlayStatus:status];
+    }
+  
+}
+
+-(void) play:(NSData*) data
+{
+    //在播放停止
+    if (self.avPlayer!=nil) {
+        [self stopPlay];
+    }
+    if (data == nil) {
+        [self sendPlayStatus:2];
+        return;
+    }
+    
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+    dispatch_async(queue, ^{
+        NSData* o = DecodeAMRToWAVE(data);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSError * error;
+            self.avPlayer = [[AVAudioPlayer alloc] initWithData:o error:&error];
+            self.avPlayer.delegate = self;
+            [self.avPlayer prepareToPlay];
+            [self.avPlayer setVolume:1.0];
+            if(![self.avPlayer play]){
+                [self sendPlayStatus:1];
+            } else {
+                [self sendPlayStatus:0];
+            }
+        });
+    });
+    
+
+}
+
+-(void) playURL:(NSString* ) url
+{
+    NSString* fullURL = [NSString stringWithFormat:@"%@/get.php?id=%@",kMediaServerURL,url];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+    dispatch_async(queue, ^{
+        NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:fullURL]];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (data == nil) {
+                [self sendPlayStatus:2];
+                return;
+            }
+            [weakSelf play:data];
+        });
+    });
+    
+}
+
+-(void) playAMR:(AMRInfo*) amrInfo
+{
+    if (amrInfo.amrData == nil) {
+        [self sendPlayStatus:2];
+        return;
+    }
+    [self play:amrInfo.amrData];
+}
+
+-(void) stopPlay
+{
+    if (self.avPlayer) {
+        [self.avPlayer stop];
+        self.avPlayer = nil;
+    }
+   [self sendPlayStatus:1];
+}
+- (void)audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag {
+    [self sendPlayStatus:1];
+}
+
+- (void)audioPlayerDecodeErrorDidOccur:(AVAudioPlayer *)player error:(NSError *)error{
+    [self sendPlayStatus:2];
+}
+- (void) startRecord
+{
+    //Begin the recording session.
+    //Error handling removed.  Please add to your own code.
+    
+    //Setup the dictionary object with all the recording settings that this
+    //Recording sessoin will use
+    //Its not clear to me which of these are required and which are the bare minimum.
+    //This is a good resource: http://www.totodotnet.net/tag/avaudiorecorder/
+    //		NSMutableDictionary* recordSetting = [[NSMutableDictionary alloc] init];
+    //		[recordSetting setValue :[NSNumber numberWithInt:kAudioFormatAppleIMA4] forKey:AVFormatIDKey];
+    //		[recordSetting setValue:[NSNumber numberWithFloat:44100.0] forKey:AVSampleRateKey];
+    //		[recordSetting setValue:[NSNumber numberWithInt: 2] forKey:AVNumberOfChannelsKey];
+    
+    //    NSDictionary *recordSetting =
+    //    [[NSDictionary alloc] initWithObjectsAndKeys:
+    //
+    //     [NSNumber numberWithFloat:8000.00], AVSampleRateKey,
+    //
+    //     [NSNumber numberWithInt:kAudioFormatiLBC], AVFormatIDKey,
+    //
+    //     [NSNumber numberWithInt:1], AVNumberOfChannelsKey,
+    //
+    //     [NSNumber numberWithInt:AVAudioQualityMax], AVEncoderAudioQualityKey,
+    //
+    //     nil];
+    
+    [self.recorder stop];
+    self.recorder =nil;
+    
+    NSError * error;
+    NSDictionary *recordSetting = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   [NSNumber numberWithInt:kAudioFormatLinearPCM], AVFormatIDKey,
+                                   //[NSNumber numberWithFloat:44100.0], AVSampleRateKey,
+                                   [NSNumber numberWithFloat:8000.00], AVSampleRateKey,
+                                   [NSNumber numberWithInt:1], AVNumberOfChannelsKey,
+                                   //  [NSData dataWithBytes:&channelLayout length:sizeof(AudioChannelLayout)], AVChannelLayoutKey,
+                                   [NSNumber numberWithInt:16], AVLinearPCMBitDepthKey,
+                                   [NSNumber numberWithBool:NO], AVLinearPCMIsNonInterleaved,
+                                   [NSNumber numberWithBool:NO],AVLinearPCMIsFloatKey,
+                                   [NSNumber numberWithBool:NO], AVLinearPCMIsBigEndianKey,
+                                   nil];
+    
+    //Now that we have our settings we are going to instanciate an instance of our recorder instance.
+    //Generate a temp file for use by the recording.
+    //This sample was one I found online and seems to be a good choice for making a tmp file that
+    //will not overwrite an existing one.
+    //I know this is a mess of collapsed things into 1 call.  I can break it out if need be.
+    NSURL *recordedTmpFile = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent: [NSString stringWithFormat: @"%.0f.%@", [NSDate timeIntervalSinceReferenceDate] * 1000.0, @"caf"]]];
+    NSLog(@"Using File called: %@",recordedTmpFile);
+    
+    
+    //Setup the recorder to use this file and record to it.
+    self.recorder = [[ AVAudioRecorder alloc] initWithURL:recordedTmpFile settings:recordSetting error:&error];
+    //Use the recorder to start the recording.
+    //Im not sure why we set the delegate to self yet.
+    //Found this in antother example, but Im fuzzy on this still.
+    [self.recorder setDelegate:self];
+    //We call this to start the recording process and initialize
+    //the subsstems so that when we actually say "record" it starts right away.
+    [self.recorder prepareToRecord];
+
+    //Start the actual Recording
+    [self.recorder record];
+    
+    //There is an optional method for doing the recording for a limited time see
+    //[recorder recordForDuration:(NSTimeInterval) 10]
+}
+
+- (AMRInfo *) stopRecord
+{
+    if (self.recorder == nil) {
+        return nil;
+    }
+    
+    NSURL *url = [[NSURL alloc]initWithString:self.recorder.url.absoluteString];
+    [self.recorder stop];
+    self.recorder =nil;
+    if (url == nil) {
+        return nil;
+    }
+    //获取WAV数据
+    NSData* wavData = [NSData dataWithContentsOfURL:url];
+    if (wavData == nil) {
+        return nil;
+    }
+    //转ARM
+    NSData* armData = EncodeWAVEToAMR(wavData,1,16);
+    if (armData == nil) {
+        return nil;
+    }
+    NSInteger len = [self getAudioTime:wavData];
+    AMRInfo* armInfo = [[AMRInfo alloc] init];
+    armInfo.amrData = armData;
+    armInfo.amrLength = len;
+    armInfo.amrURL = url;
+    return armInfo;
+}
+
+- (CGFloat)getRecordMeters {
+    
+
+    /*  发送updateMeters消息来刷新平均和峰值功率。
+     *  此计数是以对数刻度计量的，-160表示完全安静，
+     *  0表示最大输入值
+     */
+    
+    if (_recorder) {
+        [_recorder updateMeters];
+    }else{
+        return 0.0;
+    }
+    
+    float peakPower = [_recorder averagePowerForChannel:0];
+    double ALPHA = 0.05;
+    double peakPowerForChannel = pow(10, (ALPHA * peakPower));
+    
+    return peakPowerForChannel;
+    
+}
+@end

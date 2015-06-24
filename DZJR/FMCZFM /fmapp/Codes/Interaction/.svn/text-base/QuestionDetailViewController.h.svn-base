@@ -1,0 +1,21 @@
+//
+//  QuestionDetailViewController.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-17.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "QuestionInfo.h"
+
+@interface QuestionDetailViewController : FMViewController
+///用户当前的数据的公开状态，1表示公开发布；2.表示私信发布；
+@property (nonatomic ,assign)  NSInteger                       userSendInforIsPublic;
+@property (nonatomic, assign)  BOOL                            whetherDelete;
+//使用QuestionInfo,可显示部分缓存信息
+- (id)initWithQuestionInfo:(QuestionInfo* )questionInfo;
+
+//使用QuestionId初始化
+- (id)initWithQuestionId:(NSString* )questionId;
+@end

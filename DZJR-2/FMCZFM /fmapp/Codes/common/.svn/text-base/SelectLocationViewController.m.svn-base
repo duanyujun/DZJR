@@ -1,0 +1,277 @@
+//
+//  SelectLocationViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KAddressNameLabel       1980111             ///地址名字
+#define KAddressDistanceLabel   1980112             ///地址距离
+
+#import "SelectLocationViewController.h"
+#import <AMapSearchKit/AMapSearchAPI.h>
+//#import "bl"
+
+
+@interface SelectLocationViewController ()<CLLocationManagerDelegate,AMapSearchDelegate,
+                                            UITableViewDataSource, UITableViewDelegate>
+@property (nonatomic, weak) UITableView                 *tableView;
+@property (strong) NSMutableArray                       *poiArray;          //地名数据
+@property (nonatomic,strong) CLLocationManager          *locationManager;   //定位管理器
+@property (nonatomic,strong) AMapSearchAPI              *search;            //搜索管理器
+@end
+
+@implementation SelectLocationViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [UIColor whiteColor];
+    
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    self.view.backgroundColor=KDefaultOrNightScrollViewColor;
+    [self settingNavTitle:@"当前位置"];
+    //TableView
+    UITableView* tbView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStylePlain];
+    tbView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    tbView.separatorStyle = UITableViewCellSeparatorStyleNone;
+//    tbView.backgroundColor = [UIColor clearColor];
+    tbView.backgroundColor = KDefaultOrNightScrollViewColor;
+
+    tbView.dataSource = self;
+    tbView.delegate = self;
+    [self.view addSubview:tbView];
+    _tableView = tbView;
+    
+    self.poiArray = [[NSMutableArray alloc]init];
+    
+    [self.poiArray addObject:@"不显示位置"];
+    //初始化搜索管理器
+    _search = [[AMapSearchAPI alloc] initWithSearchKey:kMapKey Delegate:nil];
+    _search.delegate = self;
+    
+    //初始化位置管理器
+    _locationManager = [[CLLocationManager alloc] init];
+    _locationManager.delegate = self;
+    _locationManager.desiredAccuracy = kCLLocationAccuracyBest;//精度设定
+    _locationManager.distanceFilter = 70.0f;
+
+    WaittingMBProgressHUD(self.view, @"正在定位...");
+    [self.locationManager startUpdatingLocation];
+    //[self searchReGeocodeWithCoordinate:CLLocationCoordinate2DMake(36.676473,117.078721)];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+//解析位置
+- (void)searchReGeocodeWithCoordinate:(CLLocationCoordinate2D)coordinate
+{
+    AMapReGeocodeSearchRequest *regeo = [[AMapReGeocodeSearchRequest alloc] init];
+    
+    regeo.location = [AMapGeoPoint locationWithLatitude:coordinate.latitude longitude:coordinate.longitude];
+    regeo.requireExtension = YES;
+    
+    [self.search AMapReGoecodeSearch:regeo];
+}
+
+/* 根据中心点坐标来搜周边的POI. */
+- (void)searchPoiByCenterCoordinate:(CLLocationCoordinate2D)coordinate
+{
+    AMapPlaceSearchRequest *request = [[AMapPlaceSearchRequest alloc] init];
+    
+    request.searchType          = AMapSearchType_PlaceAround;
+    request.location            = [AMapGeoPoint locationWithLatitude:coordinate.latitude longitude:coordinate.longitude];
+    request.keywords            = @"餐饮|住宅|购物|风景|汽车";
+    /* 按照距离排序. */
+    request.sortrule            = 1;
+    request.requireExtension    = YES;
+    
+    /* 添加搜索结果过滤 */
+    /*
+    AMapPlaceSearchFilter *filter = [[AMapPlaceSearchFilter alloc] init];
+    filter.costFilter = @[@"100", @"200"];
+    filter.requireFilter = AMapRequireGroupbuy;
+    request.searchFilter = filter;
+    */
+    
+    [self.search AMapPlaceSearch:request];
+}
+#pragma mark - AMapSearchDelegate
+
+/* POI 搜索回调. */
+- (void)onPlaceSearchDone:(AMapPlaceSearchRequest *)request response:(AMapPlaceSearchResponse *)respons
+{
+    FinishMBProgressHUD(self.view);
+    
+    if (respons.pois.count == 0)
+    {
+        return;
+    }
+    
+    [respons.pois enumerateObjectsUsingBlock:^(AMapPOI *obj, NSUInteger idx, BOOL *stop) {
+        
+        [self.poiArray addObject:obj];
+        
+    }];
+    
+    [self.tableView reloadData];
+}
+
+/* 逆地理编码回调. */
+- (void)onReGeocodeSearchDone:(AMapReGeocodeSearchRequest *)request response:(AMapReGeocodeSearchResponse *)response
+{
+    if (response.regeocode != nil)
+    {
+        NSString* roadName = response.regeocode.addressComponent.district;//区 如：历下区
+        
+        if (response.regeocode.roads.count > 0) {
+            AMapRoad* revRoad = [response.regeocode.roads objectAtIndex:0];
+            roadName = [NSString stringWithFormat:@"%@%@",roadName,revRoad.name];
+        }
+        
+        AMapPOI *poi = [[AMapPOI alloc] init];
+        poi.name = [[NSString alloc] initWithString:roadName];
+        poi.distance = 0;
+        [self.poiArray addObject:poi];
+        [self searchPoiByCenterCoordinate:CLLocationCoordinate2DMake(request.location.latitude,request.location.longitude)];
+        
+    }
+}
+#pragma mark -CLLocationManagerDelegate
+- (void) locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation{
+    if (signbit(newLocation.horizontalAccuracy)) {
+        return;
+    }
+    
+    if (ABS([newLocation.timestamp timeIntervalSinceNow]) > 3600) {
+        return;
+    }
+
+    [manager stopUpdatingLocation];//停止定位
+    
+    //搜索POI
+    [self searchReGeocodeWithCoordinate:newLocation.coordinate];
+    //纠偏操作
+    /*
+    MASearch *mainSearch = [[MASearch alloc] initWithSearchKey:kMapKey Delegate:self];//初始化搜索
+    MARGCSearchOption *rgcSearchOption = [[MARGCSearchOption alloc] init];
+    rgcSearchOption.config = @"RGC";
+    rgcSearchOption.coors = [NSString stringWithFormat:@"%lf,%lf;",currentUserCoordinate2D.longitude, currentUserCoordinate2D.latitude];
+    [mainSearch gpsOffsetSearchWithOption:rgcSearchOption];
+     */
+    //    }
+}
+
+- (void) locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error
+{
+
+}
+
+
+#pragma mark - UITableViewDataSource
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.poiArray count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *reuseIdetify = @"PoiCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdetify];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:reuseIdetify];
+
+        cell.backgroundView.backgroundColor=KDefaultOrNightBackGroundColor;
+        cell.backgroundColor=KDefaultOrNightBackGroundColor;
+        
+        ///用户个人用户名
+        UILabel *userNameLabel = [[UILabel alloc] init];
+        [userNameLabel setTag:KAddressNameLabel];
+        [userNameLabel setTextAlignment:NSTextAlignmentLeft];
+        userNameLabel.font = [UIFont systemFontOfSize:16.0f];
+        [userNameLabel setTextColor:KDefaultOrNightTextColor];
+        [userNameLabel setBackgroundColor:[UIColor clearColor]];
+        [userNameLabel setFrame:CGRectMake(15.0f, 10.0f, 230.0f,26.5)];
+        [cell.contentView addSubview:userNameLabel];
+        
+        ///用户个人加入黑名单的时间标签
+        UILabel *addBlackListDateLabel = [[UILabel alloc]init];
+        [addBlackListDateLabel setTextColor:KSubTitleContentTextColor];
+        [addBlackListDateLabel setTextAlignment:NSTextAlignmentRight];
+        [addBlackListDateLabel setTag:KAddressDistanceLabel];
+        [addBlackListDateLabel setFont:[UIFont systemFontOfSize:12.0f]];
+        [addBlackListDateLabel setBackgroundColor:[UIColor clearColor]];
+        [addBlackListDateLabel setFrame:CGRectMake(KProjectScreenWidth-60-10, 10.0f, 60.0f, 26.5)];
+        [cell addSubview:addBlackListDateLabel];
+        
+        ///底部横线
+        UIImageView *freshPasswordImageView = [[UIImageView alloc]initWithFrame:CGRectMake(15.0f, 46.5f, KProjectScreenWidth-15, 0.5f)];
+        [freshPasswordImageView setBackgroundColor:KDefaultOrNightSepratorColor];
+        [freshPasswordImageView setUserInteractionEnabled:YES];
+        [cell.contentView addSubview:freshPasswordImageView];
+    }
+    
+    if (indexPath.row == 0) {
+        ///地址名字
+        UILabel *addressName = (UILabel *)[cell viewWithTag:KAddressNameLabel];
+        [addressName setText:@"不显示位置"];
+        [addressName setTextColor:KContentTextCanEditColor];
+
+    }
+    else if (indexPath.row >=1 && self.poiArray.count > 1) {
+        AMapPOI *poi = (AMapPOI* )[self.poiArray objectAtIndex:indexPath.row];
+        ///地址名字
+        UILabel *addressName = (UILabel *)[cell viewWithTag:KAddressNameLabel];
+        [addressName setText:poi.name];
+        [addressName setTextColor:KDefaultOrNightTextColor];
+        ///地址距离
+        UILabel *addressDistanceLabel = (UILabel *)[cell viewWithTag:KAddressDistanceLabel];
+        addressDistanceLabel.text = [NSString stringWithFormat:@"%.1lfkm",poi.distance/1000.0];
+    }
+    return cell;
+}
+
+#pragma mark - UITableViewDelegate
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 47.0;
+}
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    
+    if (indexPath.row > 0) {
+        AMapPOI *poi = (AMapPOI* )[self.poiArray objectAtIndex:indexPath.row];
+        if (self.delegate) {
+            [self.delegate didLocationSelected:poi.name
+                                         coord:CLLocationCoordinate2DMake(poi.location.latitude,poi.location.longitude)];
+        }
+    }else{
+        [self.delegate didLocationSelected:@""
+                                     coord:CLLocationCoordinate2DMake(0.0f,0.0f)];
+    }
+    [self.navigationController popViewControllerAnimated:YES];
+    
+}
+@end

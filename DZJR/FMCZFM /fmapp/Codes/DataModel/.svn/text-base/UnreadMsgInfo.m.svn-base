@@ -1,0 +1,90 @@
+//
+//  UnreadMsgInfo.m
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-12-23.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "UnreadMsgInfo.h"
+#import "NSAttributedString+Height.h"
+#import "AttributedStringHelper.h"
+
+@interface UnreadMsgInfo()
+
+@property (nonatomic,assign)    CGFloat contentHeight;                          //缓存问题高度
+@property (nonatomic,assign)    CGFloat commentHeight;                          //缓存回复高度
+
+@end
+
+@implementation UnreadMsgInfo
+
+
+- (id) init
+{
+    self = [super init];
+    if (self) {
+        self.publishUserInfo = [[UserInfo alloc] init];
+        self.contentHeight = -1;
+        self.commentHeight = -1;
+    }
+    return self;
+}
+
++ (id)unreadMsgWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    UnreadMsgInfo *unreadMsgInfo = [[UnreadMsgInfo alloc] init];
+    unreadMsgInfo.identity = [NSString stringWithFormat:@"%@",[dic objectForKey:@"id"]];//ID
+//    unreadMsgInfo.publishUserInfo.userCarLogoUrl = [NSString stringWithFormat:@"%@",[dic objectForKey:KDataKeyAvatar]];//头像
+    //性别
+    NSString *sexStr = [NSString stringWithFormat:@"%@",[dic objectForKey:@"sex"]];//性别
+    unreadMsgInfo.publishUserInfo.userSex = [sexStr integerValue];
+    //用户名
+    unreadMsgInfo.publishUserInfo.userName = [NSString stringWithFormat:@"%@",[dic objectForKey:@"userName"]];
+    //内容
+    unreadMsgInfo.content = [NSString stringWithFormat:@"%@",[dic objectForKey:@"content"]];
+    //内容高度
+    
+    AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+    unreadMsgInfo.attributedContent = [attributedStringHelper getAttributedStringWithNSString:unreadMsgInfo.content
+                                                                                    textColor:KDefaultOrNightTextColor];
+
+    //问题ID
+    unreadMsgInfo.questionID = [NSString stringWithFormat:@"%@",[dic objectForKey:@"questionId"]];
+    //被回复内容
+    NSString *commentContentStr = [NSString stringWithFormat:@"%@",[dic objectForKey:@"parent_content"]];
+    if (IsStringEmptyOrNull(commentContentStr)) {
+        unreadMsgInfo.commentedContent = @"";
+    }else{
+        unreadMsgInfo.commentedContent = commentContentStr;
+    }
+    
+    //被回复内容高度
+    unreadMsgInfo.attributedCommentedContent = [attributedStringHelper getAttributedStringWithNSString:unreadMsgInfo.commentedContent
+                                                                                             textColor:KDefaultOrNightTextColor];
+
+    [unreadMsgInfo setIs_publicInfor:IntForKeyInUnserializedJSONDic(dic, @"is_public")];
+    //创建时间
+    unreadMsgInfo.createTime = [NSString stringWithFormat:@"%@",[dic objectForKey:@"createtime"]];
+    [unreadMsgInfo.publishUserInfo setUserAvatar:StringForKeyInUnserializedJSONDic(dic, @"avatar")];
+    [unreadMsgInfo.publishUserInfo setUserCarImage:StringForKeyInUnserializedJSONDic(dic, @"Brand_logo_name")];
+
+    return unreadMsgInfo;
+}
+#pragma mark - 获取高度
+- (GLfloat)getContentHeight:(GLfloat)containerWidth
+{
+    if (self.contentHeight < 0) {
+        self.contentHeight = [self.attributedContent boundingHeightForWidth:containerWidth];
+    }
+    return self.contentHeight;
+}
+
+- (GLfloat)getCommentHeight:(GLfloat)containerWidth
+{
+    if (self.commentHeight < 0) {
+        self.commentHeight = [self.attributedCommentedContent boundingHeightForWidth:containerWidth];
+    }
+    return self.commentHeight;
+}
+@end

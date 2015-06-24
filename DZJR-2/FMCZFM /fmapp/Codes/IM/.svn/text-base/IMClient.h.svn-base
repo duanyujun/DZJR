@@ -1,0 +1,224 @@
+#import <Foundation/Foundation.h>
+#import "GCDAsyncSocket.h"
+#include "c2s_proxy.h"
+@class FMMessage;
+
+#define MIN_KEEPALIVE_INTERVAL      20.0 // 20 Seconds
+#define DEFAULT_KEEPALIVE_INTERVAL 60.0 //  2 Minutes
+
+typedef NS_ENUM(NSUInteger, XMPPStreamErrorCode) {
+	XMPPStreamInvalidType,       // Attempting to access P2P methods in a non-P2P stream, or vice-versa
+	XMPPStreamInvalidState,      // Invalid state for requested action, such as connect when already connected
+	XMPPStreamInvalidProperty,   // Missing a required property, such as myJID
+	XMPPStreamInvalidParameter,  // Invalid parameter, such as a nil JID
+	XMPPStreamUnsupportedAction, // The server doesn't support the requested action
+};
+
+@interface IMClient : NSObject <GCDAsyncSocketDelegate>
+
+/**
+ * Standard IMClient initialization.
+ * The stream is a standard client to server connection.
+ *
+**/
+- (id)init;
+
+
+/**
+ * 使用多个代理器管理
+**/
+- (void)addDelegate:(id)delegate delegateQueue:(dispatch_queue_t)delegateQueue;
+- (void)removeDelegate:(id)delegate delegateQueue:(dispatch_queue_t)delegateQueue;
+- (void)removeDelegate:(id)delegate;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Properties
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * The server's hostname that should be used to make the TCP connection.
+ * This may be a domain name (e.g. "deusty.com") or an IP address (e.g. "70.85.193.226").
+ * 
+ * Note that this may be different from the virtual xmpp hostname.
+ * Just as HTTP servers can support mulitple virtual hosts from a single server, so too can xmpp servers.
+ * A prime example is google via google apps.
+ * 
+ * For example, say you own the domain "mydomain.com".
+ * If you go to mydomain.com in a web browser,
+ * you are directed to your apache server running on your webserver somewhere in the cloud.
+ * But you use google apps for your email and xmpp needs.
+ * So if somebody sends you an email, it actually goes to google's servers, where you later access it from.
+ * Similarly, you connect to google's servers to sign into xmpp.
+ * 
+ * In the example above, your hostname is "talk.google.com" and your JID is "me@mydomain.com".
+ * 
+ * This hostName property is optional.
+ * If you do not set the hostName, then the framework will follow the xmpp specification using jid's domain.
+ * That is, it first do an SRV lookup (as specified in the xmpp RFC).
+ * If that fails, it will fall back to simply attempting to connect to the jid's domain.
+**/
+@property (readwrite, copy) NSString *hostName;
+
+/**
+ * The port the xmpp server is running on.
+ * If you do not explicitly set the port, the default port will be used.
+ * If you set the port to zero, the default port will be used.
+ * 
+ * The default port is 5222.
+**/
+@property (readwrite, assign) UInt16 hostPort;
+
+
+/**
+ * 用户ID
+**/
+@property (readwrite, assign) uint32_t myJID;
+
+/**
+ * 发送心跳包间隔
+ * 
+ * Keep-alive data is only sent in the absence of any other data being sent/received.
+ * 
+ * The default value is defined in DEFAULT_KEEPALIVE_INTERVAL.
+ * The minimum value is defined in MIN_KEEPALIVE_INTERVAL.
+ * 
+ * To disable keep-alive, set the interval to zero (or any non-positive number).
+ * 
+ * The keep-alive timer (if enabled) fires every (keepAliveInterval / 4) seconds.
+ * Upon firing it checks when data was last sent/received,
+ * and sends keep-alive data if the elapsed time has exceeded the keepAliveInterval.
+ * Thus the effective resolution of the keepalive timer is based on the interval.
+ *
+**/
+@property (readwrite, assign) NSTimeInterval keepAliveInterval;
+
+
+/**
+ * If set, the kCFStreamNetworkServiceTypeVoIP flags will be set on the underlying CFRead/Write streams.
+ * 
+ * The default value is NO.
+**/
+@property (readwrite, assign) BOOL enableBackgroundingOnSocket;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark State
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Returns YES if the connection is closed, and thus no stream is open.
+ * If the stream is neither disconnected, nor connected, then a connection is currently being established.
+**/
+- (BOOL)isDisconnected;
+
+/**
+ * Returns YES is the connection is currently connecting
+**/
+- (BOOL)isConnecting;
+
+/**
+ * Returns YES if the connection is open, and the stream has been properly established.
+ * If the stream is neither disconnected, nor connected, then a connection is currently being established.
+ * 
+ * If this method returns YES, then it is ready for you to start sending and receiving elements.
+**/
+- (BOOL)isConnected;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Connect & Disconnect
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Connects to the configured hostName on the configured hostPort.
+ * The timeout is optional. To not time out use XMPPStreamTimeoutNone.
+ * If the hostName or myJID are not set, this method will return NO and set the error parameter.
+**/
+- (BOOL)connectWithTimeout:(NSTimeInterval)timeout error:(NSError **)errPtr;
+
+
+/**
+ * Disconnects from the remote host by closing the underlying TCP socket connection.
+ * The terminating </stream:stream> element is not sent to the server.
+ * 
+ * This method is synchronous.
+ * Meaning that the disconnect will happen immediately, even if there are pending elements yet to be sent.
+ * 
+ * The xmppStreamDidDisconnect:withError: delegate method will immediately be dispatched onto the delegate queue.
+**/
+- (void)disconnect;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark Authentication
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * This method applies to standard password authentication schemes only.
+ * This is NOT the primary authentication method.
+ * 
+ * @see authenticate:error:
+ * 
+ * This method exists for backwards compatibility, and may disappear in future versions.
+**/
+- (BOOL)authenticateWithPassword:(NSString *)inPassword
+                    withDeviceNo:(NSString* )inDeviceNo
+                           error:(NSError **)errPtr;
+
+/**
+ * Returns whether or not the xmpp stream is currently authenticating with the XMPP Server.
+**/
+- (BOOL)isAuthenticating;
+
+/**
+ * Returns whether or not the xmpp stream has successfully authenticated with the server.
+**/
+- (BOOL)isAuthenticated;
+
+#pragma mark Send Message Method
+- (uint32_t)nextSendSequence;
+- (void)sendMessage:(FMMessage *)message toUserDd:(NSString *)toUserId;
+- (void)sendMsgRcvRsp:(NSUInteger)msgId
+             withPeer:(NSUInteger)peerId
+             sequence:(NSUInteger)seq;
+@end
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark -
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+@protocol XMPPStreamDelegate
+@optional
+
+//准备连接事件
+- (void)xmppStreamWillConnect:(IMClient *)sender;
+
+//IM服务器连接成功事件
+- (void)xmppStream:(IMClient *)sender socketDidConnect:(GCDAsyncSocket *)socket;
+
+//鉴权成功事件
+- (void)xmppStreamDidAuthenticate:(IMClient *)sender;
+
+//鉴权失败事件
+- (void)xmppStreamDidAuthenticateFailed:(IMClient *)sender error:(NSError *)error;;
+
+//接收到服务器消息事件
+- (void)xmppStream:(IMClient *)sender didReceiveMessage:(NSData *)message;
+
+//同步不同终端数据
+- (void)xmppStream:(IMClient *)sender didSyncMessage:(NSData *)message;
+
+//消息发送结果事件
+- (void)xmppStream:(IMClient *)sender didSendMessage:(NSData *)message;
+
+//消息发送失败事件
+- (void)xmppStream:(IMClient *)sender didMessageSendFailed:(NSInteger)flowno;
+
+//准备断开连接事件
+- (void)xmppStreamWasToldToDisconnect:(IMClient *)sender;
+
+//IM服务器连接超时事件
+- (void)xmppStreamConnectDidTimeout:(IMClient *)sender;
+
+//服务器连接断开事件
+- (void)xmppStreamDidDisconnect:(IMClient *)sender withError:(NSError *)error;
+
+@end

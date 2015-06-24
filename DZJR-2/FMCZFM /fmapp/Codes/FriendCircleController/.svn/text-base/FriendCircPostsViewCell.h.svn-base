@@ -1,0 +1,43 @@
+//
+//  FriendCircPostsViewCell.h
+//  fmapp
+//
+//  Created by SDYK on 14-11-2.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "FriendCirclePostsModel.h"
+
+#define KCellButtonDeleteTag        190111
+#define KCellButtonTalkTag          190112
+#define KCellButtonClickAgreeTag    190113
+
+
+//typedef NS_ENUM(NSInteger, PostsButtonTag) {
+//    PostsDeleteTag = 198011,            /**< 删除 */
+//    Posts
+//};
+
+@protocol FriendCircPostsDelegate <NSObject>
+
+/** 用户操作圈内帖子信息按键事件协议
+ 
+ *@param postsModel 帖子内容
+ *@param btnTag 按键说明
+ **/
+- (void)initWithUserOperationFriendCircPostsButtonEvent:(FriendCirclePostsModel *)postsModel withButtonTag:(NSInteger )btnTag withIndexPath:(NSIndexPath *)IndexPath;
+
+@end
+
+/** 圈内帖子视图Cell
+ 
+ *@See 用户可以在该帖子下点赞或者发表帖子
+ **/
+@interface FriendCircPostsViewCell : UITableViewCell
+@property (nonatomic , strong) NSIndexPath                  *selectedIndexPath;
+@property (nonatomic , assign) id<FriendCircPostsDelegate> delegate;
+
+- (void)initWithFriendCircPostsDataWith:(FriendCirclePostsModel *)postsModel ;
+
+@end

@@ -1,0 +1,317 @@
+//
+//  QuestionInfo.m
+//  FM_CheZhuFuWu
+//
+//  Created by Ma Yiming on 13-5-29.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "QuestionInfo.h"
+#import "NSAttributedString+Height.h"
+#import "AttributedStringHelper.h"
+#import "FMImageView.h"
+
+@interface QuestionInfo ()
+@property (nonatomic,assign)    CGFloat contentShortHeight;                  //缓存缩略问题高度
+@property (nonatomic,assign)    CGFloat contentHeight;                      //缓存问题高度
+@end
+
+@implementation QuestionInfo
+
+
+- (id) init{
+    self = [super init];
+    
+    if (self) {
+        self.contentHeight = -1;
+        self.contentShortHeight = -1;
+        
+        //发布者信息
+        self.publishUserInfo = [[UserInfo alloc] init];
+        //被评论者信息
+        self.commentedUserInfo = [[UserInfo alloc] init];
+    }
+    
+    return self;
+}
+
++ (id)questionWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    QuestionInfo* question = [[self alloc] init];
+    if (question == nil)
+        return question;
+    
+    
+    //问题ID
+    question.questionID = StringForKeyInUnserializedJSONDic(dic,@"id");
+    //回复创建时间
+    question.createTime = StringForKeyInUnserializedJSONDic(dic,@"createtime");
+    //问题评论次数
+    NSInteger times = IntForKeyInUnserializedJSONDic(dic,@"count");
+    question.commentTimes = [NSString stringWithFormat:@"%d",times];
+    
+    NSInteger viewTimes = IntForKeyInUnserializedJSONDic(dic,@"view");
+    question.viewTimes = [NSString stringWithFormat:@"%d",viewTimes];
+    
+    NSInteger goodTimes = IntForKeyInUnserializedJSONDic(dic,@"praise");
+    question.goodTimes = [NSString stringWithFormat:@"%d",goodTimes];
+
+    question.pushStyle=IntForKeyInUnserializedJSONDic(dic, @"type");
+    //发布用户id
+
+    //发布用户位置
+    if (!IsStringEmptyOrNull(StringForKeyInUnserializedJSONDic(dic,@"cityCode"))) {
+        question.publishUserInfo.userStreet = StringForKeyInUnserializedJSONDic(dic,@"cityCode");
+    }else{
+        question.publishUserInfo.userStreet = @"";
+    }
+    
+    //个性签名
+    question.publishUserInfo.userPersonalSignature=StringForKeyInUnserializedJSONDic(dic, @"signature");
+    //被@用户名称
+    question.commentedUserInfo.userName = StringForKeyInUnserializedJSONDic(dic,@"toUserName");
+    //发布问题者性别
+    question.publishUserInfo.userSex = IntForKeyInUnserializedJSONDic(dic,@"sex");//性别（0：女；1：男）
+    question.publishUserInfo.userID  = StringForKeyInUnserializedJSONDic(dic,@"userId");
+    //发布用户名称
+    question.publishUserInfo.userName  = StringForKeyInUnserializedJSONDic(dic,@"userName");
+    //用户是否关注
+    question.publishUserInfo.is_friends=IntForKeyInUnserializedJSONDic(dic, @"is_friend");
+    //用户角色
+    question.publishUserInfo.userRole = StringForKeyInUnserializedJSONDic(dic,@"role");
+
+    
+    //状态
+    question.status = IntForKeyInUnserializedJSONDic(dic,@"status");
+    
+    //回复内容
+    if(IsStringEmptyOrNull(question.commentedUserInfo.userName)){
+        question.questionContent = StringForKeyInUnserializedJSONDic(dic,@"content");
+    }else{
+        question.questionContent = [[NSString alloc] initWithFormat:@"@%@ %@",
+                                    question.commentedUserInfo.userName,[dic objectForKey:@"content"]];
+    }
+    if (IsStringEmptyOrNull(question.questionContent)) {
+        [question setQuestionContent:@"该帖子可能已被作者删除或系统自动屏蔽"];
+    }
+    question.questionSmallContent = question.questionContent;
+    
+    question.browseStatisticsInteger = IntForKeyInUnserializedJSONDic(dic, @"view");
+    //转换属性数据
+    AttributedStringHelper *attributedStringSmallHelper = [[AttributedStringHelper alloc] init];
+    UIColor* textColor = question.status == QuestionStatusNormal ? [FMThemeManager.skin textColor] : KDisableTextColor;
+    question.attributedQuestionSmallContent = [attributedStringSmallHelper getAttributedStringWithNSString:question.questionSmallContent textColor:textColor];
+    [attributedStringSmallHelper initStringSystemFontOfSize:19 withSetupFont:YES];
+    
+    AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+    question.attributedQuestionContent = [attributedStringHelper getAttributedStringWithNSString:question.questionContent textColor:textColor];
+    [attributedStringHelper initStringSystemFontOfSize:19 withSetupFont:YES];
+
+    
+    ////问题是否已经解决
+    question.haveSolved = BoolForKeyInUnserializedJSONDic(dic,@"solve");
+    
+    ////头像
+    question.publishUserInfo.userAvatar = StringForKeyInUnserializedJSONDic(dic,KDataKeyAvatar);
+    ////车系名称
+    question.publishUserInfo.userCarSeriesName = StringForKeyInUnserializedJSONDic(dic,@"series");;
+    ////用户车型名称
+    question.publishUserInfo.userCarTypeName = StringForKeyInUnserializedJSONDic(dic,@"Brand_Series_type");
+    ////用户车型图片地址
+    question.publishUserInfo.userCarImage = StringForKeyInUnserializedJSONDic(dic,@"Brand_logo_name");
+    ////用户等级内容
+    question.publishUserInfo.userLevel = StringForKeyInUnserializedJSONDic(dic,@"level");
+    
+    Log(@"\n\nquestion.publishUserInfo.userCarSeriesName is %@\n\nquestion.publishUserInfo.userCarTypeNam is %@\n\n\n",question.publishUserInfo.userCarSeriesName,question.publishUserInfo.userCarTypeName);
+    ////是否有爱车照片
+    ////图片地址
+    NSArray* imageData = ObjForKeyInUnserializedJSONDic(dic,@"pic");
+    NSMutableArray* imageArray = [[NSMutableArray alloc] init];
+    if ([imageData isKindOfClass:[NSArray class]]) {
+        for (NSDictionary* imgDic in imageData) {
+            FMImage* im = [[FMImage alloc]init];
+            im.url = ObjForKeyInUnserializedJSONDic(imgDic,@"pic_url");
+            im.imageSize = CGSizeMake(FloatForKeyInUnserializedJSONDic(imgDic,@"pic_width")/2.0,
+                                      FloatForKeyInUnserializedJSONDic(imgDic,@"pic_height")/2.0);
+            [imageArray addObject:im];
+        }
+    }
+    question.images = [NSArray arrayWithArray:imageArray];
+
+    ////总页数
+    question.totalPageCount = IntForKeyInUnserializedJSONDic(dic,@"total");
+    
+    ///信息发布状态
+    [question setIs_public:IntForKeyInUnserializedJSONDic(dic, KDataKeyPublic)];
+    
+    return question;
+}
+
++ (id)answerWithUnserializedJSONDic:(NSDictionary *)dic
+{
+
+    QuestionInfo* question = [[self alloc] init];
+    if (question == nil) {
+        return  nil;
+    }
+    //问题ID
+    question.questionID = StringForKeyInUnserializedJSONDic(dic,@"id");
+    //回复创建时间
+    question.createTime = StringForKeyInUnserializedJSONDic(dic,@"createtime");
+    //用户id
+    question.publishUserInfo.userID  = StringForKeyInUnserializedJSONDic(dic,@"userId");
+    //用户位置
+    question.publishUserInfo.userStreet = StringForKeyInUnserializedJSONDic(dic,@"cityCode");
+    //被@用户名称
+    question.commentedUserInfo.userName = StringForKeyInUnserializedJSONDic(dic,@"toUserName");
+
+    
+    //回复内容
+    if(IsStringEmptyOrNull(question.commentedUserInfo.userName)){
+        question.questionContent = [[NSString alloc] initWithFormat:@"%@",[dic objectForKey:@"content"]];
+    }else{
+        question.questionContent = [[NSString alloc] initWithFormat:@"@%@ %@",
+                                    question.commentedUserInfo.userName,[dic objectForKey:@"content"]];
+    }
+    if (IsStringEmptyOrNull(question.questionContent)) {
+        [question setQuestionContent:@"该帖子可能已被作者删除或系统自动屏蔽"];
+    }
+    
+    ////头像
+    question.publishUserInfo.userAvatar = StringForKeyInUnserializedJSONDic(dic,KDataKeyAvatar);
+
+    
+    //发布问题者名称
+    question.publishUserInfo.userName = StringForKeyInUnserializedJSONDic(dic,@"userName");
+    
+    //发布问题者性别
+    question.publishUserInfo.userSex = IntForKeyInUnserializedJSONDic(dic,@"sex");
+    
+    //车品牌Logo地址
+    question.publishUserInfo.userCarImage = StringForKeyInUnserializedJSONDic(dic,@"Brand_logo_name");
+    
+    //车系名称
+    question.publishUserInfo.userCarSeriesName = StringForKeyInUnserializedJSONDic(dic,@"series");
+    //用户角色
+    question.publishUserInfo.userRole = StringForKeyInUnserializedJSONDic(dic,@"role");
+    
+    //状态
+    question.status = IntForKeyInUnserializedJSONDic(dic,@"status");
+    
+    //转换属性数据
+    UIColor* textColor = question.status == QuestionStatusNormal ? [FMThemeManager.skin textColor] : KDisableTextColor;
+    
+    AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+    question.attributedQuestionContent = [attributedStringHelper getAttributedStringWithNSString:question.questionContent textColor:textColor];
+
+
+
+    
+    return question;
+}
+
+- (NSDictionary* )generateQuestionJSONDic
+{
+
+    NSMutableDictionary* dic = [[NSMutableDictionary alloc] init];
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userID, @"userId", dic);
+    AddObjectForKeyIntoDictionary(self.commentedUserInfo.userID, @"toId", dic);
+    AddObjectForKeyIntoDictionary(self.questionContent, @"content", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userCityName, @"cityCode", dic);
+    AddObjectForKeyIntoDictionary(self.commentedUserInfo.userRole, @"role", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userStreet, @"street", dic);
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInt:self.is_public],@"is_public",dic);
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInt:self.addStyle], @"type", dic);
+    
+    if([self.images count] > 0) {
+        NSMutableArray* imgArray = [[NSMutableArray alloc]init];
+        for (FMImage* im in self.images) {
+            if (IsStringEmptyOrNull(im.url)) {
+                continue;
+            }
+            NSMutableDictionary* imgDic = [[NSMutableDictionary alloc] init];
+            [imgDic setObject:im.url forKey:@"pic_url"];
+            [imgDic setObject:[[NSNumber alloc] initWithFloat:im.imageSize.width] forKey:@"pic_width"];
+            [imgDic setObject:[[NSNumber alloc] initWithFloat:im.imageSize.height] forKey:@"pic_height"];
+            [imgArray addObject:imgDic];
+        }
+        NSString* jsonStr = [imgArray JSONString];
+        AddObjectForKeyIntoDictionary(jsonStr,@"pic",dic);
+
+    }
+    return dic;
+}
+
+- (NSDictionary *)generatePoliceMessageJSONDic
+{
+    NSMutableDictionary *dic = [[NSMutableDictionary alloc] init];
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userID, @"userId", dic);
+    AddObjectForKeyIntoDictionary(self.questionContent, @"content", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userName, @"name", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userMobile , @"mobile", dic);
+    
+    return dic;
+}
+
+- (NSDictionary* )generateAnswerPraiseJSONDic
+{
+    NSMutableDictionary* dic = [[NSMutableDictionary alloc] init];
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userID, @"userId", dic);
+    AddObjectForKeyIntoDictionary(self.questionContent, @"content", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userCityName, @"cityCode", dic);
+    AddObjectForKeyIntoDictionary(self.questionID,@"questionId", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userStreet,@"street", dic);
+    
+    return dic;
+}
+
+- (NSDictionary* )generateAnswerJSONDic
+{
+    
+    NSMutableDictionary* dic = [[NSMutableDictionary alloc] init];
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userID, @"userId", dic);
+    AddObjectForKeyIntoDictionary(self.commentedUserInfo.userID, @"toId", dic);
+    AddObjectForKeyIntoDictionary(self.questionContent, @"content", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userCityName, @"cityCode", dic);
+    AddObjectForKeyIntoDictionary(self.commentedUserInfo.userRole,@"role", dic);
+    AddObjectForKeyIntoDictionary(self.questionID,@"questionId", dic);
+    AddObjectForKeyIntoDictionary(self.publishUserInfo.userStreet,@"street", dic);
+    AddObjectForKeyIntoDictionary(self.commentAnswerId,@"answerId", dic);
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInt:1],@"is_public", dic);
+    
+    NSInteger answerType = 0;//回复类型
+    if([self.commentedUserInfo.userRole isEqualToString:@"0"]){//0：网友回复网友
+        answerType = 0;
+    }else if([self.commentedUserInfo.userRole isEqualToString:@"2"]){//3：用户回复主持人
+        answerType = 3;
+    }else if([self.commentedUserInfo.userRole isEqualToString:@"4"]){//4：用户回复客服
+        answerType = 4;
+    }else if ([self.commentedUserInfo.userRole isEqualToString:@"1"]||
+              [self.commentedUserInfo.userRole isEqualToString:@"6"]){//管理员
+        answerType = 5;
+    }
+    [dic setObject:[NSString stringWithFormat:@"%d",answerType] forKey:@"answer_type"];
+    return dic;
+}
+
+#pragma mark - 获取高度
+- (GLfloat)getShortContentHeight:(GLfloat)containerWidth
+{
+    if (self.contentShortHeight < 0) {
+        
+//        [self.attributedQuestionSmallContent addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:18] range:NSMakeRange(0, self.attributedQuestionSmallContent.length)];
+        
+        self.contentShortHeight = [self.attributedQuestionSmallContent boundingHeightForWidth:containerWidth];
+    }
+    return self.contentShortHeight;
+}
+
+- (GLfloat)getContentHeight:(GLfloat)containerWidth
+{
+    if (self.contentHeight < 0) {
+        self.contentHeight = [self.attributedQuestionContent boundingHeightForWidth:containerWidth];
+    }
+    return self.contentHeight;
+}
+
+@end

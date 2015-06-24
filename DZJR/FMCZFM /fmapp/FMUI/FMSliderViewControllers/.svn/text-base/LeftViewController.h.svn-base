@@ -1,0 +1,15 @@
+//
+//  LeftViewController.h
+//  fmapp
+//
+//  Created by 张利广 on 14-10-9.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+
+@interface LeftViewController : FMViewController
+
+
+@property (nonatomic, strong) UIView *contentView;
+@end

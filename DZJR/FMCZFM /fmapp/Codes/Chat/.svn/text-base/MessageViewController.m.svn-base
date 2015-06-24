@@ -1,0 +1,858 @@
+//
+//  FriendsListViewController.m
+//  fmapp
+//
+//  Created by SDYK on 14-10-13.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "MessageViewController.h"
+#import "IMManager.h"
+#import "FMSettings.h"
+#import "FMImageView.h"
+#import "FMIMDBManager.h"
+#import "LoginController.h"
+#import "MessageListCell.h"
+#import "MessageCellData.h"
+#import "MessageCellData.h"
+#import "MeViewController.h"
+#import "APAvatarImageView.h"
+#import "HTTPClient+Friends.h"
+#import "ChatViewController.h"
+#import "SliderViewController.h"
+#import "FriendsViewController.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient+Interaction.h"
+#import "SearchUserViewController.h"
+#import "SystemMessageViewController.h"
+#import "CarFriendsTogetherController.h"
+#import "CreateFriendCircleController.h"
+#import "FriendCircPostsViewController.h"
+#import "TransportInformationController.h"
+#import "MainTabViewController.h"
+#import "FMTabBarController.h"
+
+#import <AudioToolbox/AudioToolbox.h>
+
+#define kNavigationBarHeight 49
+#define kSearchBarHeight     40
+
+@interface MessageViewController () <UITableViewDelegate, UITableViewDataSource, XMPPStreamDelegate,PushPartySuccessDelegate>
+
+@property (nonatomic, weak)   UITableView               *messageListTableView;
+
+/////服务端的数据内容
+@property (nonatomic, strong) NSMutableArray            *messageListForSerData;
+///客户端的数据内容
+@property (nonatomic , strong)NSMutableArray            *messageListForLocaData;
+@property (nonatomic , strong)NSMutableArray            *dataSource;
+@property (nonatomic , strong)AFHTTPRequestOperation    *requestOperation;
+@property (nonatomic, strong) IMManager                 *imManager;
+@property (nonatomic, copy)   NSString                  *lastContent;
+@property (nonatomic,assign) CGFloat                    heightScale;
+@property (nonatomic,weak)  UIButton                    *headerBtn;
+@end
+
+@implementation MessageViewController
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        
+        self.dataSource = [NSMutableArray array];
+        self.enableCustomNavbarBackButton = FALSE;
+        self.imManager = [IMManager sharedIMManager];
+        [self.imManager.Client addDelegate:self
+                             delegateQueue:dispatch_get_main_queue()];
+    }
+    return self;
+}
+- (void)loadView
+{
+    
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [[ThemeManager sharedThemeManager].skin backgroundColor];
+    
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    self.heightScale=(CGFloat)KProjectScreenHeight/568;
+    
+    if(self.heightScale<1)
+    {
+        self.heightScale=1;
+    }
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0) {
+        //注册控制器
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+    }
+    [self settingNavTitle:@"消息"];
+    
+    
+    //导航栏右侧按钮-车友
+    self.navButtonSize=22.0f;
+    
+    [self setRightNavButtonFA:FMIconFriend
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(rightItemClicked)];
+    self.messageListForLocaData = [[NSMutableArray alloc]init];
+    self.messageListForSerData = [[NSMutableArray alloc]init];
+    
+    // 消息列表
+    UITableView  *m_messageListTableView = [[UITableView alloc] initWithFrame:self.view.bounds
+                                                                        style:UITableViewStylePlain];
+    m_messageListTableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    m_messageListTableView.separatorStyle = NO;
+    m_messageListTableView.delegate = self;
+    m_messageListTableView.dataSource = self;
+    m_messageListTableView.backgroundColor = [UIColor clearColor];
+    [self.view addSubview:m_messageListTableView];
+    self.messageListTableView = m_messageListTableView;
+    
+    // 搜索控件
+    
+    UIView *backView=[[UIView alloc]initWithFrame:CGRectMake(0, 0, KProjectScreenWidth, kSearchBarHeight+4)];
+    backView.backgroundColor=[UIColor colorWithRed:0.94 green:0.94 blue:0.94 alpha:1];
+    self.messageListTableView.tableHeaderView=backView;
+    
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    button.backgroundColor = [UIColor clearColor];
+    [button setBackgroundImage:createImageWithColor([UIColor whiteColor]) forState:UIControlStateNormal];
+    button.frame = CGRectMake(10, 8, KProjectScreenWidth-20, backView.frame.size.height-16);
+    button.layer.cornerRadius=5;
+    button.clipsToBounds=YES;
+    
+    button.titleLabel.font=[UIFont systemFontOfSize:14];
+    [button setTitle:@"搜索车友" forState:UIControlStateNormal];
+    [button simpleButtonWithImageColor:KSubNumbeiTextColor];
+    [button addAwesomeIcon:FMIconBigSearch beforeTitle:YES];
+    [button.titleLabel setTextAlignment:NSTextAlignmentCenter];
+    self.headerBtn=button;
+    [button addTarget:self
+               action:@selector(pushSearchUserView)
+     forControlEvents:UIControlEventTouchUpInside];
+    [backView addSubview:button];
+//    self.messageListTableView.tableHeaderView = button;
+    
+    ///用户登录通知
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(userLoginNotification:)
+                                                 name:FMUserLoginNotification object:nil];
+    
+    ///会话结束通知
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(chatFinishNotification:)
+                                                 name:FMIMP2PChatFinishNotification object:nil];
+    
+    //圈子更新通知
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(circleUpdateNotification:)
+                                                 name:FMCircleMessagePublishNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter]addObserver:self
+                                            selector:@selector(circleChangedNotification:)
+                                                name:FMUserChangedFriendCircleNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(messageUpdataNotification:)
+                                                 name:FMEnterForegroundNotificationn
+                                               object:nil];
+
+    [FMLocalIMDBManager connectCurrentUserDataBase];
+    
+    //从服务器读取最新10条消息
+    [self getLatestMessageFromServer];
+    [self getPersonNumberForChat];
+    
+}
+//从后台进入前台从服务获取数据
+- (void) messageUpdataNotification:(NSNotification *) notification{
+    
+    [self getLatestMessageFromServer];
+    
+}
+- (void) userLoginNotification:(NSNotification *) notification
+{
+    //切换数据库
+    [FMLocalIMDBManager connectCurrentUserDataBase];
+    
+    //从服务器读取最新10条消息
+    [self getLatestMessageFromServer];
+    //获取聊天用户数
+    [self getPersonNumberForChat];
+
+}
+//发布车友活动后刷新数据
+-(void)initWithPushPartyChangeUpdataMessage
+{
+    [self getLatestMessageFromServer];
+ 
+}
+- (void) chatFinishNotification:(NSNotification *) notification
+{
+    FMMessage* message = notification.object;
+    if (message == nil) {
+        return;
+    }
+    MessageCellData* cellData = [[MessageCellData alloc] init];
+    cellData.userId = message.chatUserId;
+    if (message.messageType == MessageTypeImage) {
+        cellData.lastContent = @"[图片]";
+    }else if (message.messageType == MessageTypeVoice) {
+        cellData.lastContent = @"[语音]";
+    }else{
+        cellData.lastContent = message.content;
+    }
+    [cellData setMsgTimeStamp:message.msgTime];
+    [cellData setMsgCreateDateTime:timeShortDesc(message.msgTime)];
+    [cellData makeAttributeContent];
+    cellData.unreadMsgCount = -1;
+    [cellData setCellType:IMForInteractionType];
+    [self updateRecentMessage:cellData];
+    
+}
+- (void) circleUpdateNotification:(NSNotification *) notification
+{
+    MessageCellData* cellData = notification.object;
+    if (cellData == nil) {
+        return;
+    }
+    [self updateRecentMessage:cellData];
+}
+
+
+///切换圈子设置
+- (void)circleChangedNotification:(NSNotification *) notification
+{
+    MessageCellData* cellData = notification.object;
+    if (cellData == nil) {
+        return;
+    }
+    [self updateRecentMessageForCircleChanged:cellData];
+}
+
+// 接收到服务器消息事件
+- (void)xmppStream:(IMClient *)sender didReceiveMessage:(NSData *)message{
+    
+    c2s_pkg_t *pkg = (c2s_pkg_t *)[message bytes];
+    
+    // 用户Id
+    U4 peer = pkg->message.peer;
+    int peerId = htonl(peer);
+    NSString *userId = [NSString stringWithFormat:@"%d", peerId];
+    
+    // messageId
+    //U4 msg_id = pkg->message.msg_id;
+    //int messageId = htonl(msg_id);
+    
+    // msgTime
+    U4 msg_time = pkg->message.msg_time;
+    int msgTime = htonl(msg_time);
+    
+    // 消息内容
+    pkg_message_t *msg = &pkg->message;
+    PLV plvMessage = &msg->msg_content;
+    
+    NSString *messageStr = StringFromLV(plvMessage);
+    
+    FMMessage* fm_msg = [[FMMessage alloc] init];
+    fm_msg.content = messageStr;
+    
+    MessageCellData *itemInfor = [[MessageCellData alloc]init];
+    [itemInfor setUserId:userId];
+    [itemInfor setUserSex:1];
+    if (fm_msg.messageType == MessageTypeImage) {
+        itemInfor.lastContent = @"[图片]";
+    }else if (fm_msg.messageType == MessageTypeVoice) {
+        itemInfor.lastContent = @"[语音]";
+    }else{
+        itemInfor.lastContent = messageStr;
+    }
+    [itemInfor setCellType:IMForInteractionType];
+    [itemInfor setMsgTimeStamp:msgTime];
+    [itemInfor setMsgCreateDateTime:timeShortDesc(msgTime)];
+    itemInfor.unreadMsgCount = 1;
+    [itemInfor makeAttributeContent];
+    
+    if (![FMShareSetting.appUserPersonalChatUserIdString isEqualToString:userId]) {
+        
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);//震动
+    }
+    
+    
+    [self updateRecentMessage:itemInfor];
+    
+}
+// 同步不同终端信息
+- (void)xmppStream:(IMClient *)sender didSyncMessage:(NSData *)message
+{
+    
+    c2s_pkg_t *pkg = (c2s_pkg_t *)[message bytes];
+    
+    // 用户Id
+    U4 peer = pkg->message.peer;
+    int peerId = htonl(peer);
+    NSString *userId = [NSString stringWithFormat:@"%d", peerId];
+    
+    // messageId
+    //U4 msg_id = pkg->message.msg_id;
+    //int messageId = htonl(msg_id);
+    
+    // msgTime
+    U4 msg_time = pkg->message.msg_time;
+    int msgTime = htonl(msg_time);
+    
+    // 消息内容
+    pkg_message_t *msg = &pkg->message;
+    PLV plvMessage = &msg->msg_content;
+    
+    NSString *messageStr = StringFromLV(plvMessage);
+    
+    FMMessage* fm_msg = [[FMMessage alloc] init];
+    fm_msg.content = messageStr;
+    
+    MessageCellData *itemInfor = [[MessageCellData alloc]init];
+    [itemInfor setUserId:userId];
+    [itemInfor setUserSex:1];
+    if (fm_msg.messageType == MessageTypeImage) {
+        itemInfor.lastContent = @"[图片]";
+    }else if (fm_msg.messageType == MessageTypeVoice) {
+        itemInfor.lastContent = @"[语音]";
+    }else{
+        itemInfor.lastContent = messageStr;
+    }
+    [itemInfor setCellType:IMForInteractionType];
+    [itemInfor setMsgTimeStamp:msgTime];
+    [itemInfor setMsgCreateDateTime:timeShortDesc(msgTime)];
+    itemInfor.unreadMsgCount = 0;
+    [itemInfor makeAttributeContent];
+    
+    [self updateRecentMessage:itemInfor];
+    
+}
+//更新最近消息
+- (void)updateRecentMessage:(MessageCellData *)message
+{
+    //首先从原有列表中删除
+    int i = 0;
+    BOOL isNewFriend = YES;
+    for (MessageCellData* cell in self.dataSource) {
+        if ([cell.userId isEqualToString:message.userId]) {
+            NSIndexPath* path = [NSIndexPath indexPathForRow:i inSection:0];
+            message.userIconKey = cell.userIconKey;
+            message.userSex = cell.userSex;
+            message.userName = cell.userName;
+            if (message.unreadMsgCount >= 0) {
+                //unreadMsgCount >= 0表示需要更新未读,否则清空未读
+                message.unreadMsgCount += cell.unreadMsgCount;
+            }
+            else if(message.msgTimeStamp != cell.msgTimeStamp)
+            {
+                message.unreadMsgCount = 0;
+            }else{
+                //清空未读
+                cell.unreadMsgCount = 0;
+                [self.messageListTableView reloadRowsAtIndexPaths:@[path] withRowAnimation:UITableViewRowAnimationNone];
+                [self getRedPointInforWithUnreadMsg];
+                return;
+            }
+            [self.dataSource removeObjectAtIndex:i];
+            [self.messageListTableView deleteRowsAtIndexPaths:[NSArray arrayWithObject:path]
+                                             withRowAnimation:UITableViewRowAnimationNone];
+            isNewFriend = NO;
+            break;
+        }
+        i++;
+    }
+    
+    //添加到顶部
+    [self.dataSource insertObject:message atIndex:0];
+    NSMutableArray *indexPaths = [NSMutableArray arrayWithCapacity:1];
+    [indexPaths addObject:[NSIndexPath indexPathForRow:0 inSection:0]];
+    [self.messageListTableView insertRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationNone];
+    
+    
+    ///读取未读消息，并标注小红点
+    [self getRedPointInforWithUnreadMsg];
+    
+    //如果新的聊天用户，读取用户资料信息
+    if(isNewFriend)
+    {
+        [self getFriendDetailInfoFromServer:message.userId];
+    }
+    
+    //更新本地联系人信息
+    [FMLocalIMDBManager updateRecentUserWithMessageCellDataModel:message];
+}
+
+//更新最近消息
+- (void)updateRecentMessageForCircleChanged:(MessageCellData *)message{
+    
+    
+    //首先从原有列表中删除
+    int i = 0;
+    BOOL isNewFriend = YES;
+    for (MessageCellData* cell in self.dataSource) {
+        if ([cell.userId isEqualToString:message.userId]) {
+            message.userIconKey = cell.userIconKey;
+            message.userSex = cell.userSex;
+            if (message.unreadMsgCount > 0) {
+                //unreadMsgCount > 0表示需要更新未读，否则是清除未读
+                message.unreadMsgCount += cell.unreadMsgCount;
+            }
+            [self.dataSource removeObjectAtIndex:i];
+            NSIndexPath* path = [NSIndexPath indexPathForRow:i inSection:0];
+            [self.messageListTableView deleteRowsAtIndexPaths:[NSArray arrayWithObject:path]
+                                             withRowAnimation:UITableViewRowAnimationNone];
+            isNewFriend = NO;
+            break;
+        }
+        i++;
+    }
+    
+    //添加到顶部
+    [self.dataSource insertObject:message atIndex:0];
+    NSMutableArray *indexPaths = [NSMutableArray arrayWithCapacity:1];
+    [indexPaths addObject:[NSIndexPath indexPathForRow:0 inSection:0]];
+    [self.messageListTableView insertRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationNone];
+    
+    //如果新的聊天用户，读取用户资料信息
+    if(isNewFriend)
+    {
+        [self getFriendDetailInfoFromServer:message.userId];
+    }
+    
+    //更新本地联系人信息
+    [FMLocalIMDBManager updateRecentUserWithMessageCellDataModel:message];
+}
+
+
+//更新用户资料
+- (void)updateFriendInfo:(NSString* )userId
+                userName:(NSString* )userName
+              userAvatar:(NSString* )strAvatar
+                     sex:(NSInteger)userSex
+{
+    int i = 0;
+    for (MessageCellData* cell in self.dataSource) {
+        if ([cell.userId isEqualToString:userId]) {
+            cell.userIconKey = strAvatar;
+            cell.userSex = userSex;
+            cell.userName = userName;
+            
+            NSIndexPath* path = [NSIndexPath indexPathForRow:i inSection:0];
+            [self.messageListTableView reloadRowsAtIndexPaths:@[path]
+                                             withRowAnimation:UITableViewRowAnimationNone];
+            [FMLocalIMDBManager updateUserInfo:cell];
+            break;
+        }
+    }
+}
+
+//从服务器获取好友详细信息
+- (void)getFriendDetailInfoFromServer:(NSString *)userId{
+    // 请求车友详细信息
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient getMsgListFriendsDetailInfo:userId
+                                   completion:^(WebAPIResponse *response) {
+                                       dispatch_async(dispatch_get_main_queue(), ^(void) {
+                                           
+                                           if (response.code == WebAPIResponseCodeSuccess) {
+                                               
+                                               NSDictionary *dataDic = [response.responseObject objectForKey:kDataKeyData];
+                                               if (dataDic.count > 0 ) {
+                                                   NSString* strAvatar = StringForKeyInUnserializedJSONDic(dataDic, @"Brand_logo_name");
+                                                   NSString* strUserName = StringForKeyInUnserializedJSONDic(dataDic,@"userName");
+                                                   NSInteger sex = IntForKeyInUnserializedJSONDic(dataDic, @"userSex");
+                                                   [weakSelf updateFriendInfo:userId
+                                                                     userName:strUserName
+                                                                   userAvatar:strAvatar
+                                                                          sex:sex];
+                                               }
+                                           }
+                                       });
+                                   } ];
+}
+
+- (void)viewDidUnload{
+    [self.requestOperation cancel];
+    [self.dataSource removeAllObjects];
+    [self.messageListTableView setDataSource:nil];
+    [self.messageListTableView setDelegate:nil];
+    [self.imManager.Client removeDelegate:self
+                         delegateQueue:dispatch_get_main_queue()];
+
+}
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+//从服务器获取最新10条信息内容
+- (void)getLatestMessageFromServer{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState != 1) {
+        return;
+    }
+    
+    [self.requestOperation cancel];
+    if (self.messageListForSerData) {
+        [self.messageListForSerData removeAllObjects];
+    }
+    
+    WaittingMBProgressHUD(HUIKeyWindow, @"正在同步...");
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestOperation = [FMHTTPClient getMessageWithLatestDataForInstantMessagingWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ? @"0":[CurrentUserInformation sharedCurrentUserInfo].userID completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            Log(@"getLatestMessageFromServer is response.responseObject is %@",response.responseObject);
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                NSMutableArray *systemMsgList = [[NSMutableArray alloc]init];
+                
+                NSArray *dataArray = [[NSArray alloc]initWithArray:(NSArray *)[response.responseObject objectForKey:kDataKeyData]];
+                for (NSDictionary *dic in dataArray)
+                {
+                    
+                    MessageCellData *itmeCellData = (MessageCellData *)[MessageCellData initUserMessageCellDataWithUnserializedJSONDic:dic];
+                    if (itmeCellData) {
+                        [systemMsgList addObject:itmeCellData];
+                    }
+                }
+                ///插入数据库内容
+                [weakSelf.messageListForSerData setArray:systemMsgList];
+                [FMLocalIMDBManager updateRecentUserWithMessageCellDataModelArray:systemMsgList
+                                                                       complition:^(){
+                                                                           dispatch_async(dispatch_get_main_queue(), ^(void){
+                                                                               [weakSelf loadLocalAllRecentUserinfoList];
+                                                                               
+                                                                           });
+                                                                           
+                                                                       }];
+                
+                NSInteger unRead = [weakSelf getUnReadMessageCount];
+                if (unRead > 0) {
+                    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);//震动
+                }
+                FinishMBProgressHUD(HUIKeyWindow);
+            }
+            else
+            {
+                FailedMBProgressHUD(HUIKeyWindow,@"同步失败");
+            }
+        });
+    }];
+}
+
+- (void)loadLocalAllRecentUserinfoList{
+    
+    ///清空聊天前的数据
+    [self.dataSource removeAllObjects];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^(void){
+        
+        NSArray *messCellHistoryArray = [[NSArray alloc]initWithArray:[FMLocalIMDBManager getAllLocalRecentUserInfoList]];
+        [weakSelf.dataSource setArray:messCellHistoryArray];
+        [weakSelf.messageListTableView reloadData];
+        
+        [self getRedPointInforWithUnreadMsg];
+    });
+}
+
+
+#pragma mark Button Clicked Methods
+
+- (void) rightItemClicked
+{
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+        
+        //注册控制器
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+        
+        return;
+    }
+
+    FriendsViewController*  friendsViewController = [[FriendsViewController alloc] init];
+    friendsViewController.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:friendsViewController animated:YES];
+}
+
+- (void)pushSearchUserView
+{
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+        
+        //注册控制器
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+        
+        return;
+    }
+
+    SearchUserViewController *searchUserViewController = [[SearchUserViewController alloc] init];
+    searchUserViewController.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:searchUserViewController animated:YES];
+}
+
+
+#pragma mark UITableViewDataSource
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    
+    return [self.dataSource count];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+    return 69;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *identifier = @"cell";
+    
+    MessageListCell *cell = [tableView dequeueReusableCellWithIdentifier:identifier];
+    if (cell == nil) {
+        cell = [[MessageListCell alloc] init];
+    }
+    
+    MessageCellData *itemMsgData = (MessageCellData *)[self.dataSource objectAtIndex:(indexPath.row)];
+    
+    [cell initWithSetupMessageListCellDataWithMessageCellData:itemMsgData];
+    
+    return cell;
+}
+
+
+#pragma mark UITableViewDelegate
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    
+    if (indexPath.row >= [self.dataSource count]) {
+        return;
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+    
+    MessageCellData *itemCellinfor = (MessageCellData *)[self.dataSource objectAtIndex:(indexPath.row)];
+    
+    ///若数据有未读消息提示，则将消息设置为已读
+    if (itemCellinfor.unreadMsgCount >= 1) {
+        
+        
+        MessageListCell *cell = (MessageListCell *)[tableView cellForRowAtIndexPath:indexPath];
+        [cell setUserHasReadMessage];
+        [self getRedPointInforWithUnreadMsg];
+        
+        __weak __typeof(&*self)weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            //清空本地未读
+            [FMLocalIMDBManager markMessageReadedWithUserId:itemCellinfor.userId];
+            if (itemCellinfor.cellType == IMForInteractionType) {
+                //清空服务器未读消息
+                [weakSelf getMsgReadInforWithCurrUserId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                                         withChatUserID:itemCellinfor.userId];
+                //获取最新用户信息
+                [weakSelf getFriendDetailInfoFromServer:itemCellinfor.userId];
+                
+            }
+        });
+    }
+    
+    ///默认IM消息类型
+    if (itemCellinfor.cellType == IMForInteractionType) {
+        
+        ///保存聊天对象的ID
+        [FMShareSetting setAppUserPersonalChatUserIdString:itemCellinfor.userId];
+    
+        
+        UserInfo* friendUser = [[UserInfo alloc] init];
+        friendUser.userName = itemCellinfor.userName;
+        friendUser.userID = itemCellinfor.userId;
+        friendUser.userSex = itemCellinfor.userSex;
+        friendUser.userAvatar = itemCellinfor.userIconKey;
+        friendUser.userPersonalSignature = itemCellinfor.signature;
+        
+        ChatViewController *viewController = [[ChatViewController alloc]initWithPeerInfo:friendUser];
+        viewController.whetherBackRootView=YES;
+        [viewController setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:viewController animated:YES];
+
+    }
+    
+    ///电台资讯通知消息类型
+    else if (itemCellinfor.cellType == IMForTrafficMessageType){
+        
+        TransportInformationController *viewConroller = [[TransportInformationController alloc]initWithViewStyle:InitTransportInformation];
+        [viewConroller setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:viewConroller animated:YES];
+        [FMShareSetting setAppPushRadioAnnouncementBool:NO];
+    }
+    
+    ///系统通知消息类型
+    else if (itemCellinfor.cellType == IMForSystemMessageType){
+        SystemMessageViewController *viewConroller = [[SystemMessageViewController alloc]init];
+        [viewConroller setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:viewConroller animated:YES];
+        [FMShareSetting setAppUserSystemMessageHasNORead:NO];
+    }
+    
+    ///车友聚会消息类型
+    else if (itemCellinfor.cellType == IMForCarFriendsPartyType){
+        CarFriendsTogetherController *viewConroller = [[CarFriendsTogetherController alloc]init];
+        viewConroller.pushPartySuccessDelegate=self;
+        [viewConroller setHidesBottomBarWhenPushed:YES];
+        [self.navigationController pushViewController:viewConroller animated:YES];
+        [FMShareSetting setAppUserCarFriendsPartyHasNORead:NO];
+    }
+    
+    ///精品推荐通知消息类型
+    else if (itemCellinfor.cellType == IMForBusinessRecommendType){
+    TransportInformationController *viewConroller = [[TransportInformationController alloc]initWithViewStyle:InitWonderfulRecommendation];
+    [viewConroller setHidesBottomBarWhenPushed:YES];
+    [self.navigationController pushViewController:viewConroller animated:YES];
+        [FMShareSetting setAppUserBusinessRecommendHasNORead:NO];
+
+    }
+    ///
+    else if (itemCellinfor.cellType == ImForFriendCircleType){
+        [FMShareSetting setAppUserFriendCircleHasNORead:NO];
+        if ([FMShareSetting.appUserFriendCirclePushLatestId isEqualToString:@"-5"]||[FMShareSetting.appUserFriendCirclePushLatestId isEqualToString:@"0"]||
+            [FMShareSetting.appUserFriendCirclePushLatestId isEqualToString:@"-6"]) {
+            
+            CreateFriendCircleController *viewConroller = [[CreateFriendCircleController alloc]init];
+            [viewConroller setHidesBottomBarWhenPushed:YES];
+            [self.navigationController pushViewController:viewConroller animated:YES];
+        }
+        else{
+            
+            FriendCircleModel *moder = [[FriendCircleModel alloc]init];
+            [moder setFriendCirId:FMShareSetting.appUserFriendCirclePushLatestId];
+            [moder setFriendCirName:itemCellinfor.userName];
+            [moder setFriendCirCurrentUsersCount:FMShareSetting.appUserFriendCircleCountMemberInteger];
+            FriendCircPostsViewController  *viewController = [[FriendCircPostsViewController alloc]initWithFriendCircleModel:moder];
+            [viewController setHidesBottomBarWhenPushed:YES];
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }
+    }
+}
+
+- (void)getMsgReadInforWithCurrUserId:(NSString *)userID withChatUserID:(NSString *)chatUserId {
+    [FMHTTPClient getMessageWIthUserReadForChatInforWithUserId:userID withToUserId:chatUserId completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            
+            if (response.code == WebAPIResponseCodeSuccess) {
+            }
+        });
+    }];
+}
+
+// 侧滑删除
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    MessageCellData *itemMsgData = (MessageCellData *)[self.dataSource objectAtIndex:(indexPath.row)];
+    if (itemMsgData.cellType==1) {
+        return YES;
+
+    }
+    return NO;
+    
+}
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (editingStyle == UITableViewCellEditingStyleDelete) {
+        MessageCellData *cellData = self.dataSource[indexPath.row];
+        if (indexPath.row < [self.dataSource count]) {
+            [self.dataSource removeObjectAtIndex:indexPath.row];
+        }
+        // 删除本地消息
+        [[FMIMDBManager shareFMIMDBManager] deleteUserInfoWithUserId:cellData.userId];
+        [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
+        
+        /*
+        ////屏蔽服务器删除
+        [FMHTTPClient getDeleteChatMsgInfor:[CurrentUserInformation sharedCurrentUserInfo].userID withChatUserId:cellData.userId withCompletion:^(WebAPIResponse *response) {
+            
+        }];
+         */
+    }
+    else if (editingStyle == UITableViewCellEditingStyleInsert) {
+    }
+    
+}
+
+
+-(UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return UITableViewCellEditingStyleDelete;
+}
+
+-(NSString *)tableView:(UITableView *)tableView titleForDeleteConfirmationButtonForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return @"删除";
+}
+
+
+- (NSInteger)getUnReadMessageCount{
+    NSInteger unReadCount = 0;
+    for (MessageCellData *cellMsdData in self.dataSource) {
+        unReadCount +=cellMsdData.unreadMsgCount;
+    }
+    return unReadCount;
+}
+
+- (void )getRedPointInforWithUnreadMsg{
+    
+    NSInteger unReadCount = [self getUnReadMessageCount];
+    
+    MainTabViewController *mainTabView = FMMainViewController;
+    if (unReadCount >= 1) {
+
+        [mainTabView showHintPoint:2 showOrHide:YES];
+    }else{
+        [mainTabView showHintPoint:2 showOrHide:NO];
+    }
+}
+//获取聊天总数
+-(void)getPersonNumberForChat
+{
+    
+    [FMHTTPClient getChatNumberWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID Completion:^(WebAPIResponse *response) {
+        Log(@"%@",response.responseObject);
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if (response.code == WebAPIResponseCodeSuccess) {
+                
+                NSInteger num=IntForKeyInUnserializedJSONDic(response.responseObject, @"data");
+                NSNumber *number = [NSNumber numberWithInteger:num];
+                [self.headerBtn setTitle:[NSString stringWithFormat:@"搜索%@位车友",number] forState:UIControlStateNormal];
+                [self.headerBtn simpleButtonWithImageColor:KSubNumbeiTextColor];
+                [self.headerBtn addAwesomeIcon:FMIconBigSearch beforeTitle:YES];
+                [self.headerBtn.titleLabel setTextAlignment:NSTextAlignmentCenter];
+                
+            }else{
+                
+                [self.headerBtn setTitle:@"搜索车友" forState:UIControlStateNormal];
+                [self.headerBtn simpleButtonWithImageColor:KSubNumbeiTextColor];
+                [self.headerBtn addAwesomeIcon:FMIconBigSearch beforeTitle:YES];
+            }
+        });
+    }];
+}
+@end

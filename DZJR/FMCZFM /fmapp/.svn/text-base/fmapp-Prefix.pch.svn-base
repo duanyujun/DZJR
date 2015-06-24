@@ -1,0 +1,718 @@
+//
+//  Prefix header
+//
+//  The contents of this file are implicitly included at the beginning of every source file.
+//
+
+#import <Availability.h>
+
+#ifndef __IPHONE_3_0
+#warning "This project uses features only available in iOS SDK 3.0 and later."
+#endif
+
+#ifdef __OBJC__
+    #import <UIKit/UIKit.h>
+    #import <Foundation/Foundation.h>
+    #import <SystemConfiguration/SystemConfiguration.h>
+    #import <MobileCoreServices/MobileCoreServices.h>
+    //#import "ThemeManager.h"
+    #import "FMIMDBManager.h"
+    #import "HUIKit.h"
+    #import "JSONKit.h"
+    #import "FMStrings.h"
+    #import "FMFunctions.h"
+    #import "DataPage.h"
+    #import "WebAPIDefine.h"
+    #import "FMNotification.h"
+    #import "UIImageView+WebCache.h"        //SDWebImage缓存网络图片
+    #import "SVPullToRefresh.h"             //下拉刷新控件
+    #import "MBProgressHUD.h"
+    #import "UIButton+Bootstrap.h"
+    #import "FMViewController.h"
+    #import "ThemeManager.h"
+    #import "MLTransitionAnimation.h"
+    #import "UIViewController+MLTransition.h"
+
+#endif
+
+#define kFontAwesomeFamilyName @"FontAwesome"
+
+/*接口地址
+ 1.南宁 http://www.czfw.cn:81/fm103版本号
+ 2.其他城市 http://城市.czfw.cn:81/api/版本号
+ */
+//#define kBaseAPIURL  @"http://www.czfw.cn:81/fm103v23/"//项目URL
+#define kBaseAPIURL  @"http://api.czfw.cn:81/v31/"//测试环境
+
+//#define kBaseAPIURL  @"http://223.99.252.114/api/"//测试环境
+
+//事故快处URL 由其他公司提供
+#define kQuickDealWithAccidentURL @"http://221.214.13.10:7011/Accident.ashx?"
+#define KProjectCommerceCooperationTel @"0531-58702560"
+
+//IM服务器地址
+#define kImServerAddress       @"120.192.86.19"
+//#define kImServerAddress       @"192.168.1.114"
+#define kImServerPort          5222
+
+//TODO:临沂
+#if defined (LY)
+
+
+///临沂的默认参数
+#define KProjectCityCodeString  @"371300"
+#define KProjectCityNameString  @"临沂市"
+#define KProjectCityNameText    @"临沂"
+#define KProjectProvinceShortName @"鲁"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/lysfcmzsm.html"
+//Umeng地址
+#define kUmengKey @"538d395556240bcb521a2c0a"
+/**
+ 临沂899车主服务客户端中相关Key值：
+ ShareSDK  :	appKey: 【1eea3c8df9ba】
+ **/
+//ShareSDK
+#define kShareSDKAppKey @"1eea3c8df9ba"
+
+///频道编号
+#define KProjectRadioFMNumber @"899"
+
+
+
+
+/**
+ 临沂899车主服务
+ AppID： wxa467e3c7a7d3a57e
+ AppSecret：c0aa022c4ddd4aeae3497785c34f1a6b
+ 
+  **/
+//微信
+#define kWeiXinKey @"wxa467e3c7a7d3a57e"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"c0aa022c4ddd4aeae3497785c34f1a6b"
+///微信商家ID
+#define KWeiXinPartnerId    @""
+///商家密钥
+#define KWeiXinPartnerKey   @""
+///商户初始密钥
+#define KWeiXinAPPKey       @""
+
+
+/**
+ 
+ 应用名称：899车主服务
+ 应用平台：手机  -  iPhone / Android
+ App Key：391651425
+ App Secret：    b946e4a4c22ad4990309e07b0153bb28
+ **/
+
+//微博 AppKey
+#define kWeiboAppKey @"391651425"
+//微博token
+#define kWeiboAppSecret @"b946e4a4c22ad4990309e07b0153bb28"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2416395651"
+
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+#define kMapKey @"a6fffe3c0b8ba9303b2c97ed4942b819"
+
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://ly.czfw.cn"
+#define URLString2 @"http://ly.czfw.cn"
+
+#define ContentString1 @"我在使用临沂交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://ly.czfw.cn/?uid=%@"
+#define URLString1 @"http://ly.czfw.cn/?uid=%@"
+#define CurrentVersionText @"1.2"
+
+#define InsteadOfDrivingViewDescriptionText @"本服务由临沂择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启899车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”899车主服务”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/899che-zhu-fu-wu/id885668619?l=zh&ls=1&mt=8"
+#define UserShakeTelNum @"0539-2952126"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm1031"
+
+#define AdBgImage @"AdBg_ly.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_ly.png"
+#define waterMarkImage  @"waterMarkImageView_ly.png"
+#define Project_QRCodeImage @"Project_QRCode_ly.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_ly.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_ly.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_ly.png"
+
+#define kRadioURL @"http://live.ilinyi.net/channels/tvie/jiaotongguangbo/flv:128k/live"//广播地址
+#define KViolationQueryWebURL @"http://www.whjg.gov.cn:8082/wzxxcx/query/carQuery.jsp"
+
+#endif
+//TODO:潍坊
+#if defined (WF)
+///潍坊的默认参数
+///频道编号
+#define KProjectRadioFMNumber @"959"
+#define KProjectCityCodeString  @"370700"
+#define KProjectCityNameString  @"潍坊市"
+#define KProjectCityNameText  @"潍坊"
+#define KProjectProvinceShortName @"鲁"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/wfsfcmzsm.html"
+//Umeng地址
+#define kUmengKey @"52a6b11956240b4e521330c0"
+//ShareSDK
+#define kShareSDKAppKey @"ed00c697e60"
+
+
+////////潍坊微信支付参数内容//////////
+//微信
+#define kWeiXinKey @"wxc30c7b7c0eeb470e"
+///微信商家ID
+#define KWeiXinPartnerId    @"1223445201"
+///商家密钥
+#define KWeiXinPartnerKey   @"cde45cb6881962f82e9a1d45231234bb"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"4bd68b363f6f357e403a11d1c6c84643"
+///商户初始密钥
+#define KWeiXinAPPKey       @"YcUEPC13JSC74zOcA3EJ4K8NYkNuIngC8HNE9TAZXaKlzfD9ltUtNkJyojkRGOOrZXNHsS9Pat14MRIG5VLZEQnel6n2iyCyc4vvEJWL9r9ugH7M8cAQMMfUk7k6QzT7"
+
+
+
+//微博 AppKey
+#define kWeiboAppKey @"242253785"
+//微博token
+#define kWeiboAppSecret @"3884d78fb5aad96a70e792f687db8531"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2416395651"
+
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://wf.czfw.cn"
+#define URLString2 @"http://wf.czfw.cn"
+
+#define ContentString1 @"我在使用潍坊交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://wf.czfw.cn/?uid=%@"
+#define URLString1 @"http://wf.czfw.cn/?uid=%@"
+
+//高德地图Key
+#define kMapKey @"37602cbb2b763cc8e3cca41349f859f6"
+
+///潍坊广播直播流 @"mmsh://124.128.18.76/jiaotong"
+#define kRadioURL @"mmsh://124.128.18.76/jiaotong"//广播地址
+
+#define KViolationQueryWebURL @"http://www.whjg.gov.cn:8082/wzxxcx/query/carQuery.jsp"
+
+#define CurrentVersionText @"2.0"
+
+#define InsteadOfDrivingViewDescriptionText @"本服务由潍坊择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启959车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”959车主服务”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/959che-zhu-fu-wu/id782273313?ls=1&mt=8"
+#define UserShakeTelNum @"0536-2996282"
+#define PlayerWebViewUrl @"http://radio.weibo.com/shandong/fm959?source=radioarea_list"
+//http://radio.weibo.com/shandong/fm959?source=radioarea_list
+
+#define AdBgImage @"AdBg_wf.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_wf.png"
+#define waterMarkImage  @"waterMarkImageView_wf.png"
+#define Project_QRCodeImage @"Project_QRCode_wf.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_wf.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_wf.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_wf.png"
+
+#endif
+
+//TODO: 武汉
+
+#if defined (WH)
+///武汉的默认参数
+///频道编号
+#define KProjectRadioFMNumber @"896"
+#define KProjectCityCodeString  @"420100"
+#define KProjectCityNameString  @"武汉市"
+#define KProjectCityNameText  @"武汉"
+#define KProjectProvinceShortName @"鄂"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/whsfcmzsm.html"
+
+//Umeng地址
+#define kUmengKey @"538ec21f56240ba4a6009e74"
+//ShareSDK
+#define kShareSDKAppKey @"1f1c696b1f51"
+
+
+
+
+/****武汉896 微信支付参数***/
+//微信
+#define kWeiXinKey @"wx08b88cc19251a754"
+///微信商家ID
+#define KWeiXinPartnerId    @"1223639201"
+///商家密钥
+#define KWeiXinPartnerKey   @"f3b4c2fd4b2bf5a26a91c76e27978467"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"fe5f28b404437d0984838d33946a8ed8"
+#define KWeiXinAPPKey       @"hcT4xXiwhb1pl0BlEuqLy5avJWmzmwGjMOf2pGiTPNGBvW2Q5lsq4fRWkLjm7QUfXX2ERV6ss8nHj0qnDlnLY7YQNXx5eR3Bp2o1fC6USDOSjTejKHbz2RgCAQ5G3Tlm"
+
+
+
+//微博 AppKey
+#define kWeiboAppKey @"3897433280"
+//微博token
+#define kWeiboAppSecret @"1535ab7b64865cef69b05e3f3d7c4760"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2416395651"
+
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+//高德地图Key
+#define kMapKey @"a6e13fa9cf0c6d49dc08e0998d4ffba3"
+
+///武汉广播直播流 @"mmsh://124.128.18.76/jiaotong"
+#define kRadioURL @"mmsh://124.128.18.76/jiaotong"//广播地址
+//省外违章查询_网址地址URL
+//武汉市违章查询地址
+#define KViolationQueryWebURL @"http://www.whjg.gov.cn:8082/wzxxcx/query/carQuery.jsp"
+
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://wh.czfw.cn"
+#define URLString2 @"http://wh.czfw.cn"
+
+#define ContentString1 @"我在使用武汉交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://wh.czfw.cn/?uid=%@"
+#define URLString1 @"http://wh.czfw.cn/?uid=%@"
+
+#define CurrentVersionText @"1.3"
+#define InsteadOfDrivingViewDescriptionText @"本服务由武汉择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启896车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”896车主服务”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/896che-zhu-fu-wu/id885725747?l=zh&ls=1&mt=8"
+#define UserShakeTelNum @"0531-58702560"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm1031"
+
+#define AdBgImage @"AdBg_wh.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_wh.png"
+#define waterMarkImage  @"waterMarkImageView_wh.png"
+#define Project_QRCodeImage @"Project_QRCode_wh.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_wh.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_wh.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_wh.png"
+
+#endif
+
+//TODO:烟台
+///烟台的默认参数
+#if defined (YT)
+
+///烟台的默认参数
+///频道编号
+#define KProjectRadioFMNumber @"103"
+#define KProjectCityCodeString  @"370600"
+#define KProjectCityNameString  @"烟台市"
+#define KProjectCityNameText  @"烟台"
+#define KProjectProvinceShortName @"鲁"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/ytsfcmzsm.html"
+
+//Umeng地址
+#define kUmengKey @"529fd2b856240b8fc113cfec"
+//ShareSDK
+#define kShareSDKAppKey @"e49a9306320"
+
+
+/**
+ 103交警在线
+ AppID：wx7d927c3f0f1aa3db
+ AppSecret：551ec2f2b9b861821991958c0a68756d
+ ***/
+
+//微信
+#define kWeiXinKey @"wx7d927c3f0f1aa3db"
+
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"551ec2f2b9b861821991958c0a68756d"
+
+///微信商家ID
+#define KWeiXinPartnerId    @""
+
+///商家密钥
+#define KWeiXinPartnerKey   @""
+
+#define KWeiXinAPPKey       @""
+
+
+
+//微博 AppKey
+#define kWeiboAppKey @"2947390027"
+//微博token
+#define kWeiboAppSecret @"41a811fd231cab7698d7677dc01af7ba"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2416395651"
+
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+//高德地图Key
+#define kMapKey @"5ca5010c75d78c40843f42df5c6eb441"
+
+///烟台广播直播流 @"mmsh://124.128.18.76/jiaotong"
+#define kRadioURL @"mmsh://124.128.18.76/jiaotong"//广播地址
+
+
+//省外违章查询_网址地址URL
+//烟台市违章查询地址
+#define KViolationQueryWebURL @"http://m.hbgajg.com"
+
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://yt.czfw.cn"
+#define URLString2 @"http://yt.czfw.cn"
+
+#define ContentString1 @"我在使用烟台交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://yt.czfw.cn/?uid=%@"
+#define URLString1 @"http://yt.czfw.cn/?uid=%@"
+
+#define CurrentVersionText @"1.3.1"
+
+#define InsteadOfDrivingViewDescriptionText @"本服务由烟台择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启103交警在线的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”103交警在线”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/103che-zhu-fu-wu/id780182911?l=zh&ls=1&mt=8"
+#define UserShakeTelNum @"0531-58702560"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm103"
+
+#define AdBgImage @"AdBg_yt.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_yt.png"
+#define waterMarkImage  @"waterMarkImageView_yt.png"
+#define Project_QRCodeImage @"Project_QRCode_yt.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_yt.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_yt.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_yt.png"
+
+#endif
+
+//TODO:济南
+///济南的默认参数
+#if defined (JN)
+
+///济南的默认参数
+///频道编号
+#define KProjectRadioFMNumber @"1031"
+#define KProjectCityCodeString  @"370100"
+#define KProjectCityNameString  @"济南市"
+#define KProjectCityNameText  @"济南"
+#define KProjectProvinceShortName @"鲁"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/sfcmzsm.html"
+//Umeng地址
+#define kUmengKey @"5193554a527015f5ae000012"
+//ShareSDK
+#define kShareSDKAppKey @"b0cea1638d1"
+
+
+
+/****济南1031 微信支付参数***/
+//微信KEY
+#define kWeiXinKey          @"wxf7902799cc96a135"
+///微信商家ID
+#define KWeiXinPartnerId    @"1221607701"
+///商家密钥
+#define KWeiXinPartnerKey   @"2eb50bf0f7f62d845030543f3c1fc6f6"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"039d940837453a170bb6893777be6023"
+#define KWeiXinAPPKey       @"d16NKnaMGqJpcaIDVQ4kINN7I4gSwEf0Np0qnNnlmEP3gfiJPurs6A4kUjHrPFnBYTbIFWJeqzAZWM0OUYfJTAlrV7vSKPWAp9JPitBCN181nFKA9LN8pVhPnwFahHcH"
+
+
+//微博 AppKey
+#define kWeiboAppKey @"28295929"
+//微博token
+#define kWeiboAppSecret @"e13962253121c53595cb70d3d3e5a942"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2964731135"
+//http://weibo.com/u/2964731135
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+//高德地图Key
+#define kMapKey @"c0e228cf3e3958b64ea336e484d442e6"
+
+///济南广播直播流 @"mmsh://124.128.18.76/jiaotong"
+#define kRadioURL @"mmsh://124.128.18.76/jiaotong"//广播地址
+//mmsh://124.128.18.76/jiaotong
+//省外违章查询_网址地址URL
+//石家庄市违章查询地址
+#define KViolationQueryWebURL @"http://m.hbgajg.com"
+//
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://f.czfw.cn"
+#define URLString2 @"http://f.czfw.cn"
+
+#define ContentString1 @"我在使用济南交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://f.czfw.cn/?uid=%@"
+#define URLString1 @"http://f.czfw.cn/?uid=%@"
+
+#define CurrentVersionText @"3.1.4"
+#define InsteadOfDrivingViewDescriptionText @"本服务由济南择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启1031车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”1031车主服务”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/1031che-zhu-fu-wu/id669344391?ls=1&mt=8"
+#define UserShakeTelNum @"0531-58702560"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm1031"
+
+#define AdBgImage @"AdBg_jn.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_jn.png"
+#define waterMarkImage  @"waterMarkImageView_jn.png"
+#define Project_QRCodeImage @"Project_QRCode_jn.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_jn.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_jn.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_jn.png"
+
+#endif
+
+//TODO；石家庄
+///石家庄的默认参数
+#if defined (SJC)
+//石家庄  B需要执行的代码
+///频道编号
+#define KProjectRadioFMNumber @"946"
+#define KProjectCityCodeString  @"130100"
+#define KProjectCityNameString  @"石家庄市"
+#define KProjectCityNameText  @"石家庄"
+#define KProjectProvinceShortName @"冀"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/sjzsfcmzsm.html"
+//Umeng地址
+#define kUmengKey @"52b7d33b56240b18f22547bd"
+//ShareSDK
+#define kShareSDKAppKey @"12a668b38df4"
+
+
+/****石家庄946 微信支付参数***/
+//微信
+#define kWeiXinKey @"wxe061db73b481ba8c"
+///微信商家ID
+#define KWeiXinPartnerId    @"1223183701"
+///商家密钥
+#define KWeiXinPartnerKey   @"5b965fd7f8047bfefaadb6ef5d7b51fb"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"01805bbab4889dd48089c060d100ed50"
+#define KWeiXinAPPKey       @"0uYLpxz7ZSzU2da6ZBvOx5P561cs6gtz2CkIQwLYO6OCA0JP4qP5DqCP3INQa6TnZquxTy4KFNZqzQILaPK5Xjn82L87UjElYpfHV8hMydOZZC1Vo8SDKecYfVPD7Bpc"
+
+
+//微博 AppKey
+#define kWeiboAppKey @"1737927426"
+//微博token
+#define kWeiboAppSecret @"b968444cb667951cea9afcbe813d5641"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2416395651"
+
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+//高德地图Key
+#define kMapKey @"2e74989d5b6c0f84337cb43324c54982"
+
+///石家庄广播直播流 @"mmsh://124.128.18.76/jiaotong"
+#define kRadioURL @"http://live.2300sjz.com/channels/sjztv/tran946_channel_02/m3u8:tran"//广播地址
+
+//省外违章查询_网址地址URL
+//石家庄市违章查询地址
+#define KViolationQueryWebURL @"http://m.hbgajg.com"
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://sjz.czfw.cn"
+#define URLString2 @"http://sjz.czfw.cn"
+
+#define ContentString1 @"我在使用石家庄交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://sjz.czfw.cn/?uid=%@"
+#define URLString1 @"http://sjz.czfw.cn/?uid=%@"
+
+#define InsteadOfDrivingViewDescriptionText @"本服务由e代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启946车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”946车主服务”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/946che-zhu-fu-wu/id826301295?l=zh&ls=1&mt=8"
+#define UserShakeTelNum @"0311-81586377"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm946"
+
+#define CurrentVersionText @"2.0.4"
+#define AdBgImage @"AdBg_sjc.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_sjc.png"
+#define waterMarkImage  @"waterMarkImageView_sjc.png"
+#define Project_QRCodeImage @"Project_QRCode_sjc.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_sjc.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_sjz.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_sjz.png"
+
+#endif
+//TODO: 南宁
+#if defined (NN)
+//南宁
+///频道编号
+#define KProjectRadioFMNumber @"1074"
+//南宁市正确的CityCode 是450100
+#define KProjectCityCodeString  @"450100"
+#define KProjectCityNameString  @"南宁市"
+#define KProjectCityNameText  @"南宁"
+#define KProjectProvinceShortName @"桂"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/nnsfcmzsm.html"
+//Umeng地址
+#define kUmengKey @"53e64b9efd98c53880026c83"
+//ShareSDK
+#define kShareSDKAppKey @"b0cea1638d1"
+
+
+/****南宁1074 微信支付参数***/
+
+/*  正确的南宁数据信息
+ */
+//微信
+#define kWeiXinKey @"wx9a34aafcabe7e684"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"d6a9880646e848a4c5eb037cf1abaf33"
+///微信商家ID
+#define KWeiXinPartnerId    @""
+///商家密钥
+#define KWeiXinPartnerKey   @""
+#define KWeiXinAPPKey       @""
+
+
+
+//微博 AppKey
+#define kWeiboAppKey @"3212380435"
+//微博token
+#define kWeiboAppSecret @"fa01dd85e4042ee1365917874fabea12"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2416395651"
+//http://weibo.com/u/2964731135
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+//高德地图Key
+#define kMapKey @"c0e228cf3e3958b64ea336e484d442e6"
+
+
+//省外违章查询_网址地址URL
+//南宁市违章查询地址
+#define KViolationQueryWebURL @"http://m.weizhang8.cn"
+//http://m.weizhang8.cn
+
+///南宁广播直播流 @"mmsh://124.128.18.76/jiaotong"
+#define kRadioURL @"http://hls.nntv.cn/radio/1001.m3u8"//广播地址
+
+
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://nn.czfw.cn"
+#define URLString2 @"http://nn.czfw.cn"
+
+#define ContentString1 @"我在使用南宁交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://nn.czfw.cn/?uid=%@"
+#define URLString1 @"http://nn.czfw.cn/?uid=%@"
+
+#define InsteadOfDrivingViewDescriptionText @"本服务由南宁择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启1074车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”1074车主服务”进行更改。"
+#define CurrentVersionText @"1.1"
+#define SupportUsURL @"https://itunes.apple.com/us/app/1074che-zhu-fu-wu/id907942978?l=zh&ls=1&mt=8"
+#define UserShakeTelNum @"0771-5631074"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm1074"
+
+#define AdBgImage @"AdBg.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage.png"
+#define waterMarkImage  @"waterMarkImageView.png"
+#define Project_QRCodeImage @"Project_QRCode.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard.png"
+
+#endif
+
+//TODO:长沙
+///长沙的默认参数
+#if defined (CS)
+
+///济南的默认参数
+///频道编号
+#define KProjectRadioFMNumber @"1061"
+#define KProjectCityCodeString  @"430100"
+#define KProjectCityNameString  @"长沙市"
+#define KProjectCityNameText  @"长沙"
+#define KProjectProvinceShortName @"湘A"
+
+///都市顺风车协议说明
+#define KCityFreeRideDisclaimerStatementURL @"http://www.czfw.cn/t/down/fm103/cssfcmzsm.html"
+//Umeng地址
+#define kUmengKey @"5428bfe8fd98c5b577017075"
+//ShareSDK
+#define kShareSDKAppKey @"b0cea1638d1"
+
+
+
+/****长沙1061 微信支付参数***/
+//微信
+#define kWeiXinKey @"wxb9196899f8663ba5"
+///微信商家ID
+#define KWeiXinPartnerId    @"1223639001"
+///商家密钥
+#define KWeiXinPartnerKey   @"a6d3e6cf1ffbcb48234cc53e5b9f2efb"
+///微信APPSecretKey
+#define KWeiXinAPPSecretKey @"949f17be51b6af7de411f466ded7fcfd"
+#define KWeiXinAPPKey       @"queZmAXCNKAhUwSOMOQs7HfqKeEMPA5Sm2p6tDZwinaa2JeykSVhuzCy67p9JWRbih4d4yetfElOZ3fSfvApqNa2bWH6o2EYG21Bq4nemqJ7koc9sHnicwrSwZRe8AYh"
+
+
+
+
+//微博 AppKey
+#define kWeiboAppKey @"28295929"
+//微博token
+#define kWeiboAppSecret @"e13962253121c53595cb70d3d3e5a942"
+//微博重定向地址
+#define kWeiboRedirectURL @"http://weibo.com/u/2964731135"
+//http://weibo.com/u/2964731135
+//百度开发者平台申请的KEY
+#define BAIDU_VOICE_API_KEY     @"HyChamjPNm2ARICmm2cWk7WF"
+#define BAIDU_VOICE_SECRET_KEY  @"PAaFwrvGwKPiyWb8AsmStPx8m5LkgBas"
+
+//高德地图Key
+#define kMapKey @"c0e228cf3e3958b64ea336e484d442e6"
+
+///长沙 @"mmsh://203.171.229.220/1061"
+#define kRadioURL @"mmsh://203.171.229.220/1061"//广播地址
+//mmsh://124.128.18.76/jiaotong
+//省外违章查询_网址地址URL
+//石家庄市违章查询地址
+//#define KViolationQueryWebURL @"http://m.hbgajg.com"
+#define KViolationQueryWebURL @"http://113.240.245.61/tpfw/category.do?method=cate&id=1306"
+//
+#define ContentString @"#晒违章#我在%@，因%@，被罚款%@元扣%@分。这是一个违章多发路段，途径此处要注意哦！http://cs.czfw.cn"
+#define URLString2 @"http://cs.czfw.cn"
+
+#define ContentString1 @"我在使用长沙交通音乐广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。  http://cs.czfw.cn/?uid=%@"
+#define URLString1 @"http://cs.czfw.cn/?uid=%@"
+
+#define CurrentVersionText @"1.2"
+#define InsteadOfDrivingViewDescriptionText @"本服务由济南择安代驾提供"
+#define MessageSetupViewpromptContentText @"如果你要关闭或开启1061车主服务的新消息通知，请在iPhone的”设置” - ”通知”功能中，找到应用程序”1061车主服务”进行更改。"
+#define SupportUsURL @"https://itunes.apple.com/us/app/1061che-zhu-fu-wu/id927222676?l=zh&ls=1&mt=8"
+#define UserShakeTelNum @"0531-58702560"
+#define PlayerWebViewUrl @"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm1031"
+ 
+#define AdBgImage @"AdBg_cs.png"
+#define FMCZFWLogoImage @"FMCZFWLogoImage_cs.png"
+#define waterMarkImage  @"waterMarkImageView_cs.png"
+#define Project_QRCodeImage @"Project_QRCode_cs.png"
+#define CarLogoDefaultImage @"CarLogoDefaultImage_cs.png"
+#define VIPLargeCardImage @"Me_VIPLargeCard_cs.png"
+#define VIPLittleCardImage @"Me_VIPLittleCard_cs.png"
+
+#endif
+
+//图片地址
+#define kMediaServerURL  @"http://media.czfw.cn"
+#define KMediaServerImagesInforURL  @"http://media.czfw.cn/get.php?id="
+
+//全局打印方法
+#define Log(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__);
+//#define Log(fmt, ...) [NSString stringWithFormat:fmt, ##__VA_ARGS__];
+
+//全局显示方法
+#define Show(fmt, ...) UIAlertView *alert=[[UIAlertView alloc] initWithTitle:@"消息" message:[NSString stringWithFormat:fmt,##__VA_ARGS__] delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil]; [alert show];
+//#define Show(fmt, ...) [NSString stringWithFormat:fmt, ##__VA_ARGS__];
+
+
+//模式选择
+#define ThemeCategory [[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]] integerValue]
+

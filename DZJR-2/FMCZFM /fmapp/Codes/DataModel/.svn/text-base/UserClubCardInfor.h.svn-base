@@ -1,0 +1,66 @@
+//
+//  UserClubCardInfor.h
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+/** 用户会员卡信息内容
+ 
+ *@See 用户记录用户的会员卡信息
+ **/
+@interface UserClubCardInfor : NSObject
+
+/*!
+ *@breif 用户个人GUID
+ */
+@property (nonatomic , copy) NSString   *userId;
+
+/*!
+ *@breif 用户个人昵称
+ */
+@property (nonatomic , copy) NSString   *userClubCardName;
+
+/*!
+ *@breif 用户个人真实姓名
+ */
+@property (nonatomic , copy) NSString   *userClubCardRealName;
+
+/*!
+ *@breif 用户个人会员卡号
+ */
+@property (nonatomic , copy) NSString   *userClubCardNumber;
+
+/*!
+ *@breif 用户个人手机号
+ */
+@property (nonatomic , copy) NSString   *userMobileNumber;
+
+
+/*!
+ *@breif 用户个人车牌号
+ */
+@property (nonatomic , copy) NSString   *userCarNumber;
+
+
+/*!
+ *@breif 用户个人车检日期
+ */
+@property (nonatomic , copy) NSString   *userCarCheckDate;
+
+/*!
+ *@breif 用户个人车险日期
+ */
+@property (nonatomic , copy) NSString   *userCarInsuranceDate;
+
+
+/** 读取会员卡信息 */
++(id)userClubCardInforWithUnserializedJSONDic:(NSDictionary *)dic;
+
+
+/** 初始化参数字典内容*/
+- (NSDictionary *)getDictionaryWithSetpuParamInforamtion;
+@end

@@ -1,0 +1,66 @@
+//
+//  ShareWebViewController.h
+//  fmapp
+//
+//  Created by 张利广 on 14-5-21.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+#import "NJKWebViewProgress.h"
+#import "MerchantInfo.h"
+
+typedef enum {
+    InitModalWebStyle = 1,                 /**< 模态视图窗体*/
+    InitNavigationWebStyle = 2,            /**< 导航视图窗体*/
+    
+}InitWebShareStyle;
+
+typedef enum {
+    WebDataForMerchantStyle = 1,            /**< 商户信息分享*/
+    WebDataForMyPirzeInforStyle = 2,        /**< 我的奖品信息分享*/
+    WebDataForAnnouncementStyle = 3,        /**< 电台公告信息分享*/
+    WebDataForHighSpeedRoadStyle = 4,       /**< 高速路况信息分享*/
+    WebDataForAnnualCheckStyle = 5,         /**< 年检代办信息分享*/
+    WebDataForUserShakeResultStyle = 6,     /**< 摇一摇获得的结果内容*/
+    WebDataForDescriptionDataStyle = 7,     /**< 协议、说明、介绍等网页信息*/
+    webDataForWonderfulRecommendation=8,    /**< 精彩推荐    */
+    WebDataForAutoEstimationStyle = 9       /**< 车险购买*/
+}ShareWebDataStyle;
+
+/** 用于获取网页内容数据，并可做展示分享操作
+ 
+ *
+ **/
+@interface ShareWebViewController : FMViewController<UIWebViewDelegate,NJKWebViewProgressDelegate>
+
+/*!
+ *@breif 判断是否需要分享，默认为需要分享，NO为不分享
+ **/
+@property (nonatomic , assign)  BOOL    isNeedShareWebInfor;
+@property (nonatomic , strong)      MerchantInfo    *selfMechantItemInfor;
+/** 初始化web分享界面
+ 
+ *@param (NSString *)m_URLString 网页地址
+ *@param (NSString *)m_titleString 界面标题
+ *@param (InitWebShareStyle )m_shareStyle 网页类型
+ *@param (UIImage *)m_image 分享的图片内容
+ *@param m_webDataStyle 数据类型
+ **/
+- (id)initWithWebURLString:(NSString *)m_URLString
+                 withTitle:(NSString *)m_titleString
+                   withStyle:(InitWebShareStyle )m_shareStyle
+            withImageInfor:(UIImage *)imageToShare
+     withShareWebDataStyle:(ShareWebDataStyle )m_webDataStyle
+           withDataInforID:(NSString *)m_dataInforId;
+
+- (id)initWithWebURLString:(NSString *)m_URLString
+                 withTitle:(NSString *)m_titleString
+                 withStyle:(InitWebShareStyle )m_shareStyle
+            withImageInfor:(UIImage *)imageToShare
+     withShareWebDataStyle:(ShareWebDataStyle )m_webDataStyle
+           withDataInforID:(NSString *)m_dataInforId
+        withshareURLString:(NSString *)share_url;
+
+
+@end

@@ -1,0 +1,224 @@
+//
+//  RoadInforItemTableCell.m
+//  fmapp
+//
+//  Created by 张利广 on 14-8-5.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "RoadInforItemTableCell.h"
+#import "RichTextLabel.h"
+#import "FMImageView.h"
+#import "APAvatarImageView.h"
+#import "AttributedStringHelper.h"
+#import "NSAttributedString+Height.h"
+#import "CurrentUserInformation.h"
+
+#define kQuestionCellNameHeight             14
+#define kQuestionCellMargin                 10
+#define kImageGap                           10
+#define KMulImageSize                       60
+
+
+@interface RoadInforItemTableCell ()
+@property (nonatomic,weak) APAvatarImageView*userCarLogoImageView;      //用户车Logo图片
+@property (nonatomic,weak) UILabel          *userNameLabel;             //用户名称标签
+@property (nonatomic,weak) UIImageView      *userSexImageView;          //用户性别指示图片
+@property (nonatomic,weak) UILabel          *userCarSeriesNameLabel;    //用户车系名称标签（如：别克GL8商务）
+@property (nonatomic,weak) RichTextLabel    *roadContentLabel;          //路况内容
+@property (nonatomic,weak) UIView           *seperatorLineView;         //分隔线视图
+@property (nonatomic,weak) UIButton         *deleteButton;
+@end
+@implementation RoadInforItemTableCell
+
+
+- (void)initWithUserOperationButtonEvent{
+
+    if (self.deleate) {
+        if ([self.deleate respondsToSelector:@selector(initWithUserDeleteRoadInforItemOperationEvent:)]) {
+            [self.deleate initWithUserDeleteRoadInforItemOperationEvent:self.cellRoadConditionInfor];
+        }
+    }
+}
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+
+        // Initialization code
+        //设置选中Cell后的背景图
+        UIView *selectedView = [[UIView alloc] initWithFrame:self.bounds];
+        [selectedView setBackgroundColor:KTableViewCellSelectedColor];
+        self.selectedBackgroundView = selectedView;
+        ///默认背景色
+        UIView  *whiteBackGroundView = [[UIView alloc]init];
+        [whiteBackGroundView setBackgroundColor:KTableViewCellBackGroundColor];
+        self.backgroundView = whiteBackGroundView;
+        [self setBackgroundColor:KTableViewCellBackGroundColor];
+        
+        //添加车型图片
+        APAvatarImageView *carLogoImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(7.5f, 12, 40, 40)
+                                                                           borderColor:[UIColor whiteColor]
+                                                                           borderWidth:1.0f];
+        [self addSubview:carLogoImageView];
+        self.userCarLogoImageView = carLogoImageView;
+        
+        //添加用户名称标签
+        UILabel *userLable = [[UILabel alloc] init];
+        userLable.font = [UIFont systemFontOfSize:15.5f];
+        [userLable setTextColor:KContentTextColor];
+        [userLable setBackgroundColor:[UIColor clearColor]];
+        self.userNameLabel = userLable;
+        [self addSubview:userLable];
+        
+        //添加用户性别指示图片
+        UIImageView *userSexImageView = [[UIImageView alloc] init];
+        self.userSexImageView = userSexImageView;
+        [self addSubview:userSexImageView];
+        
+        //添加用户车系标签
+        UILabel *userCarSeriesNameLabel = [[UILabel alloc] init];
+        userCarSeriesNameLabel.font = [UIFont systemFontOfSize:11.0f];
+        userCarSeriesNameLabel.textAlignment = UITextAlignmentRight;
+        [userCarSeriesNameLabel setBackgroundColor:[UIColor clearColor]];
+        userCarSeriesNameLabel.textColor = KSubTitleContentTextColor;
+        self.userCarSeriesNameLabel = userCarSeriesNameLabel;
+        [self addSubview:self.userCarSeriesNameLabel];
+
+        
+        //问题详情
+        RichTextLabel* richLable = [[RichTextLabel alloc] initWithFrame:self.bounds];
+        richLable.lineBreakMode = NSLineBreakByCharWrapping;
+        richLable.textColor = KDisableTextColor;
+        richLable.highlightedTextColor = [UIColor whiteColor];
+        richLable.numberOfLines = 0;
+        richLable.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        richLable.backgroundColor = [UIColor clearColor];
+        [self addSubview:richLable];
+        self.roadContentLabel = richLable;
+        
+        
+        UIButton *deleteBtn = [[UIButton alloc]init];
+        [deleteBtn setTitle:@"删除" forState:UIControlStateNormal];
+        [deleteBtn.titleLabel setFont:[UIFont systemFontOfSize:12.0f]];
+        [deleteBtn setTitleColor:KUINavigationBarColor forState:UIControlStateNormal];
+        self.deleteButton = deleteBtn;
+        [self.deleteButton setHidden:YES];
+        [self.deleteButton addTarget:self
+                              action:@selector(initWithUserOperationButtonEvent)
+                    forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:self.deleteButton];
+    
+        //添加分隔线
+        UIView *underLineSeparatorView = [[UIView alloc] init];
+        underLineSeparatorView.backgroundColor = KBorderColorSetup;
+        self.seperatorLineView = underLineSeparatorView;
+        [self.contentView addSubview:underLineSeparatorView];
+    
+    }
+    return self;
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+
+- (void)initWithRoadInforItemForRoadInfor:(RoadConditionInfo *)roadConditionItemInfor{
+    
+    self.cellRoadConditionInfor = roadConditionItemInfor;
+    ///头像
+    [self.userCarLogoImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@thumb",
+                                                                     KMediaServerImagesInforURL,
+                                                                     roadConditionItemInfor.reportUserInfo.userAvatar]]
+                              placeholderImage:kImgDefaultCar];
+    
+    
+    [self.userCarLogoImageView setContentMode:UIViewContentModeScaleToFill];
+    [self.userCarLogoImageView setClipsToBounds:YES];
+    [self.userCarLogoImageView setUserInteractionEnabled:YES];
+    
+    
+    self.userNameLabel.text = roadConditionItemInfor.reportUserInfo.userName;
+    
+    if (roadConditionItemInfor.reportUserInfo.userSex == 1) {//性别为男
+        self.userSexImageView.image = kImgSexMan;
+    }else {//性别为女
+        self.userSexImageView.image = kImgSexWomman;
+    }
+    
+    //时间内容
+    self.userCarSeriesNameLabel.text = roadConditionItemInfor.reportTime;
+    
+    
+    //问题内容
+    self.roadContentLabel.attString = roadConditionItemInfor.attributedRoadConditionContent;
+    
+    [self setNeedsLayout];
+}
+
+- (void)layoutSubviews{
+    
+    
+    if (self.cellRoadConditionInfor == nil) {
+        return;
+    }
+    CGRect rc = self.bounds;
+    //分隔线
+    self.seperatorLineView.frame = CGRectMake(0,
+                                              rc.size.height - 0.5,
+                                              rc.size.width,
+                                              0.5);
+    
+    GLfloat textLeftMargin = 50;
+    
+    //提问者名称
+    CGSize userNameLabelSize = [self.userNameLabel.text sizeWithFont:self.userNameLabel.font];
+    self.userNameLabel.frame = CGRectMake(textLeftMargin,
+                                          kQuestionCellMargin,
+                                          userNameLabelSize.width,
+                                          userNameLabelSize.height);
+    
+    //提问者性别
+    self.userSexImageView.frame = CGRectMake(textLeftMargin + userNameLabelSize.width,
+                                             kQuestionCellMargin,
+                                             16,
+                                             16);
+    
+    CGSize userCarSeriesNameLabelSize = [self.userCarSeriesNameLabel.text sizeWithFont:self.userCarSeriesNameLabel.font];
+    self.userCarSeriesNameLabel.frame = CGRectMake(rc.size.width - userCarSeriesNameLabelSize.width - kQuestionCellMargin,
+                                                   self.userNameLabel.frame.origin.y + userNameLabelSize.height - userCarSeriesNameLabelSize.height,
+                                                   userCarSeriesNameLabelSize.width,
+                                                   userCarSeriesNameLabelSize.height);
+    
+    
+    GLfloat textOrginY = 0;
+    textOrginY = userNameLabelSize.height + 2 * kQuestionCellMargin;
+    
+    GLfloat contentLabelHeight = 0;
+    GLfloat contentLabelWidth = rc.size.width - textLeftMargin - kQuestionCellMargin;
+    contentLabelHeight = [self.roadContentLabel.attString boundingHeightForWidth:contentLabelWidth];
+    //问题内容
+    self.roadContentLabel.frame = CGRectMake(textLeftMargin ,
+                                             textOrginY,
+                                             contentLabelWidth,
+                                             contentLabelHeight);
+    
+    [self.selectedBackgroundView setFrame:rc];
+    [self.backgroundView setFrame:rc];
+    [self.deleteButton setHidden:YES];
+    ///若是本人发的，则显示删除按键
+    if ([self.cellRoadConditionInfor.reportUserInfo.userID
+         isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        [self.deleteButton setHidden:NO];
+        [self.deleteButton setFrame:CGRectMake(0,
+                                               textOrginY+ contentLabelHeight,
+                                               130.0f, 40.0f)];
+        [self.deleteButton setContentEdgeInsets:UIEdgeInsetsMake(0, -10.0, 0, 0)];
+        [self.deleteButton setBackgroundColor:[UIColor clearColor]];
+    }
+}
+
+@end

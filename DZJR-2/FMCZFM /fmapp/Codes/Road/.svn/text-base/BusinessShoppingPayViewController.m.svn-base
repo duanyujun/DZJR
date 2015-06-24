@@ -1,0 +1,131 @@
+//
+//  BusinessShoppingPayViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-10-12.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "BusinessShoppingPayViewController.h"
+#import "EditWelfareOrderViewController.h"
+#import "CurrentUserInformation.h"
+
+//分享
+#import <AGCommon/UINavigationBar+Common.h>
+#import <AGCommon/UIImage+Common.h>
+#import <AGCommon/UIDevice+Common.h>
+#import <AGCommon/NSString+Common.h>
+#import <ShareSDK/ShareSDK.h>
+
+
+@interface BusinessShoppingPayViewController ()
+///用户分享操作按键事件
+- (void)initWithUserShareOperationEvent;
+///初始化用户立即抢购操作按键
+- (void)initWithUserGotoShoppingPayButtonEvent;
+///初始化界面框架内容
+- (void)initWithBusinessShoppingPayViewControllerFrame;
+@end
+
+@implementation BusinessShoppingPayViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    [self settingNavTitle:@"详情"];
+    
+    self.navButtonSize = KNavSize;
+    [self setRightNavButtonFA:FMIconShare
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(initWithUserShareOperationEvent)];
+    
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+- (void)initWithUserShareOperationEvent{
+    //TODO: 1.构造一个Container（iPhone可省略）
+    id<ISSContainer> container = [ShareSDK container];
+    [container setIPhoneContainerWithViewController:self];
+    
+    //TODO: 3.使用customShareList构造shareList，项目的顺序也会反映在菜单顺序之中
+    NSArray *shareList = [ShareSDK customShareListWithType:
+                          SHARE_TYPE_NUMBER(ShareTypeSinaWeibo),
+                          SHARE_TYPE_NUMBER(ShareTypeWeixiSession),
+                          SHARE_TYPE_NUMBER(ShareTypeWeixiTimeline),
+                          SHARE_TYPE_NUMBER(ShareTypeSMS),
+                          SHARE_TYPE_NUMBER(ShareTypeMail),
+                          SHARE_TYPE_NUMBER(ShareTypeCopy),
+                          nil];
+    NSString *contentString =  [NSString stringWithFormat:@"我在使用%@交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectCityNameText];
+    NSString *titleString   = [NSString stringWithFormat:@"%@交通广播手机客户端，便捷查路况、查违章、还可参与节目互动",KProjectCityNameText];
+    
+    NSString *urlString     = [NSString stringWithFormat: URLString1,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"];
+    /*
+     
+     #if defined (YT)
+     
+     #else
+     
+     #endif
+     */
+    
+#if defined (YT)
+    NSString *description   = [NSString stringWithFormat:@"%@交警在线，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectRadioFMNumber];
+#else
+    NSString *description   = [NSString stringWithFormat:@"%@车主服务，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectRadioFMNumber];
+#endif
+    
+    
+    NSData *contentImageData = UIImagePNGRepresentation([UIImage imageNamed:FMCZFWLogoImage]);
+    NSString *fileName=[NSString stringWithFormat:@"%@.jpg",KProjectRadioFMNumber];
+    id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:fileName];
+    
+    id<ISSContent> publishContent = [ShareSDK content:contentString
+                                       defaultContent:@""
+                                                image:attachment
+                                                title:titleString
+                                                  url:urlString
+                                          description:description
+                                            mediaType:SSPublishContentMediaTypeNews];
+    [publishContent addSMSUnitWithContent:[NSString stringWithFormat:ContentString1,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"]];
+    id<ISSShareOptions> shareOptions =
+    [ShareSDK simpleShareOptionsWithTitle:@"分享内容"
+                        shareViewDelegate:nil];
+    
+    //TODO: 4.将container（iPhone上可为nil）和shareList传入 showShareActionSheet 方法
+    [ShareSDK showShareActionSheet:container
+                         shareList:shareList
+                           content:publishContent
+                     statusBarTips:NO
+                       authOptions:nil
+                      shareOptions:shareOptions
+                            result:nil];
+
+}
+
+- (void)initWithBusinessShoppingPayViewControllerFrame{
+    
+}
+
+- (void)initWithUserGotoShoppingPayButtonEvent{
+    
+}
+
+@end

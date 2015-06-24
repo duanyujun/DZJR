@@ -1,0 +1,333 @@
+//
+//  MessageCell.m
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "MessageCell.h"
+#import "CellFrameModel.h"
+#import "RichTextLabel.h"
+#import "FMMessage.h"
+#import "AttributedStringHelper.h"
+#import "FMImageView.h"
+#import "FMAudioManager.h"
+#import "UserInfo.h"
+#import "CurrentUserInformation.h"
+
+#define kClearColor          [UIColor clearColor]
+#define kReceiveContentColor [UIColor colorWithRed:0.0f green:0.0f blue:0.0f alpha:1]
+#define kSendContentColor    [UIColor colorWithRed:1.0f green:1.0f blue:1.0f alpha:1]
+
+
+@interface MessageCell() <FMAudioManagerDelegate>
+
+@property (nonatomic, weak) UIView              *timeLabelBg;
+@property (nonatomic, weak) UILabel             *timeLabel;
+@property (nonatomic, weak) FMImageView         *userIcon;
+@property (nonatomic, weak) UIButton            *userIconButton;
+@property (nonatomic, weak) UIImageView         *bubbleBg;
+@property (nonatomic, weak) RichTextLabel       *bubbleContentLabel;
+@property (nonatomic, weak) FMImageView         *bubbleImageView;
+@property (nonatomic, weak) UIImageView         *voiceAnimationImageView;
+@property (nonatomic, weak) UILabel             *voiceDurationLabel;
+@property (nonatomic, weak) UIButton            *voicePlayButton;
+@property (nonatomic, weak) UIActivityIndicatorView *indicatorView;
+@property (nonatomic, weak) UIImageView        *statusImageView;
+@end
+
+@implementation MessageCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        
+        self.backgroundColor = kClearColor;
+        self.selectionStyle  = UITableViewCellSelectionStyleNone;
+        
+        UILongPressGestureRecognizer *longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+                                                                                                          action:@selector(cellLongPressed:)];
+        [self addGestureRecognizer:longPressRecognizer];
+
+        
+        // 时间背景
+        UIView *m_timeLabelBg = [[UIView alloc] init];
+        m_timeLabelBg.backgroundColor = kClearColor;
+        [self.contentView addSubview:m_timeLabelBg];
+        self.timeLabelBg = m_timeLabelBg;
+        
+        // 时间label
+        UILabel *m_timeLabel = [[UILabel alloc] init];
+        m_timeLabel.backgroundColor = kClearColor;
+        self.timeLabel = m_timeLabel;
+        [self.timeLabelBg addSubview:self.timeLabel];
+        
+        // 用户头像
+        FMImageView *m_userIcon = [[FMImageView alloc] init];
+        m_userIcon.backgroundColor = kClearColor;
+        m_userIcon.layer.cornerRadius = 21.0;
+        m_userIcon.clipsToBounds      = YES;
+        [self.contentView addSubview:m_userIcon];
+        self.userIcon = m_userIcon;
+        // 点击头像
+        self.userIconButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        self.userIconButton.backgroundColor = kClearColor;
+        [self.userIconButton addTarget:self
+                           action:@selector(showUserInfomation)
+                 forControlEvents:UIControlEventTouchUpInside];
+        [self.contentView addSubview:self.userIconButton];
+        
+        // 消息气泡背景
+        UIImageView *m_bubbleBg = [[UIImageView alloc] init];
+        m_bubbleBg.backgroundColor = kClearColor;
+        m_bubbleBg.userInteractionEnabled = YES;
+        [self.contentView addSubview:m_bubbleBg];
+        self.bubbleBg = m_bubbleBg;
+        
+        // 气泡文本、表情
+        RichTextLabel *m_bubbleContentLabel = [[RichTextLabel alloc] init];
+        m_bubbleContentLabel.backgroundColor = kClearColor;
+        m_bubbleContentLabel.lineBreakMode = NSLineBreakByCharWrapping;
+        m_bubbleContentLabel.numberOfLines = 0;
+        m_bubbleContentLabel.opaque = NO;
+        self.bubbleContentLabel = m_bubbleContentLabel;
+        self.bubbleContentLabel.alpha = 1;
+        [self.bubbleBg addSubview:self.bubbleContentLabel];
+        
+        // 气泡上的图片
+        FMImageView *m_bubbleImageView = [[FMImageView alloc] init];
+        m_bubbleImageView.backgroundColor = [UIColor blackColor];
+        m_bubbleImageView.layer.cornerRadius = 12;
+        m_bubbleImageView.layer.masksToBounds = YES;
+        m_bubbleImageView.contentMode = UIViewContentModeScaleAspectFill;
+        m_bubbleImageView.clipsToBounds = YES;
+        self.bubbleImageView = m_bubbleImageView;
+        [self.bubbleBg addSubview:self.bubbleImageView];
+        
+        // 气泡上的语音播放动画
+        UIImageView *m_voiceAnimationImageView = [[UIImageView alloc] init];
+        m_voiceAnimationImageView.backgroundColor = kClearColor;
+        self.voiceAnimationImageView = m_voiceAnimationImageView;
+        [self.bubbleBg addSubview:self.voiceAnimationImageView];
+        
+        // cell上的语音时长
+        UILabel *m_voiceDurationLabel = [[UILabel alloc] init];
+        m_voiceDurationLabel.backgroundColor = kClearColor;
+        m_voiceDurationLabel.font = [UIFont systemFontOfSize:12];
+        m_voiceDurationLabel.textColor = [UIColor grayColor];
+        m_voiceDurationLabel.textAlignment = NSTextAlignmentCenter;
+        self.voiceDurationLabel = m_voiceDurationLabel;
+        [self.bubbleBg addSubview:self.voiceDurationLabel];
+        
+        // 语音播放按钮
+        UIButton *m_voicePlayButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        m_voicePlayButton.backgroundColor = kClearColor;
+        [m_voicePlayButton addTarget:self
+                              action:@selector(voicePlay)
+                    forControlEvents:UIControlEventTouchUpInside];
+        self.voicePlayButton = m_voicePlayButton;
+        [self.bubbleBg addSubview:self.voicePlayButton];
+        
+        // UIActivityIndicatorView
+        UIActivityIndicatorView *indicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+        [indicatorView setHidesWhenStopped:YES];
+        [self.contentView addSubview:indicatorView];
+        self.indicatorView = indicatorView;
+        //statusImageView
+        UIImageView* imageView = [[UIImageView alloc ]initWithImage:[UIImage imageNamed:@"msg_send_failure.png"]];
+        [self.contentView addSubview:imageView];
+        self.statusImageView = imageView;
+    }
+    
+    return self;
+    
+}
+
+
+- (void)setCellFrame:(CellFrameModel *)cellFrame
+{
+    _cellFrame = cellFrame;
+    
+    [self settingCellFrame];
+    [self settingCellData];
+
+
+}
+
+// 设置cell中控件的数据
+- (void)settingCellData
+{
+    FMMessage *message = _cellFrame.message;
+    
+    // 时间
+    if (message.isShowTime) {
+        self.timeLabel.hidden = NO;
+        self.timeLabel.text = timeShortDesc(message.msgTime);
+        self.timeLabel.textColor = [UIColor grayColor];
+        self.timeLabel.font = [UIFont systemFontOfSize:12.0f];
+        self.timeLabel.textAlignment = NSTextAlignmentCenter;
+    }else{
+        self.timeLabel.hidden = YES;
+    }
+    // 用户头像
+    
+    [self.userIcon setImageWithURL:[NSURL URLWithString:
+                                   [NSString stringWithFormat:@"%@%@thumb",
+                                    KMediaServerImagesInforURL,
+                                    message.userIconKey]]
+                  placeholderImage:kImgDefaultCar];
+    
+    
+    // 消息气泡
+    CGFloat top         = 20;
+    CGFloat bottom      = 20;
+    CGFloat left        = 23;
+    CGFloat right       = 23;
+    UIEdgeInsets insets = UIEdgeInsetsMake(top,
+                                           left,
+                                           bottom,
+                                           right);
+    NSString *bubbleBgName = message.sendOrReceive ? @"type_receive_normal.png" : @"type_send_normal.png";
+    UIImage *bubbleBgImage = [[UIImage imageNamed:bubbleBgName] resizableImageWithCapInsets:insets ];
+    [self.bubbleBg setImage:bubbleBgImage];
+    
+
+    
+    if (message.messageType == MessageTypeText) { // 文本、表情消息
+        
+//        UILongPressGestureRecognizer *longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+//                                                                                                          action:@selector(cellLongPressed:)];
+//        [self addGestureRecognizer:longPressRecognizer];
+
+        
+        [self.bubbleContentLabel bringSubviewToFront:self.bubbleBg];
+        
+        AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+        [attributedStringHelper initStringSystemFontOfSize:17 withSetupFont:YES];
+        message.attributedContent = [attributedStringHelper getAttributedStringWithNSString:message.content
+                                                                                  textColor:message.sendOrReceive ? KContentTextColor : KSubTitleContentTextColor];
+        self.bubbleContentLabel.attString = message.attributedContent;
+        
+    }
+    else if (message.messageType == MessageTypeImage) { // 图片消息
+        
+        [self.bubbleImageView bringSubviewToFront:self.bubbleBg];
+        
+        if (message.imageData) {
+            [self.bubbleImageView setImage:message.imageData];
+        } else {
+            [self.bubbleImageView setServerImageWithKey:message.imageKey isThumb:YES holdImage:[UIImage imageNamed:@""]];
+        }
+        
+    }
+    else if (message.messageType == MessageTypeVoice) { // 语音消息
+        
+        [self.voicePlayButton bringSubviewToFront:self.bubbleBg];
+        
+        self.voiceDurationLabel.text = [NSString stringWithFormat:@"%@\"", message.voiceLen];
+        
+        if (message.sendOrReceive == MessageSend) {
+            self.voiceAnimationImageView.image = [UIImage imageNamed:@"Send_audio001.png"];
+            NSArray *sendAnimation = [NSArray arrayWithObjects:[UIImage imageNamed:@"Send_audio002.png"],
+                                      [UIImage imageNamed:@"Send_audio003.png"],
+                                      [UIImage imageNamed:@"Send_audio004.png"],
+                                      nil];
+            self.voiceAnimationImageView.animationImages = sendAnimation;
+            
+        }else{
+            self.voiceAnimationImageView.image = [UIImage imageNamed:@"Receive_audio001.png"];
+            NSArray *receiveAnimation = [NSArray arrayWithObjects:[UIImage imageNamed:@"Receive_audio002.png"],
+                                         [UIImage imageNamed:@"Receive_audio003.png"],
+                                         [UIImage imageNamed:@"Receive_audio004.png"],
+                                         nil];
+            self.voiceAnimationImageView.animationImages = receiveAnimation;
+            
+                                         
+        }
+        self.voiceAnimationImageView.animationDuration = 1.0;
+        if (message.isVoicePlaying) {
+            [self.voiceAnimationImageView startAnimating];
+        }
+        
+    }
+    
+    //状态指示
+    if (message.msgStatus == MessageStatusSending) {
+        [self.indicatorView startAnimating];
+        self.statusImageView.hidden = YES;
+    }else if(message.msgStatus == MessageStatusOk){
+        [self.indicatorView stopAnimating];
+        self.statusImageView.hidden = YES;
+    }else{
+        [self.indicatorView stopAnimating];
+        self.statusImageView.hidden = NO;
+    }
+}
+
+// 设置cell中控件的frame
+- (void)settingCellFrame
+{
+    self.timeLabelBg.frame             = self.cellFrame.timeLabelBgFrame;
+    self.timeLabel.frame               = self.cellFrame.timeLabelFrame;
+    self.userIcon.frame                = self.cellFrame.userIconFrame;
+    self.userIconButton.frame          = self.cellFrame.userIconFrame;
+    self.bubbleBg.frame                = self.cellFrame.bubbleBgFrame;
+    self.bubbleContentLabel.frame      = self.cellFrame.bubbleContentLabelFrame;
+    self.bubbleImageView.frame         = self.cellFrame.bubbleImageViewFrame;
+    self.voiceAnimationImageView.frame = self.cellFrame.voiceAnimationFrame;
+    self.voiceDurationLabel.frame      = self.cellFrame.voiceDurationLabelFrame;
+    self.voicePlayButton.frame         = self.cellFrame.voicePlayButtonFrame;
+    self.indicatorView.frame           = self.cellFrame.indicatorViewFrame;
+    self.statusImageView.frame         = CGRectMake(self.cellFrame.indicatorViewFrame.origin.x,
+                                                    CGRectGetMaxY(self.cellFrame.bubbleBgFrame) - 20,
+                                                    12,
+                                                    12);
+}
+
+
+// 播放语音
+- (void)voicePlay
+{
+    if (self.audioManager == nil) {
+        return;
+    }
+    [self.audioManager stopPlay];
+    if (self.audioManager.tag == self.cellFrame.message.msgNo) {
+        self.audioManager.tag = 0;
+        return;
+    }
+    self.audioManager.tag = self.cellFrame.message.msgNo;
+    if (self.cellFrame.message.voiceAMRInfo) {
+        [self.audioManager playAMR:self.cellFrame.message.voiceAMRInfo];
+    }else{
+        [self.audioManager playURL:self.cellFrame.message.voiceKey];
+    }
+    
+}
+
+// 点击头像
+- (void)showUserInfomation
+{
+    if (self.cellFrame.message.sendOrReceive)
+        [self.delegate showFriendInformation];
+    else
+        [self.delegate showMyselfInformation];
+}
+#pragma mark -长按cell
+- (void) cellLongPressed:(UILongPressGestureRecognizer *) longPressGestureRecognizer
+{
+    if (longPressGestureRecognizer.state == UIGestureRecognizerStateEnded) {
+        return;
+    }else if (longPressGestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        
+        if ([self.delegate respondsToSelector:@selector(messageCellLongPressed:)]) {
+            [self.delegate messageCellLongPressed:self];
+        }
+        
+    }
+    return;
+}
+
+@end

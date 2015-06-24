@@ -1,0 +1,453 @@
+//
+//  HTTPClient+Friends.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-26.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "HTTPClient+Friends.h"
+
+@implementation HTTPClient (Friends)
+
+//获取我的车友
+- (AFHTTPRequestOperation *)getMyFriends:(NSString *)userId
+                               pageIndex:(NSUInteger)pageIndex
+                                pageSize:(NSUInteger)pageSize
+                              completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0 )
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId,
+                                 kDataKeyPageIndex: [NSNumber numberWithUnsignedInteger:pageIndex],
+                                 kDataKeyPageSize: [NSNumber numberWithUnsignedInteger:pageSize]
+                                 };
+    
+    return [self postPath:kMyCarFriendsURL
+               parameters:parameters
+               completion:completion];
+}
+
+//获取附近车友
+- (AFHTTPRequestOperation *)getAroundFriends:(NSString *)userId
+                                   longitude:(double)longitude
+                                    latitude:(double)latitude
+                                   pageIndex:(NSUInteger)pageIndex
+                                    pageSize:(NSUInteger)pageSize
+                                  completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = @{kDataKeyUserId: userId?userId:@"0",
+                                 kDataKeyLongitude: [NSNumber numberWithDouble:longitude],
+                                 kDataKeyLatitude: [NSNumber numberWithDouble:latitude],
+                                 kDataKeyPageIndex: [NSNumber numberWithUnsignedInteger:pageIndex],
+                                 kDataKeyPageSize: [NSNumber numberWithUnsignedInteger:pageSize]
+                                 };
+    
+    return [self postPath:kNearbyCarFriendsURL
+               parameters:parameters
+               completion:completion];
+}
+
+//获取活跃车友
+- (AFHTTPRequestOperation *)getActiveFriends:(NSString *)userId
+                                   pageIndex:(NSUInteger)pageIndex
+                                    pageSize:(NSUInteger)pageSize
+                                  completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = @{kDataKeyUserId: userId?userId:@"0",
+                                 kDataKeyPageIndex: [NSNumber numberWithUnsignedInteger:pageIndex],
+                                 kDataKeyPageSize: [NSNumber numberWithUnsignedInteger:pageSize]
+                                 };
+    
+    return [self postPath:kActiveCarFriendsURL
+               parameters:parameters
+               completion:completion];
+}
+
+//获取附近10公里好友
+- (AFHTTPRequestOperation *)getFriendsNeayByLongitude:(double)longitude
+                                             latitude:(double)latitude
+                                           completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = @{kDataKeyLongitude: [NSNumber numberWithDouble:longitude],
+                                 kDataKeyLatitude: [NSNumber numberWithDouble:latitude]
+                                 };
+    
+    return [self postPath:kNearbyPeopleURL
+               parameters:parameters
+               completion:completion];
+}
+//获取好友详细信息
+- (AFHTTPRequestOperation *)getFriendsDetailInfo:(NSString *)frinenduserId
+                                      WithUserId:(NSString *)userPersonId
+                                      completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([frinenduserId length] <= 0||[userPersonId length]<=0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{@"uid": userPersonId,kDataKeyUserId:frinenduserId};
+    
+    return [self postPath:KGetUserPersonalInforURL
+               parameters:parameters
+               completion:completion];
+}
+
+// 获取消息列表好友信息
+- (AFHTTPRequestOperation *)getMsgListFriendsDetailInfo:(NSString *)userId
+                                             completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSDictionary *parameters = @{kDataKeyUserId: userId};
+    return [self postPath:KGetMsgListFriendsInfoURL
+               parameters:parameters
+               completion:completion];
+}
+
+// 获取认证用户信息
+- (AFHTTPRequestOperation *)getAuthUserDetailInfo:(WebAPIRequestCompletionBlock)completion
+{
+    return [self postPath:KGetAuthUserInforURL
+               parameters:nil
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)addToBlackList:(NSString *)userId
+                               blackUserId:(NSString *)blackUserId
+                                completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0 || [blackUserId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId,
+                                 @"blackId":blackUserId};
+    
+    return [self postPath:KUserAddBlackListURL
+               parameters:parameters
+               completion:completion];
+}
+//关注用户列表
+- (AFHTTPRequestOperation *)requetFriendsList:(NSString *)userId
+                                   completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSDictionary *parameters = @{kDataKeyUserId: userId};
+    return [self postPath:KUserFriendsListURL
+               parameters:parameters
+               completion:completion];
+
+
+}
+
+//添加好友到关注
+- (AFHTTPRequestOperation *)addToAttentionList:(NSString *)userId
+                                   attentionUserId:(NSString *)attentionUserId
+                                    completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0 || [attentionUserId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 @"friendId":attentionUserId};
+    
+    return [self postPath:KUserAddAttentionListURL
+               parameters:parameters
+               completion:completion];
+
+}
+//取消好友到关注
+- (AFHTTPRequestOperation *)CancelToAttentionList:(NSString *)userId
+                                  attentionUserId:(NSString *)attentionUserId
+                                       completion:(WebAPIRequestCompletionBlock)completion;
+{
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 @"friendId":attentionUserId};
+    return [self postPath:KUserCanCelAttentionListURL
+               parameters:parameters
+               completion:completion];
+
+}
+- (AFHTTPRequestOperation *)getSetupUserPersonalBackGroundPhotoImageForInteractiveWithUserID:(NSString *)userId
+                                                                        withImageParamString:(NSString *)imageParaString
+                                                                              withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    if ([userId length] <= 0 || [imageParaString length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 @"pic":imageParaString};
+    return [self postPath:KUserEditEditBGImageInforURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getFriendsInforForDoubleLocationCoordinateWithLeftLocationCoordinate:(CLLocationCoordinate2D)leftLocation
+                                                                     withRightLocationCoordinate:(CLLocationCoordinate2D)rightLocation
+                                                                                  withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{@"latitude1": [NSNumber numberWithDouble:leftLocation.latitude],
+                                 @"longitude1": [NSNumber numberWithDouble:leftLocation.longitude],
+                                 @"latitude2": [NSNumber numberWithDouble:rightLocation.latitude],
+                                 @"longitude2": [NSNumber numberWithDouble:rightLocation.longitude],
+                                 };
+    return [self postPath:KGetNearbyUserForLocationURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+/*
+ #define KInstantMessagingWithChatUserListURL @"Chat/ChatUserList"           ///或许消息的最新10条消息内容
+ #define KInstantMessagingWithChatHistoryURL  @"Chat/ChatHistory"            ///或许用户的聊天记录信息
+ **/
+#pragma mark - ====================添加IM系统接口内容
+
+
+
+
+//获取消息界面中最新的10条数据内容
+- (AFHTTPRequestOperation *)getMessageWithLatestDataForInstantMessagingWithUserId:(NSString *)userId completion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 };
+    return [self postPath:KInstantMessagingWithChatUserListURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+//获取最新的聊天记录信息
+- (AFHTTPRequestOperation *)getMessageWithLatestDataForChatHistoryWithLoginUserId:(NSString *)loginUserId
+                                                                     withToUserId:(NSString *)toUserId
+                                                                    withLastMsgId:(NSString *)msgId
+                                                                         withPage:(NSInteger)msgPage
+                                                                         withSecuryCode:(NSString *)securyCodeString
+                                                                       completion:(WebAPIRequestCompletionBlock)completion{
+    
+    if ([loginUserId length] <= 0 ||
+        [toUserId length] <= 0 ||
+        [securyCodeString length ] < 1||
+        [msgId length] <= 0 ||
+        msgPage<=0 ) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KUserPersonalID: loginUserId,
+                                 @"chatUserId":toUserId,
+                                 @"lastid":msgId,
+                                 @"code":securyCodeString,
+                                 @"page":[NSNumber numberWithInteger:msgPage],
+                                 };
+    return [self postPath:KInstantMessagingWithChatHistoryURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getMessageWIthUserReadForChatInforWithUserId:(NSString *)loginUserId withToUserId:(NSString *)toUserId completion:(WebAPIRequestCompletionBlock)completion{
+    if ([loginUserId length] <= 0 ||
+        [toUserId length] <= 0 ) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KUserPersonalID: loginUserId,
+                                 @"chatUserId":toUserId,
+                                 };
+    return [self postPath:KInstantMessagingWithReadURL
+               parameters:parameters
+               completion:completion];
+}
+- (AFHTTPRequestOperation *)chatMessageDeleteWIthUserReadForChatInforWithUserId:(NSString *)loginUserId
+                                                                  withMessageId:(NSString *)messageId
+                                                                     completion:(WebAPIRequestCompletionBlock)completion;
+{
+    if ([loginUserId length] <= 0 ||
+        [messageId length] <= 0 ) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KUserPersonalID: loginUserId,
+                                 @"id":messageId,
+                                 };
+    return [self postPath:KChatDeleteURL
+               parameters:parameters
+               completion:completion];
+    
+    
+}
+
+- (AFHTTPRequestOperation *)getChatNumberWithUserId:(NSString *)loginUserId
+                                         Completion:(WebAPIRequestCompletionBlock)completion
+{
+    
+    if([loginUserId length]<=0)
+    {
+        return nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID: loginUserId
+                                 };
+
+    return [self postPath:KChatNumberURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getDeleteChatMsgInfor:(NSString *)userId
+                                   withChatUserId:(NSString *)chatUserId
+                                   withCompletion:(WebAPIRequestCompletionBlock)completion{
+    if([userId length] < 1 || [chatUserId length] < 1)
+    {
+        return nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 @"chatUserId":chatUserId,
+                                 };
+    
+    return [self postPath:KChatDeleteMsgInforURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+#pragma mark - ====================添加朋友圈接口内容=============
+
+#pragma mark - 获取朋友圈名字信息
+- (AFHTTPRequestOperation *)getFriendCircleInforWithFriCirName:(NSString *)friCirName
+                                                      withPage:(NSInteger)fcPage
+                                                withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{@"name": friCirName,
+                                 };
+    return [self postPath:KFCircleNameURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark - 当前用户创建朋友圈
+- (AFHTTPRequestOperation *)getFriendCircleCreateInforWith:(FriendCircleModel *)fcircleInfor
+                                            withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    NSDictionary *parameters = [fcircleInfor getUserCreateFriendCircleParamInfor];
+    return [self postPath:KFCircleCreateURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark - 当前用户加入某个圈子
+- (AFHTTPRequestOperation *)getFriendCircleJoinThisCircleWith:(NSString *)userId
+                                                 withCircleId:(NSString *)circleID
+                                               withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    
+    if ([userId length ]<= 0||[circleID length] <= 0) {
+        return Nil;
+    }
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 @"circleId":circleID};
+    return [self postPath:KFCircleJoinURL
+               parameters:parameters
+               completion:completion];
+    
+}
+
+
+#pragma mark - 当前用户退出某个圈子
+- (AFHTTPRequestOperation *)getFriendCircleLogoutThisCircleWith:(NSString *)userId
+                                                   withCircleId:(NSString *)circleID
+                                                 withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KUserPersonalID: userId,
+                                 @"circleId":circleID,};
+    return [self postPath:KFCircleCancelURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+#pragma mark - 获取当前圈子中用户成员信息
+- (AFHTTPRequestOperation *)getFriendCircleUserMembersThisCircleWithCircleId:(NSString *)circleID
+                                                              withPageNumber:(NSInteger)pageNumber
+                                                           withNumberPerPage:(NSInteger)numberPerPage withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{@"circleId":circleID,
+                                 @"page":[NSNumber numberWithInteger:pageNumber],
+                                 @"numPerPage":[NSNumber numberWithInteger:numberPerPage]};
+    return [self postPath:KFCircleUserMemberURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+#pragma mark -  获取当前圈子中所有帖子信息
+- (AFHTTPRequestOperation *)getFriendCircleAllPostsInforWithCircleId:(NSString *)circleID
+                                                      withPageNumber:(NSInteger)pageNumber
+                                                   withNumberPerPage:(NSInteger)numberPerPage
+                                                      withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{@"circleId":circleID,
+                                 @"page":[NSNumber numberWithInteger:pageNumber],
+                                 @"numPerPage":[NSNumber numberWithInteger:numberPerPage]};
+    
+    Log(@"%@",parameters);
+    return [self postPath:KFCirclePostListsURL
+               parameters:parameters
+               completion:completion];
+}
+#pragma mark - 当前用户给某个帖子点赞操作
+- (AFHTTPRequestOperation *)getFriendCircleClickAgreeWithCircleId:(NSString *)circleID
+                                                       withUserID:(NSString *)userID
+                                                   withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KUserPersonalID: userID,
+                                 @"id":circleID,};
+    return [self postPath:KFCirclePraiseURL
+               parameters:parameters
+               completion:completion];
+
+}
+#pragma mark - 删除当前用户发的帖子
+- (AFHTTPRequestOperation *)getFriendCircleDeletePostsWithCircleId:(NSString *)circleID
+                                                        withUserID:(NSString *)userID
+                                                    withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KUserPersonalID: userID,
+                                 @"id":circleID,};
+    return [self postPath:KFCircleDeletePostURL
+               parameters:parameters
+               completion:completion];
+    
+}
+
+- (AFHTTPRequestOperation *)getFriendCircleSendPostWith:(FriendCirclePostsModel *)fcPostModel withcompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KFCircleSendPostURL
+               parameters:[fcPostModel getParamForSendFriendCirclePost]
+               completion:completion];
+}
+
+@end

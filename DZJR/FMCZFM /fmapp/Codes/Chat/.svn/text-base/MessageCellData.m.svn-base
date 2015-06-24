@@ -1,0 +1,256 @@
+//
+//  MessageListCellData.m
+//  fmapp
+//
+//  Created by SDYK on 14-10-16.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMSettings.h"
+#import "MessageCellData.h"
+#import "AttributedStringHelper.h"
+#import "NSAttributedString+Height.h"
+
+@interface MessageCellData ()
+@property (nonatomic , assign)  GLfloat contentHeight;
+@end
+
+@implementation MessageCellData : NSObject
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        self.contentHeight = 0.0f;
+    }
+    
+    return self;
+}
+
++ (id)initUserMsgWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    
+    MessageCellData *cellData = [[MessageCellData alloc] init];
+    
+    // 消息类型
+    cellData.cellType = IntForKeyInUnserializedJSONDic(dic, @"cellType");
+    // 用户id
+    cellData.userId = StringForKeyInUnserializedJSONDic(dic, @"userId");
+    // 用户昵称
+    cellData.userName = StringForKeyInUnserializedJSONDic(dic, @"userName");
+    // 用户头像Key
+    cellData.userIconKey = StringForKeyInUnserializedJSONDic(dic, @"Brand_logo_name");
+    // 用户性别
+    cellData.userSex = IntForKeyInUnserializedJSONDic(dic, @"sex");
+    // 最后一条消息
+    cellData.lastContent = StringForKeyInUnserializedJSONDic(dic, @"lastContent");
+    // 用户签名
+    
+    cellData.signature=StringForKeyInUnserializedJSONDic(dic, @"signature");
+    
+    
+    
+    return cellData;
+    
+}
+-(void)makeAttributeContent
+{
+    if (IsStringEmptyOrNull(self.lastContent)) {
+        self.msgLastAttributedContent = nil;
+        
+        Log(@"self.lastContent is %@",self.lastContent);
+        return;
+    }
+    AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+    [attributedStringHelper initStringSystemFontOfSize:14.0f withSetupFont:YES];
+    
+    self.msgLastAttributedContent = [attributedStringHelper getAttributedStringWithNSString:self.lastContent
+                                                                                  textColor:KSubTitleContentTextColor];
+    
+}
+
+- (void)makeHasRead:(MessageCellData *)itemMessageInfor{
+    
+    ///精品推荐通知消息类型
+    if (itemMessageInfor.cellType == IMForBusinessRecommendType) {
+        if (!FMShareSetting.appUserBusinessRecommendHasNORead) {
+            [itemMessageInfor setUnreadMsgCount:0];
+        }
+    }
+    ///车友聚会消息类型
+    else if (itemMessageInfor.cellType == IMForCarFriendsPartyType) {
+        if (!FMShareSetting.appUserCarFriendsPartyHasNORead) {
+            [itemMessageInfor setUnreadMsgCount:0];
+        }
+    }
+    ///系统通知消息类型
+    else if (itemMessageInfor.cellType == IMForSystemMessageType) {
+        if (!FMShareSetting.appUserSystemMessageHasNORead) {
+            [itemMessageInfor setUnreadMsgCount:0];
+        }
+    }
+    ///电台资讯通知消息类型
+    else if (itemMessageInfor.cellType == IMForTrafficMessageType) {
+        if (!FMShareSetting.appPushRadioAnnouncementBool) {
+            [itemMessageInfor setUnreadMsgCount:0];
+        }
+    }
+    ///朋友圈消息通知类别
+    else if (itemMessageInfor.cellType == ImForFriendCircleType) {
+        
+        if (!FMShareSetting.appUserFriendCircleHasNORead) {
+            [itemMessageInfor setUnreadMsgCount:0];
+        }
+    }
+}
+
++ (id)initUserMessageCellDataWithUnserializedJSONDic:(NSDictionary *)dic{
+    
+    MessageCellData *itemMessageInfor = [[MessageCellData alloc]init];
+    
+    if (itemMessageInfor == nil) {
+        return itemMessageInfor;
+    }
+    
+    NSDictionary *dataDic = [NSDictionary dictionaryWithDictionary:dic];
+    if (dataDic.count <= 0) {
+        return nil;
+    }
+    ///数据类型内容
+    [itemMessageInfor setCellType:(MessageCellType)IntForKeyInUnserializedJSONDic(dataDic, @"type")];
+    
+    
+    
+    ///用户id
+    NSString *idString = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(dataDic, @"id")];
+    [itemMessageInfor setUserId:idString];
+    
+    
+    ///未读消息数量
+    NSInteger   unReadInt = IntForKeyInUnserializedJSONDic(dataDic, @"number");
+    [itemMessageInfor setUnreadMsgCount:unReadInt];
+    
+    ///发送时间
+    NSString *createTimeString = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(dataDic, @"createtime")];
+    [itemMessageInfor setMsgCreateDateTime:createTimeString];
+    
+    ///消息内容
+    NSString    *strContent = StringForKeyInUnserializedJSONDic(dataDic, @"content");
+    
+    [itemMessageInfor setLastContent:strContent];
+    FMMessage* message = [[FMMessage alloc] init];
+    message.content =strContent;
+    
+    
+    if (itemMessageInfor.cellType == IMForInteractionType) {
+        if (message.messageType == MessageTypeImage) {
+            [itemMessageInfor setLastContent:@"[图片]"];
+        }else if(message.messageType == MessageTypeVoice) {
+            [itemMessageInfor setLastContent:@"[语音]"];
+        }
+    }
+    
+    
+    if (IsStringEmptyOrNull(itemMessageInfor.lastContent)) {
+        [itemMessageInfor setLastContent:@"里面人还没有说话啊"];
+        
+    }
+    
+    [itemMessageInfor makeAttributeContent];
+    
+    ///名字或者标题
+    NSString *titleString = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(dataDic, @"title")];
+    [itemMessageInfor setUserName:titleString];
+    
+    ///用户头像或者模块图片
+    NSString *iconKeyString = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(dataDic, @"Brand_logo_name")];
+    [itemMessageInfor setUserIconKey:iconKeyString];
+    
+
+    
+    ///精品推荐通知消息类型
+    if (itemMessageInfor.cellType == IMForBusinessRecommendType) {
+        
+        if (![FMShareSetting.appUserBusinessRecommendPushLatestId isEqualToString:itemMessageInfor.userId]) {
+            [FMShareSetting setAppUserBusinessRecommendPushLatestId:itemMessageInfor.userId];
+            [itemMessageInfor setUnreadMsgCount:1];
+            [FMShareSetting setAppUserBusinessRecommendHasNORead:YES];
+        }
+        
+        [itemMessageInfor setUserId:@"-1"];
+    }
+    ///车友聚会消息类型
+    else if (itemMessageInfor.cellType == IMForCarFriendsPartyType) {
+        if (![FMShareSetting.appUserCarFriendsPartyPushLatestId isEqualToString:itemMessageInfor.userId]) {
+            [FMShareSetting setAppUserCarFriendsPartyPushLatestId:itemMessageInfor.userId];
+            [itemMessageInfor setUnreadMsgCount:1];
+            [FMShareSetting setAppUserCarFriendsPartyHasNORead:YES];
+        }
+        [itemMessageInfor setUserId:@"-2"];
+    }
+    ///系统通知消息类型
+    else if (itemMessageInfor.cellType == IMForSystemMessageType) {
+        
+        if (![FMShareSetting.appUserSystemMessagePushLatestId isEqualToString:itemMessageInfor.userId]) {
+            [FMShareSetting setAppUserSystemMessagePushLatestId:itemMessageInfor.userId];
+            [itemMessageInfor setUnreadMsgCount:1];
+            [FMShareSetting setAppUserSystemMessageHasNORead:YES];
+        }
+
+        [itemMessageInfor setUserId:@"-3"];
+    }
+    ///电台资讯通知消息类型
+    else if (itemMessageInfor.cellType == IMForTrafficMessageType) {
+        
+        ///最新电台公告
+        NSInteger    newAnnounceID = [itemMessageInfor.userId integerValue];
+        if (!FMShareSetting.appPushRadioAnnouncementLatestIdentifier == newAnnounceID) {
+            [FMShareSetting setAppPushRadioAnnouncementLatestIdentifier:newAnnounceID];
+            [itemMessageInfor setUnreadMsgCount:1];
+            [FMShareSetting setAppPushRadioAnnouncementBool:YES];
+        }
+        [itemMessageInfor setUserId:@"-4"];
+    }
+    ///朋友圈消息通知类别
+    else if (itemMessageInfor.cellType == ImForFriendCircleType) {
+        
+        NSString *fcId = StringForKeyInUnserializedJSONDic(dataDic, @"circleId");
+        ///在不同的圈子中,肯定要标注信息
+        if (![FMShareSetting.appUserFriendCirclePushLatestId isEqualToString:fcId]) {
+            [FMShareSetting setAppUserFriendCirclePushLatestId:fcId];
+            [itemMessageInfor setUnreadMsgCount:1];
+            [FMShareSetting setAppUserFriendCircleHasNORead:YES];
+            [FMShareSetting setAppUserFriendCirclePushLatesQuestionID:itemMessageInfor.userId];
+        }
+        
+        ///在同一个圈子中
+        else{
+            
+            ///在同一圈子中，问题ID不同，则标注为未读
+            if (![FMShareSetting.appUserFriendCirclePushLatesQuestionID isEqualToString:itemMessageInfor.userId]) {
+                [itemMessageInfor setUnreadMsgCount:1];
+                [FMShareSetting setAppUserFriendCircleHasNORead:YES];
+                [FMShareSetting setAppUserFriendCirclePushLatesQuestionID:itemMessageInfor.userId];
+            }
+        }
+        
+        [itemMessageInfor setUserId:@"-5"];
+
+    }
+    
+    ///获取聊天时间戳
+    [itemMessageInfor setMsgTimeStamp:IntForKeyInUnserializedJSONDic(dataDic, @"time")];
+    
+    [itemMessageInfor makeHasRead:itemMessageInfor];
+    
+    return itemMessageInfor;
+}
+
+
+- (GLfloat)getContentHeight:(GLfloat)containerWidth{
+    if (self.contentHeight <= 0) {
+        self.contentHeight = [self.msgLastAttributedContent boundingHeightForWidth:containerWidth];
+    }
+    return self.contentHeight;
+}
+
+@end

@@ -1,0 +1,1276 @@
+//
+//  RoadMainViewController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-10-10.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#define KFunctionButtonWidth        (KProjectScreenWidth-1.5)/4         ///功能模块的宽度
+#define KFunctionButtonHeight       90.0f                               ///功能模块的高度
+
+#define KRedPointImageBodySize     10.0f                                ///小红点的大小_方形边界
+
+
+#define KContentTextFont            [UIFont systemFontOfSize:12.0f]     ///文本的字体大小
+#define KContentTitleTextFont       [UIFont systemFontOfSize:14.0f]     ///文本的字体大小
+
+#define KFunctionButtonBaseTag      1901131                             ///按键的标注
+
+#define KShoppingPayBGroundViewTag  1902111                             ///购物背景图
+#define KRoadMapBackGroundViewTag   1902112                             ///地图背景图
+#define KScanQRCodeAlertViewTag     1902123                             ///二维码扫描结果设置
+
+
+
+///违章查询小红点
+#define KRedPointForViolationTag    1903111  
+#define KRedPointForRaidoTag        1903112
+#define KRedPointForShakeTag        1903113
+
+
+#define KWeiZhangColor  [UIColor colorWithRed:231.0f/255.0f green:90.0f/255.0f blue:131/255.0f alpha:1.0f]
+#define KRadioAcColor   [UIColor colorWithRed:35.0f/255.0f green:186.0f/255.0f blue:145.0f/255.0f alpha:1.0f]
+#define KUserShakeColor [UIColor colorWithRed:255.0f/255.0f green:168.0f/255.0f blue:0/255.0f alpha:1.0f]
+
+#import "RoadMainViewController.h"
+#import "BroadcastinStationActivityView.h"
+#import "MoreForExploreViewController.h"
+#import <AMapSearchKit/AMapSearchAPI.h>
+#import "AddRoadConditionContentController.h"
+#import "BusinessShoppingPayViewController.h"
+#import "SearchAndReceiveViewController.h"
+#import "EditWelfareOrderViewController.h"
+#import "PublishQuestionViewController.h"
+#import "RoadForMoreViewController.h"
+#import "HTTPClient+RoadCondition.h"
+#import "ScanQRCodeViewController.h"
+#import "UserShakeMainController.h"
+#import "DetailTravelController.h"
+#import "AddCarNoViewController.h"
+#import "CurrentUserInformation.h"
+#import "ShareWebViewController.h"
+#import "RightBarItemMenusView.h"
+#import "WelfareMerchantInfor.h"
+#import "WebTravelController.h"
+#import "PaymenBusinessCell.h"
+#import "CustomMAAnnotation.h"
+#import "RoadViewController.h"
+#import "LoginController.h"
+#import "AppDelegate.h"
+#import "HTTPClient.h"
+#import "StationActivityDescriptionWebView.h"
+#import "SliderViewController.h"
+#import "APAvatarImageView.h"
+#import "FMSettings.h"
+#import "MainTabViewController.h"
+#import "WebTravelController.h"
+
+@interface RoadMainViewController ()<MKMapViewDelegate,CLLocationManagerDelegate,AMapSearchDelegate,UIGestureRecognizerDelegate,RightBarItemMenusDelegate,CLLocationManagerDelegate,UITableViewDataSource,UITableViewDelegate>
+
+@property (nonatomic , assign)      NSInteger               animationIntegerNumber;
+@property (nonatomic , assign)      BOOL                    animationUpOrdown;
+@property (nonatomic , weak)        UIImageView             *animationUpOrdownImageView;
+@property (nonatomic , weak)        NSTimer                 *animationNStimer;
+///扫描结果内容
+@property (nonatomic , strong)      NSString                *scanQRCodeResultString;
+
+///地图界面内容
+@property (nonatomic , weak)        MKMapView               *mapView;
+///背景图内容
+@property (nonatomic , weak)        UIScrollView            *mainViewScrollView;
+
+///判断是否存在推荐商家，若存在，则为YES，否则为NO
+///@See 若为YES，则显示商家；若为NO，则不显示商家；
+@property (nonatomic , assign)      BOOL                    isGetShoppingInforBool;
+///地图的模块的高度内容
+@property (nonatomic , assign)      CGFloat                 roadMapBackGroundViewHeight;
+@property (nonatomic , strong)      RightBarItemMenusView   *rightBarMenusView;
+/////////////购物界面内容
+/////选购商家图片介绍
+//@property (nonatomic , weak)        UIImageView             *commerceTitleImageView;
+/////选购商家信息标题
+//@property (nonatomic , weak)        UILabel                 *commerceTitleContentLabel;
+///路况内容
+@property (nonatomic , strong)      NSMutableArray          *roadConditionAnnotationsArray;
+
+@property (nonatomic , assign)      CLLocationCoordinate2D locationCoordinate;
+///定位管理器
+@property (nonatomic,strong) CLLocationManager      *mainLocationManager;
+@property (nonatomic,weak)  UIView                *functionBackView;
+
+@property (nonatomic , weak)        UITableView             *tableView;
+@property (nonatomic , strong)      DataPage                *dataSource;
+
+@property (nonatomic, strong) APAvatarImageView         *navIcon;
+
+
+
+
+///设置右侧按键点击事件
+- (void)initWithRightBarButtonEvent;
+///设置头部功能模块
+-(void)initWithFunctionViewControl;
+///设置路况地图模块
+- (void)initWithRoadMapViewControlWithHeight:(CGFloat)viewHeight;
+///设置精品推荐模块
+- (void)initWIthShoppingPayViewControlWithHeight:(CGFloat)viewHeight;
+///设置界面主视图
+- (void)initWithRoadMainViewControllerFrame;
+///设置用户操作按键事件
+- (void)initWithUserOperationForFuctionButtonEvent:(id)sender;
+////设置二维码扫描内容
+- (void)initWithUserSetupCameraWithScanQRCode;
+///获取路况信息内容
+- (void)initWithGetRoadDataInformationForMapView;
+///获取猜你喜欢商家数据内容
+- (void)initWithGetBusinessInformationData;
+
+///小红点
+- (void)initWithUserReadShakePrizeListNotification:(NSNotification *) notification;
+
+@end
+
+@implementation RoadMainViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+- (id)init{
+    self = [super init];
+    if (self) {
+        self.enableCustomNavbarBackButton = FALSE;
+        self.dataSource = [DataPage page];
+    }
+    return self;
+}
+
+
+//- (void)view
+-(void)viewWillAppear:(BOOL)animated
+{
+    [self setUpRedPointInforNotification:nil];
+}
+
+
+- (void)setUpRedPointInforNotification:(NSNotification *) notification{
+    
+    ///违章查询小红点
+    UIButton    *myViolationButton = (UIButton *)[self.view viewWithTag:KFunctionButtonBaseTag];
+    UIImageView *violationHintPoint = (UIImageView *)[myViolationButton viewWithTag:KRedPointForViolationTag];
+    ///设置我的违章小红点内容
+    if (FMShareSetting.appPushMePersonalViolationMsgInforBool) {
+        if (!violationHintPoint) {
+            violationHintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+            violationHintPoint.tag = KRedPointForViolationTag;
+            violationHintPoint.frame = CGRectMake(KFunctionButtonWidth-20, 20.5,
+                                                  KRedPointImageBodySize, KRedPointImageBodySize);
+            [myViolationButton addSubview:violationHintPoint];
+        }else{
+            [violationHintPoint setHidden:NO];
+        }
+    }else{
+        [violationHintPoint setHidden:YES];
+    }
+    
+    ///电台活动小红点
+    UIButton    *radioButton = (UIButton *)[self.view viewWithTag:KFunctionButtonBaseTag+1];
+    UIImageView *radioHintPoint = (UIImageView *)[radioButton viewWithTag:KRedPointForRaidoTag];
+    ///设置我的违章小红点内容
+    if (FMShareSetting.appPushRadioActivityBool) {
+        if (!radioHintPoint) {
+            radioHintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+            radioHintPoint.tag = KRedPointForRaidoTag;
+            radioHintPoint.frame = CGRectMake(KFunctionButtonWidth-20, 20.5,
+                                              KRedPointImageBodySize, KRedPointImageBodySize);
+            [radioButton addSubview:radioHintPoint];
+        }
+    }else{
+        [radioHintPoint setHidden:YES];
+    }
+    
+    ///摇一摇小红点
+    UIButton    *shakeButton = (UIButton *)[self.view viewWithTag:KFunctionButtonBaseTag+2];
+    UIImageView *shakeHintPoint = (UIImageView *)[shakeButton viewWithTag:KRedPointForShakeTag];
+    ///设置我的违章小红点内容
+    if (FMShareSetting.appPushPrizeListInforBool) {
+        if (!shakeHintPoint) {
+            shakeHintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+            shakeHintPoint.tag = KRedPointForShakeTag;
+            shakeHintPoint.frame = CGRectMake(KFunctionButtonWidth-20, 20.5,
+                                              KRedPointImageBodySize, KRedPointImageBodySize);
+            [shakeButton addSubview:shakeHintPoint];
+        }
+    }else{
+        [shakeHintPoint setHidden:YES];
+    }
+}
+
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    [self addNotification];
+
+    
+    [self settingNavTitle:KProjectRadioFMNumber];
+    
+    //导航栏左侧按钮-当前已登录用户头像
+    
+    self.navIcon = [[APAvatarImageView alloc] initWithFrame:CGRectMake(0, 0, 30, 30)];
+    self.navIcon.backgroundColor = [UIColor clearColor];
+    self.navIcon.borderColor = [UIColor whiteColor];
+    self.navIcon.borderWidth = 0.5f;
+    UIBarButtonItem *leftItem = [[UIBarButtonItem alloc] initWithCustomView:self.navIcon];
+    NSString *iconUrlStr = [NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,[CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl];
+    Log(@"%@", [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)
+    
+    NSURL *iconUrl = [NSURL URLWithString:iconUrlStr];
+    [self.navIcon setImageWithURL:iconUrl placeholderImage:kImgDefaultCar];
+    self.navIcon.userInteractionEnabled = YES;
+    UITapGestureRecognizer *touchDown = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(leftItemClicked)];
+    [self.navIcon addGestureRecognizer:touchDown];
+    self.navigationItem.leftBarButtonItem = leftItem;
+
+    //上报按钮
+    self.navButtonSize = KNavSize;
+    [self setRightNavButtonFA:FMIconNewAdd
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(initWithRightBarButtonEvent)];
+    
+    
+
+    
+    self.locationCoordinate = [CurrentUserInformation sharedCurrentUserInfo].userCoordinate;
+    
+    [self initWithGetBusinessInformationData];
+    
+    [self initWithRoadMainViewControllerFrame];
+    
+    
+    if (self.locationCoordinate.latitude <= 0.0f ||self.locationCoordinate.longitude <= 0.0f) {
+        self.mainLocationManager = [[CLLocationManager alloc]init];
+        [self.mainLocationManager setDelegate:self];
+        [self.mainLocationManager setDistanceFilter:70.0f];
+        [self.mainLocationManager setDesiredAccuracy:kCLLocationAccuracyBest];
+        [self.mainLocationManager startUpdatingLocation];
+    }else{
+        [self initWithGetRoadDataInformationForMapView];
+    }
+
+    
+}
+- (void) addNotification
+{
+    //主题通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(themeChangedNotification:)
+                                                 name: FMThemeChangedNotification
+                                               object: nil];
+    
+    
+    //定位通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(locationUpdateNotification:)
+                                                 name: FMLocationSuccessNotification
+                                               object: nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(leftloginNotification:)
+                                                 name: FMUserLoginNotification
+                                               object: nil];
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(leftloginOutNotification:)
+                                                 name: FMUserLogoutNotification
+                                               object: nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(FMEnterForegroundNotification:)
+                                                 name:FMEnterForegroundNotificationn
+                                               object:nil];
+    
+    ///添加通知设置
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(initWithUserReadShakePrizeListNotification:)
+                                                 name: FMUserShakeAndShakePrizeListNotification
+                                               object: nil];
+    
+    
+    ///小红点设置
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                              selector: @selector(setUpRedPointInforNotification:)
+                                                  name: FMHomeModulePushNotification
+                                                object: nil];
+    
+
+
+    
+}
+
+
+- (void) FMEnterForegroundNotification:(NSNotification *) notification{
+    
+    [self refreshListData];
+}
+
+- (void)refreshListData
+{
+    //清空当前数据源中所有·数据
+    [self.dataSource cleanAllData];
+    [self.tableView reloadData];
+    [self initWithGetBusinessInformationData];
+
+}
+
+- (void) leftloginNotification:(NSNotification *) notification{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState != 1) {
+        return;
+    }
+    
+    ///头像
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)) {
+        [self.navIcon setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                                         [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                                  placeholderImage:kImgDefaultCar];
+    }
+    
+    
+}
+
+
+- (void) leftloginOutNotification:(NSNotification *) notification{
+    [self.navIcon setImage:kImgDefaultCar];
+    
+}
+
+- (void)leftItemClicked
+{
+    [[SliderViewController sharedSliderController] showLeftViewController];
+}
+
+- (void)viewDidUnload{
+    [self.dataSource cleanAllData];
+    [self.tableView setDelegate:Nil];
+    [self.tableView setDataSource:Nil];
+    [super viewDidUnload];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+#pragma mark - 设置右侧按键点击事件
+- (void)initWithRightBarButtonEvent{
+    if(self.rightBarMenusView.hidden==YES)
+    {
+    [self.rightBarMenusView setHidden:NO];
+    }
+    else
+    {
+    [self.rightBarMenusView setHidden:YES];
+
+    }
+}
+#pragma mark -
+#pragma mark - =======================设置界面信息==================
+
+
+#pragma mark - 设置界面主视图
+- (void)initWithRoadMainViewControllerFrame{
+    
+    
+    self.roadConditionAnnotationsArray = [[NSMutableArray alloc]init];
+    self.roadMapBackGroundViewHeight  = 226.0f;
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    mainScrollView.backgroundColor = [UIColor clearColor];
+    [mainScrollView setContentSize:CGSizeMake(KProjectScreenWidth, (self.view.bounds.size.height+30.0f))];
+    self.mainViewScrollView = mainScrollView;
+    [self.view addSubview:self.mainViewScrollView];
+    
+    NSArray *menusArray= [[NSArray alloc]initWithObjects:@"报路况",@"发帖子",@"扫一扫", nil];
+    NSArray *menusIconArray = [[NSArray alloc]initWithObjects:[NSNumber numberWithInteger:FMIconCenter],[NSNumber numberWithInteger:FMIconHomeAddTie],[NSNumber numberWithInteger:FMIconQRCode], nil];
+    self.rightBarMenusView = [[RightBarItemMenusView alloc]initWithFrame:CGRectMake(0.0f, 0.0f, KProjectScreenWidth, KProjectScreenHeight) withMenusArray:menusArray withTitleIcon:YES withMenusIconArray:menusIconArray];
+    
+    [self.rightBarMenusView setDelegate:self];
+    [self.rightBarMenusView setHidden:YES];
+    [self.view addSubview:self.rightBarMenusView];
+    
+    [self initWithFunctionViewControl];
+    
+    self.isGetShoppingInforBool = NO;
+    [self initWithRoadMapViewControlWithHeight:(self.roadMapBackGroundViewHeight+ (self.isGetShoppingInforBool ? 0.0f:150))];
+    
+    
+    ///添加通知设置
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(initWithUserSetUpPhotoImageNotification:)
+                                                 name: FMUserBrandImageModifyNotification
+                                               object: nil];
+    
+}
+
+- (void)initWithUserSetUpPhotoImageNotification:(NSNotification *)notification{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState != 1) {
+        return;
+    }
+    ///头像
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)) {
+        
+
+        [self.navIcon setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                            [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                     placeholderImage:kImgDefaultCar];
+    }
+}
+
+#pragma mark - 设置头部功能模块
+- (void)initWithFunctionViewControl{
+    UIView *functionBackView = [[UIView alloc]initWithFrame:CGRectMake(0.0f, 0.0f, KProjectScreenWidth, KFunctionButtonHeight)];
+    [functionBackView setBackgroundColor:KDefaultOrNightBackGroundColor];
+    [functionBackView.layer setBorderWidth:0.5];
+    [functionBackView.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+    
+    NSArray *titleIconColorArray = [[NSArray alloc]initWithObjects:KWeiZhangColor,KRadioAcColor,KUserShakeColor,KContentTextLightGrayColor, nil];
+#if defined (JN) ||(WF)||(LY)||(YT)||(SJC)
+    NSArray *titleNameArray = @[@"违章查询",@"电台活动",@"摇一摇",@"更多"];
+    NSArray *titleIconNameArray = @[[NSNumber numberWithInteger:FMIconWZQuery],[NSNumber numberWithInteger:FMIconRadio],[NSNumber numberWithInteger:FMIconShake],[NSNumber numberWithInteger:FMIconMore]];
+#endif
+
+    
+    
+//#if defined (SJC)
+//    
+//    NSArray *titleNameArray = @[@"找到啦",@"电台活动",@"摇一摇",@"更多"];
+//    NSArray *titleIconNameArray = @[[NSNumber numberWithInteger:FMIconSearchModel],[NSNumber numberWithInteger:FMIconRadio],[NSNumber numberWithInteger:FMIconShake],[NSNumber numberWithInteger:FMIconMore]];
+//#endif
+    
+#if defined (CS) || (WH) || (NN)
+    
+    NSArray *titleNameArray = @[@"找到了",@"电台活动",@"摇一摇",@"更多"];
+    NSArray *titleIconNameArray = @[[NSNumber numberWithInteger:FMIconSearchModel],[NSNumber numberWithInteger:FMIconRadio],[NSNumber numberWithInteger:FMIconShake],[NSNumber numberWithInteger:FMIconMore]];
+#endif
+    
+    for (int index = 0; index < 4; index++) {
+        
+        if (index > 0) {
+            UIImageView *lineImageView = [[UIImageView alloc]initWithFrame:CGRectMake(index*KFunctionButtonWidth, 10.0f, 0.5f, KFunctionButtonHeight - 20.0f)];
+            [lineImageView setBackgroundColor:KDefaultOrNightSepratorColor];
+            //[functionBackView addSubview:lineImageView];
+        }
+        [self initWithButton:CGRectMake((index*KFunctionButtonWidth + (0.5 * index)), 0.0f, KFunctionButtonWidth, KFunctionButtonHeight) withContent:[titleNameArray objectAtIndex:index] withTag:(KFunctionButtonBaseTag+index) withImageName:(NSNumber *)[titleIconNameArray objectAtIndex:index] withIconColor:(UIColor *)[titleIconColorArray objectAtIndex:index] withBaseView:functionBackView];
+    }
+
+    [self.mainViewScrollView addSubview:functionBackView];
+    
+}
+
+
+#pragma mark - 设置路况地图定位
+- (void)initWithLocationForMapView{
+    
+}
+#pragma mark - 设置路况地图模块
+- (void)initWithRoadMapViewControlWithHeight:(CGFloat)viewHeight{
+    
+    UIView *functionBackView = (UIView *)[self.mainViewScrollView viewWithTag:KRoadMapBackGroundViewTag];
+    
+    if (!functionBackView) {
+        
+        functionBackView = [[UIView alloc]initWithFrame:CGRectMake(0.0f, KFunctionButtonHeight + 20, KProjectScreenWidth, viewHeight)];
+        [functionBackView setBackgroundColor:KDefaultOrNightBackGroundColor];
+        [functionBackView.layer setBorderWidth:0.5];
+        [functionBackView setTag:KRoadMapBackGroundViewTag];
+        self.functionBackView=functionBackView;
+        [functionBackView.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+        
+        
+        ///竖线
+        UIImageView *lineImageView = [[UIImageView alloc]initWithFrame:CGRectMake(10, 11.0f, 2.0f, 18)];
+        [lineImageView setBackgroundColor:KDefaultOrNightBaseColor];
+        [functionBackView addSubview:lineImageView];
+        UILabel *roadLabel = [[UILabel alloc] initWithFrame:CGRectMake(16.0f,13, 100,16.0f)];
+        [roadLabel setText:@"实时路况"];
+        roadLabel.textColor=KDefaultOrNightTextColor;
+        roadLabel.backgroundColor = [UIColor clearColor];
+        roadLabel.font = KContentTitleTextFont;
+        [roadLabel setTextAlignment:NSTextAlignmentLeft];
+        [functionBackView addSubview:roadLabel];
+        //地图
+        MKMapView *mainMapView = [[MKMapView alloc] initWithFrame:CGRectMake(10, 40.0f, KProjectScreenWidth - 20.0f,viewHeight- 50.0f)];
+        mainMapView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        mainMapView.delegate = self;
+        [mainMapView.layer setBorderWidth:0.5];
+        [mainMapView.layer setBorderColor:[KBorderColorSetup CGColor]];
+        mainMapView.showsUserLocation = YES;
+        [mainMapView setUserInteractionEnabled:NO];
+        self.mapView = mainMapView;
+        [functionBackView addSubview:self.mapView];
+        ////添加单击手势
+        UITapGestureRecognizer *mapViewTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                               action:@selector(initWithUserRecognizermapViewTapped:)];
+        mapViewTapRecognizer.delegate = self;
+        mainMapView.scrollEnabled=NO;
+        [functionBackView addGestureRecognizer:mapViewTapRecognizer];
+        
+        [self.mainViewScrollView addSubview:functionBackView];
+        
+        //启动定位
+        [ShareAppDelegate startLocationUpdate];
+    }else{
+        [functionBackView setFrame:CGRectMake(0.0f, KFunctionButtonHeight + 20, KProjectScreenWidth, viewHeight)];
+        [self.mapView setFrame:CGRectMake(10, 40.0f, KProjectScreenWidth - 20.0f,viewHeight- 50.0f)];
+    }
+    
+    [self initWIthShoppingPayViewControlWithHeight:viewHeight];
+}
+
+#pragma mark - 设置精品推荐模块
+- (void)initWIthShoppingPayViewControlWithHeight:(CGFloat)viewHeight{
+    
+    UIView *functionBackView = (UIView *)[self.mainViewScrollView viewWithTag:KShoppingPayBGroundViewTag];
+    
+    if (!functionBackView) {
+        
+        functionBackView = [[UIView alloc]initWithFrame:CGRectMake(0.0f, KFunctionButtonHeight + 25 +viewHeight + 16.0f, KProjectScreenWidth, 110)];
+        [functionBackView setBackgroundColor:KDefaultOrNightBackGroundColor];
+        [functionBackView setTag:KShoppingPayBGroundViewTag];
+        [functionBackView.layer setBorderWidth:0.5];
+        [functionBackView.layer setBorderColor:[KDefaultOrNightSepratorColor CGColor]];
+        
+        ///竖线
+        UIImageView *lineImageView = [[UIImageView alloc]initWithFrame:CGRectMake(10, 11.0f, 2.0f, 18)];
+        [lineImageView setBackgroundColor:KDefaultOrNightBaseColor];
+
+        [functionBackView addSubview:lineImageView];
+        UILabel *roadLabel = [[UILabel alloc] initWithFrame:CGRectMake(16.0f,13, 100,16.0f)];
+        [roadLabel setText:@"猜你喜欢"];
+        roadLabel.textColor=KDefaultOrNightTextColor;
+        roadLabel.backgroundColor = [UIColor clearColor];
+        roadLabel.font = KContentTitleTextFont;
+        [roadLabel setTextAlignment:NSTextAlignmentLeft];
+        [functionBackView addSubview:roadLabel];
+        [self.mainViewScrollView addSubview:functionBackView];
+
+        UITableView *payTableView = [[UITableView alloc]initWithFrame:CGRectMake(10.0f, 30.0f, (KProjectScreenWidth-20), (functionBackView.frame.size.height- 60)) style:UITableViewStylePlain];
+        [payTableView setDelegate:self];
+        [payTableView setDataSource:self];
+        [payTableView setSeparatorStyle:UITableViewCellSeparatorStyleNone];
+        [payTableView setBackgroundColor:[UIColor clearColor]];
+        self.tableView = payTableView;
+        [functionBackView addSubview:self.tableView];
+        
+    }else{
+        
+        if (!self.isGetShoppingInforBool) {
+            [functionBackView setFrame:CGRectMake(0.0f, 2000.0f, 0.0f, 0.0f)];
+        }
+        else if (self.isGetShoppingInforBool == YES){
+            [functionBackView setFrame:CGRectMake(0.0f, KFunctionButtonHeight + 25 +viewHeight + 16.0f, KProjectScreenWidth, (KShoppingPayViewHeight*([self.dataSource count])+35))];
+            [self.tableView setFrame:CGRectMake(10.0f, 30.0f, (KProjectScreenWidth-20), (functionBackView.frame.size.height- 35))];
+            [self.tableView reloadData];
+        }
+    }
+}
+
+
+#pragma mark -
+#pragma mark - =======================设置功能模块操作内容==================
+
+- (void)initWithUserOperationForFuctionButtonEvent:(id)sender{
+    
+    UIButton *button = (UIButton *)sender;
+    
+    ///违章查询
+    if (button.tag == (KFunctionButtonBaseTag)) {
+#if defined (JN) ||(WF)||(LY)||(YT)
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+            ///存在车牌
+            if (!IsStringEmptyOrNull([[CurrentUserInformation sharedCurrentUserInfo] userCarNo]) && [[CurrentUserInformation sharedCurrentUserInfo].userCarNo length] == 7) {
+                
+                UIImageView *hintPoint = (UIImageView *)[button viewWithTag:KRedPointForViolationTag];
+                [hintPoint setHidden:YES];
+                [FMShareSetting setAppPushMePersonalViolationMsgInforBool:NO];
+                 
+                DetailTravelController *travelViewControl = [[DetailTravelController alloc]init];
+                travelViewControl.hidesBottomBarWhenPushed = YES;
+                [self.navigationController pushViewController:travelViewControl animated:YES];
+            }
+            ///绑定车牌
+            else{
+                AddCarNoViewController  *addCarNumber = [[AddCarNoViewController alloc]initWithStyle:InitWithUserAddCarNumber];
+                addCarNumber.hidesBottomBarWhenPushed = YES;
+                [self.navigationController pushViewController:addCarNumber animated:YES];
+            }
+        }
+#endif
+        
+#if defined (SJC)
+        WebTravelController *webController = [[WebTravelController alloc]init];
+        webController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:webController animated:YES];
+#endif
+        
+#if defined (NN) || (WH) || (CS)
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            SearchAndReceiveViewController *viewController = [[SearchAndReceiveViewController alloc]init];
+            viewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:viewController animated:YES];
+        }
+#endif
+    }
+    
+    ///电台活动
+    else if (button.tag == (KFunctionButtonBaseTag + 1)) {
+        BroadcastinStationActivityView  *broadcastInStationView = [[BroadcastinStationActivityView alloc]init];
+        broadcastInStationView.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:broadcastInStationView animated:YES];
+        
+        UIImageView *hintImageView = (UIImageView *)[button viewWithTag:KRedPointForRaidoTag];
+        if (hintImageView) {
+            [hintImageView setHidden:YES];
+        }
+        [FMShareSetting setAppPushRadioActivityBool:NO];
+        
+
+        if (FMShareSetting.appPushPrizeListInforBool == NO) {
+            
+            MainTabViewController *main = FMMainViewController;
+            [main showHintPoint:0 showOrHide:NO];
+        }
+    }
+    
+    ///摇一摇
+    else if (button.tag == (KFunctionButtonBaseTag + 2)) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{//用户已经登录
+            UserShakeMainController *insteadOfDirvierView = [[UserShakeMainController alloc]initWithViewControlTyle:InitNavigationStyle];
+            insteadOfDirvierView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:insteadOfDirvierView animated:YES];
+        }
+    }
+    
+    ///更多
+    else if (button.tag == (KFunctionButtonBaseTag + 3)) {
+        
+        RoadForMoreViewController *moreViewController = [[RoadForMoreViewController alloc]init];
+        moreViewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:moreViewController animated:YES];
+    }
+    
+}
+
+
+- (void)initWithButton:(CGRect)buttonCGRect
+           withContent:(NSString *)titlConetn
+               withTag:(NSInteger)buttonTag
+         withImageName:(NSNumber *)imageName
+         withIconColor:(UIColor *)color
+          withBaseView:(UIView *)baseView{
+    ///第一部分 摇一摇
+    UIButton *userShakeButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    [userShakeButton setBackgroundImage:createImageWithColor(KDefaultOrNightBackGroundColor)
+                               forState:UIControlStateNormal];
+    
+    [userShakeButton.titleLabel setFont:[UIFont systemFontOfSize:26.0f]];
+    
+    if(buttonTag == KFunctionButtonBaseTag){
+        [userShakeButton.titleLabel setFont:[UIFont systemFontOfSize:27.0f]];
+    }
+    [userShakeButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                               forState:UIControlStateHighlighted];
+    [userShakeButton setFrame:buttonCGRect];
+    [userShakeButton setTag:buttonTag];
+    [userShakeButton simpleButtonWithImageColor:color];
+    [userShakeButton setAwesomeIcon:[imageName integerValue]];
+    [userShakeButton setContentEdgeInsets:UIEdgeInsetsMake(-15, 0, 0, 0)];
+    [userShakeButton addTarget:self action:@selector(initWithUserOperationForFuctionButtonEvent:)
+              forControlEvents:UIControlEventTouchUpInside];
+
+    UILabel *userShakeLabel = [[UILabel alloc] initWithFrame:CGRectMake(0.0f,53, KFunctionButtonWidth, 20.0f)];
+    userShakeLabel.font = KContentTextFont;
+    userShakeLabel.textColor=KDefaultOrNightTextColor;
+    [userShakeLabel setTextAlignment:NSTextAlignmentCenter];
+    userShakeLabel.backgroundColor = [UIColor clearColor];
+    userShakeLabel.text = titlConetn;
+    [userShakeButton addSubview:userShakeLabel];
+
+    [baseView addSubview:userShakeButton];
+}
+
+
+#pragma mark -
+#pragma mark - =======================设置地图模块操作内容==================
+
+#pragma mark -地图单击时
+- (void) initWithUserRecognizermapViewTapped:(UITapGestureRecognizer *) recognizer
+{
+    RoadViewController  *broadcastInStationView = [[RoadViewController alloc]init];
+    broadcastInStationView.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:broadcastInStationView animated:YES];
+}
+
+#pragma mark -位置更新
+- (void) locationUpdateNotification:(NSNotification *) notification
+{
+    CLLocationCoordinate2D currentUserCoordinate2D = [CurrentUserInformation sharedCurrentUserInfo].userCoordinate;
+    //获取路况信息
+//    [self getMapDataWithCoordinate:currentUserCoordinate2D];//获取地图数据
+    
+    //设置地图级别和位置
+    MKMapView *mainMapView = self.mapView;
+    MKCoordinateSpan theSpan;
+    theSpan.latitudeDelta = 0.03;
+    theSpan.longitudeDelta = 0.03;
+    MKCoordinateRegion coordinateRegion = MKCoordinateRegionMake(currentUserCoordinate2D, theSpan);
+    [mainMapView setRegion:coordinateRegion animated:NO];
+}
+
+- (MKAnnotationView *)mapView:(MKMapView *)mapView
+            viewForAnnotation:(id<MKAnnotation>)annotation{
+    MKAnnotationView *annotationView = nil;
+    
+    if ([annotation isKindOfClass:[CustomMKAnnotation class]]) {
+        annotationView = [mapView dequeueReusableAnnotationViewWithIdentifier:@"FMAnnotationView"];
+        
+        if (!annotationView) {
+            annotationView = [[MKAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:@"FMAnnotationView"];
+        }
+        
+        CustomMKAnnotation *mkAnnotation = (CustomMKAnnotation *)annotation;
+        
+        NSString *annotationImageName = nil;
+        switch (mkAnnotation.type) {
+            case FMJamAnnotation:
+                annotationImageName = @"RoadCondition_JamAnnotation_Normal.png";
+                break;
+            case FMSlowAnnotation:
+                annotationImageName = @"RoadCondition_SlowAnnotation_Normal.png";
+                break;
+            case FMPassImpededAnnotation:
+                annotationImageName = @"RoadCondition_PassImpededAnnotation_Normal.png";
+                break;
+            case FMExposureAnnotation:
+                annotationImageName = @"RoadCondition_ExposureAnnotation_Normal.png";
+                break;
+            case FMLongPressAnnotation:{
+                MKPinAnnotationView *pinAnnotationView = (MKPinAnnotationView *)[mapView dequeueReusableAnnotationViewWithIdentifier:@"LongPressAnnotation"];
+                
+                if (!pinAnnotationView) {
+                    pinAnnotationView = [[MKPinAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:@"LongPressAnnotation"];
+                    pinAnnotationView.animatesDrop = YES;
+                    pinAnnotationView.canShowCallout = YES;
+                }
+                
+                return  pinAnnotationView;
+            }
+                break;
+            default:
+                break;
+        }
+        annotationView.image = [UIImage imageNamed:annotationImageName];
+        [annotationView setFrame:CGRectMake(annotationView.frame.origin.x,
+                                            annotationView.frame.origin.y
+                                            , 10.0f, 10.0f)];
+    }
+    
+    return annotationView;
+    
+}
+
+- (void)locationManager:(CLLocationManager *)manager
+    didUpdateToLocation:(CLLocation *)newLocation
+           fromLocation:(CLLocation *)oldLocation{
+    if (signbit(newLocation.horizontalAccuracy)) {
+        return;
+    }
+    
+    if (ABS([newLocation.timestamp timeIntervalSinceNow]) > 3600) {
+        return;
+    }
+    
+    [manager stopUpdatingLocation];//停止定位
+    
+    //加偏操作
+    CLLocationCoordinate2D currentUserCoordinate2D = WGS84toGCJ(newLocation.coordinate);
+    
+    [[CurrentUserInformation sharedCurrentUserInfo] setUserCoordinate:currentUserCoordinate2D];//设置当前用户经纬度
+    self.locationCoordinate = currentUserCoordinate2D;
+    
+    //设置地图级别和位置
+    MKMapView *mainMapView = self.mapView;
+    MKCoordinateSpan theSpan;
+    theSpan.latitudeDelta = 0.02;
+    theSpan.longitudeDelta = 0.02;
+    MKCoordinateRegion coordinateRegion = MKCoordinateRegionMake(currentUserCoordinate2D, theSpan);
+    [mainMapView setRegion:coordinateRegion animated:YES];
+    
+    [self initWithGetRoadDataInformationForMapView];
+}
+
+- (void)locationManager:(CLLocationManager *)manager
+       didFailWithError:(NSError *)error{
+    
+    [manager stopUpdatingLocation];
+    Log(@"定位失败")
+}
+
+- (void)initWithGetRoadDataInformationForMapView{
+    
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient getRoadConditionAround:self.locationCoordinate completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                if ([dataList isKindOfClass:[NSArray class]]) {
+                    for (NSDictionary *dic in dataList)
+                    {
+                        RoadConditionInfo* roadConditionInfo = [RoadConditionInfo roadConditionWithUnserializedJSONDic:dic];
+                        if (roadConditionInfo) {
+                            //将标注添加到标注数值组
+                            CustomMKAnnotation *customAnnotation = [[CustomMKAnnotation alloc] init];
+                            customAnnotation.coordinate = roadConditionInfo.roadConditionCoordinate;
+                            customAnnotation.data = roadConditionInfo;
+                            customAnnotation.type = roadConditionInfo.roadConditionType;
+                            [weakSelf.roadConditionAnnotationsArray addObject:customAnnotation];
+                        }
+                    }
+                }
+                [weakSelf.mapView addAnnotations:weakSelf.roadConditionAnnotationsArray];
+            }else{
+                ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+            }
+        });
+    } ];
+}
+
+#pragma mark -
+#pragma mark - =======================设置右侧操作内容==================
+
+- (void)initWithUserOperationRightBarItemMenusItemButtonEvent:(NSInteger)barItemIndex{
+//    Log(@"barItemIndex is %d",barItemIndex);
+    [self.rightBarMenusView setHidden:YES];
+    
+    ///报lukuang
+    if (barItemIndex == 1) {
+        AddRoadConditionContentController *viewController = [[AddRoadConditionContentController alloc]init];
+        FMNavigationController *navigationView = [[FMNavigationController alloc]initWithRootViewController:viewController];
+        [self presentModalViewController:navigationView animated:YES];
+    }
+    
+    ///发帖子
+    else if (barItemIndex == 2){
+        PublishQuestionViewController *publishQuestionController = [[PublishQuestionViewController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:publishQuestionController];
+        [self presentModalViewController:navController animated:YES];
+    }
+    ///二维码扫描
+    else if (barItemIndex == 3){
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+            [self initWithUserSetupCameraWithScanQRCode];
+        }
+    }
+}
+
+- (void)initWithUserSetupCameraWithScanQRCode{
+#if !TARGET_IPHONE_SIMULATOR
+    ///IOS一下使用扫描设置
+    self.animationIntegerNumber = 0;
+    self.animationUpOrdown = NO;
+    
+    //初始话ZBar
+    ZBarReaderViewController * reader = [ZBarReaderViewController new];
+    //设置代理
+    reader.readerDelegate = self;
+    //支持界面旋转
+    reader.supportedOrientationsMask = ZBarOrientationMask(UIInterfaceOrientationPortrait);
+    reader.showsHelpOnFail = YES;
+    reader.scanCrop = CGRectMake(0.1, 0.2, 0.8, 0.8);//扫描的感应框
+    ZBarImageScanner * scanner = reader.scanner;
+    [scanner setSymbology:ZBAR_I25
+                   config:ZBAR_CFG_ENABLE
+                       to:0];
+    UIView * view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 420)];
+    view.backgroundColor = [UIColor clearColor];
+    reader.cameraOverlayView = view;
+    
+    
+    UILabel * label = [[UILabel alloc] initWithFrame:CGRectMake(20, 20, (KProjectScreenWidth - 40), 40)];
+    label.text = @"请将扫描的二维码至于下面的框内！";
+    label.textColor = [UIColor whiteColor];
+    label.textAlignment = 1;
+    label.lineBreakMode = 0;
+    label.numberOfLines = 2;
+    label.backgroundColor = [UIColor clearColor];
+    [view addSubview:label];
+    
+    UIImageView * image = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"pick_bg.png"]];
+    image.frame = CGRectMake(50, 120, (KProjectScreenWidth - 100), (KProjectScreenWidth - 100));
+    [view addSubview:image];
+    
+    
+    UIImageView  *animationLineView = [[UIImageView alloc] initWithFrame:CGRectMake(10, 10, (KProjectScreenWidth - 120), 2)];
+    animationLineView.image = [UIImage imageNamed:@"line.png"];
+    self.animationUpOrdownImageView = animationLineView;
+    [image addSubview:self.animationUpOrdownImageView];
+    //定时器，设定时间过1.5秒，
+    self.animationNStimer = [NSTimer scheduledTimerWithTimeInterval:.02 target:self selector:@selector(initWithSetUpCameraWithAnimation) userInfo:nil repeats:YES];
+    
+    [self presentViewController:reader animated:YES completion:^{
+        
+    }];
+#endif
+}
+
+#pragma mark -
+#pragma mark - =======================设置二维码扫描模块操作内容==================
+
+//TODO: 2.设置相机扫描动画
+- (void)initWithSetUpCameraWithAnimation{
+    if (self.animationUpOrdown == NO) {
+        self.animationIntegerNumber ++;
+        self.animationUpOrdownImageView.frame = CGRectMake(10, 10+2*self.animationIntegerNumber, (KProjectScreenWidth - 120.0f), 2);
+        if (2*self.animationIntegerNumber == (KProjectScreenWidth-120)) {
+            self.animationUpOrdown = YES;
+        }
+    }
+    else {
+        self.animationIntegerNumber --;
+        self.animationUpOrdownImageView.frame = CGRectMake(10, 10+2*self.animationIntegerNumber, (KProjectScreenWidth - 120.0f), 2);
+        if (self.animationIntegerNumber == 0) {
+            self.animationUpOrdown = NO;
+        }
+    }
+}
+//TODO: 3.取消扫描设置
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker{
+    [self.animationNStimer invalidate];
+    self.animationUpOrdownImageView.frame = CGRectMake(60, 10, (KProjectScreenWidth - 100.0f), 2);
+    self.animationIntegerNumber = 0;
+    self.animationUpOrdown = NO;
+    [picker dismissViewControllerAnimated:YES completion:^{
+        [picker removeFromParentViewController];
+    }];
+}
+
+- (void)initWithResultUserScanningWithQRCode:(NSString *)m_resultForQRCode{
+    
+    if (self.scanQRCodeResultString) {
+        self.scanQRCodeResultString = nil;
+    }
+    
+    self.scanQRCodeResultString = [[NSString alloc]initWithFormat:@"%@",m_resultForQRCode];
+    
+    if (IsStringEmptyOrNull(self.scanQRCodeResultString )) {
+        return;
+    }
+    if ([self.scanQRCodeResultString hasPrefix:@"{"]) {
+        NSDictionary *codeResultDictionary = [[NSDictionary alloc]initWithDictionary:(NSDictionary *)[self.scanQRCodeResultString objectFromJSONString]];
+        
+        if (codeResultDictionary.count > 0 ) {
+            NSString *webURLString = [NSString stringWithFormat:@"%@ShakePrize/ActivityConfirm?id=%@&source=%@&userId=%@&code=1",kBaseAPIURL,StringForKeyInUnserializedJSONDic(codeResultDictionary, @"ID"),KProjectCityCodeString,[CurrentUserInformation sharedCurrentUserInfo].userID];
+            
+            ShareWebViewController *webViewController = [[ShareWebViewController alloc]initWithWebURLString:webURLString withTitle:@"扫描签到" withStyle:InitNavigationWebStyle withImageInfor:nil withShareWebDataStyle:WebDataForDescriptionDataStyle withDataInforID:@""];
+            [webViewController setIsNeedShareWebInfor:NO];
+            webViewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:webViewController animated:YES];
+        }
+        return;
+    }
+    UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"" message:m_resultForQRCode delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"打开", nil];
+    [alertView setTag:KScanQRCodeAlertViewTag];
+    [alertView show];
+    
+}
+
+- (void)alertView:(UIAlertView *)alertView
+clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if (alertView.tag == KScanQRCodeAlertViewTag) {
+        if (buttonIndex != 0) {
+            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:self.scanQRCodeResultString]];
+        }
+    }
+}
+
+- (void)imagePickerController:(UIImagePickerController *)picker
+didFinishPickingMediaWithInfo:(NSDictionary *)info{
+#if !TARGET_IPHONE_SIMULATOR
+    
+    [self.animationNStimer invalidate];
+    self.animationUpOrdownImageView.frame = CGRectMake(60, 10, (KProjectScreenWidth - 100), 2);
+    self.animationIntegerNumber = 0;
+    self.animationUpOrdown = NO;
+    __weak __typeof(&*self)weakSelf = self;
+    
+    
+    ShowAutoHideMBProgressHUD(HUIKeyWindow, @"正在解码...");
+    [picker dismissViewControllerAnimated:YES completion:^{
+        [picker removeFromParentViewController];
+        UIImage * image = [info objectForKey:UIImagePickerControllerOriginalImage];
+        //初始化
+        ZBarReaderController * read = [ZBarReaderController new];
+        //设置代理
+        read.readerDelegate = self;
+        CGImageRef cgImageRef = image.CGImage;
+        ZBarSymbol * symbol = nil;
+        id <NSFastEnumeration> results = [read scanImage:cgImageRef];
+        for (symbol in results)
+        {
+            break;
+        }
+        
+        NSString * result;
+        if ([symbol.data canBeConvertedToEncoding:NSShiftJISStringEncoding])
+            
+        {
+            result = [NSString stringWithCString:[symbol.data cStringUsingEncoding: NSShiftJISStringEncoding] encoding:NSUTF8StringEncoding];
+        }
+        else
+        {
+            result = symbol.data;
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            [weakSelf initWithResultUserScanningWithQRCode:result];
+        });
+        
+    }];
+#endif
+}
+
+#pragma mark -
+#pragma mark - =======================设置猜你喜欢模块操作内容==================
+
+- (void)initWithGetBusinessInformationData{
+    
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient getRoadMainControllerBusinessInformationDataWithcompletion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                NSMutableArray *systemMsgList = [NSMutableArray array];
+                
+                for (NSDictionary *dic in [response.responseObject objectForKey:kDataKeyData])
+                {
+                    
+                    WelfareMerchantInfor *welfareMerchantInfor = (WelfareMerchantInfor *)[WelfareMerchantInfor initWithWelfareMerchantInforWithUnserializedJSONDic:dic];
+                    if (welfareMerchantInfor) {
+                        [systemMsgList addObject:welfareMerchantInfor];
+                    }
+                }
+                //页数
+                NSNumber* pages = ObjForKeyInUnserializedJSONDic(response.responseObject,@"totalPage");
+                if (pages) {
+                    weakSelf.dataSource.pageCount = [pages unsignedIntegerValue];
+                }
+                [weakSelf.dataSource appendPage:systemMsgList];
+                [weakSelf initWithSetupFrameMapAndBusinessControllerForBusinessCount:[weakSelf.dataSource count]];
+            }
+        });
+
+    }];
+}
+
+- (void)initWithSetupFrameMapAndBusinessControllerForBusinessCount:(NSInteger)businessCount{
+    
+    NSInteger buinessCountInteger = businessCount;
+//    buinessCountInteger = 1;
+    if (buinessCountInteger <= 0) {
+        
+        [self.mainViewScrollView setContentSize:CGSizeMake(KProjectScreenWidth, (self.view.bounds.size.height+100.0f))];
+        [self initWithRoadMapViewControlWithHeight:(self.view.bounds.size.height - KFunctionButtonHeight - 15 - 20)];
+        return;
+    }
+    
+    CGFloat height=(CGFloat)KProjectScreenHeight/568;
+    
+    if(height<1)
+    {
+        height=1;
+    }
+
+    
+    CGFloat businessHeightFloat = KShoppingPayViewHeight*buinessCountInteger + (HUIIsIPhone5() ?0.0f:80.0f);
+    
+    [self.mainViewScrollView setContentSize:CGSizeMake(KProjectScreenWidth, (self.view.bounds.size.height+80.0f + businessHeightFloat-30*height))];
+
+    self.isGetShoppingInforBool = buinessCountInteger > 0 ? YES:NO;
+    [self initWithRoadMapViewControlWithHeight:self.roadMapBackGroundViewHeight];
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView{
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    return [self.dataSource count];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    return KShoppingPayViewHeight;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    NSString *reuseIdetify = @"LeftTableViewCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdetify];;
+    
+    if (!cell)
+    {
+//        cell = [[PaymenBusinessCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdetify];
+        cell=[[PaymenBusinessCell alloc]init];
+        [cell setBackgroundColor:[UIColor clearColor]];
+    }
+    PaymenBusinessCell *paymenBusinessTableCell = (PaymenBusinessCell *)cell;
+    WelfareMerchantInfor *businessInfor = (WelfareMerchantInfor *)[self.dataSource.data objectAtIndex:(indexPath.row)];
+    if ((indexPath.row+1) != [self.dataSource count]) {
+        [paymenBusinessTableCell setIsLastPaymenBusinessInforBool:NO];
+    }else{
+        [paymenBusinessTableCell setIsLastPaymenBusinessInforBool:YES];
+    }
+    [paymenBusinessTableCell initWithWelfareMerchantInfor:businessInfor];
+    
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    if (indexPath.row >= [self.dataSource.data count]) {
+        return;
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+        
+        //注册控制器
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+        
+        return;
+    }
+     WelfareMerchantInfor *businessInfor = (WelfareMerchantInfor *)[self.dataSource.data objectAtIndex:(indexPath.row)];
+
+    ///向下一个界面传递的数据
+    ////若为摇一摇商家 摇一摇对应的福利商家
+    if (businessInfor.welfareMerchantInforStyle == WelfareMerchantForShakStyle) {
+        
+        StationActivityDescriptionWebView *viewController=[[StationActivityDescriptionWebView alloc]initWithShakePrizeInformation:nil withADiD:businessInfor.welfareMerchantId WithImageUrl:businessInfor.welfareMerchanIconImageURLKey];
+        viewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController setNavigationBarHidden:NO animated:NO];//显示导航栏
+        [self.navigationController pushViewController:viewController animated:YES];
+
+    }
+    ///精品推荐商家 精品推荐对应的福利商家，标准的车友福利
+    else if (businessInfor.welfareMerchantInforStyle == WelfareMerchantForRecommendStyle) {
+        
+        StationActivityDescriptionWebView *viewController=[[StationActivityDescriptionWebView alloc]initWithNowBuyingInforWithWelfareMerchantInfor:businessInfor];
+        viewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController setNavigationBarHidden:NO animated:NO];//显示导航栏
+        [self.navigationController pushViewController:viewController animated:YES];
+
+    }
+    ///周边商户 附近商家对应的福利商家
+    else if (businessInfor.welfareMerchantInforStyle == WelfareMerchantForNearbyStyle) {
+        
+        StationActivityDescriptionWebView *viewController=[[StationActivityDescriptionWebView alloc]initWithBusinessWebURLString:nil withDataInforID:businessInfor.welfareMerchantId WithImageUrl:businessInfor.welfareMerchanIconImageURLKey];
+        viewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController setNavigationBarHidden:NO animated:NO];//显示导航栏
+        [self.navigationController pushViewController:viewController animated:YES];
+        
+    }
+    ///电台活动 电台活动对应的福利商家
+    else if (businessInfor.welfareMerchantInforStyle == WelfareMerchantForActivityStyle) {
+        
+        UIImageView *imageview = [[UIImageView alloc]init];
+        [imageview setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,businessInfor.welfareMerchanIconImageURLKey]] placeholderImage:createImageWithColor([UIColor colorWithRed:158/255.0f
+                                                                                                                                                                                                                  green:158/255.0f
+                                                                                                                                                                                                                   blue:158/255.0f
+                                                                                                                                                                                                                  alpha:0.15f])];
+        
+        StationActivityDescriptionWebView *viewController=[[StationActivityDescriptionWebView alloc]initWithDescriptionWebViewWithURL:nil withWiADId:businessInfor.welfareMerchantId withImage:imageview.image];
+        viewController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController setNavigationBarHidden:NO animated:NO];//显示导航栏
+        [self.navigationController pushViewController:viewController animated:YES];
+
+    }
+    
+    
+    ///精品推荐，用于消息中的精品推荐模块*
+    else if ( businessInfor.welfareMerchantInforStyle == WelfareMerchantForBoutiqueStyle){
+        
+        
+        NSString *urlString=[NSString stringWithFormat:@"%@/?id=%@&uid=%@&source=%@",businessInfor.welfareMerchanWebURLString,businessInfor.welfareMerchantId,[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ?@"":[CurrentUserInformation sharedCurrentUserInfo].userID,KProjectCityCodeString];
+        
+        NSString *shareUrl=[NSString stringWithFormat:@"%@/?id=%@&uid=%@&source=%@",businessInfor.welfareMerchanWebShareURLString,businessInfor.welfareMerchantId,[CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0 ?@"":[CurrentUserInformation sharedCurrentUserInfo].userID,KProjectCityCodeString];
+        
+        
+        UIImageView         *payBusinessImageView = [[UIImageView alloc]init];
+        [payBusinessImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,businessInfor.welfareMerchanIconImageURLKey]] placeholderImage:createImageWithColor(KUIImageViewDefaultColor)];
+        
+        ShareWebViewController *webViewController=[[ShareWebViewController alloc]initWithWebURLString:urlString withTitle:businessInfor.welfareMerchantTitleInfor withStyle:InitNavigationWebStyle withImageInfor:payBusinessImageView.image withShareWebDataStyle:webDataForWonderfulRecommendation withDataInforID:businessInfor.welfareMerchantId withshareURLString:shareUrl];
+        webViewController.hidesBottomBarWhenPushed = YES;
+
+        [self.navigationController pushViewController:webViewController animated:YES];
+    }
+}
+
+#pragma mark -主题通知
+- (void) themeChangedNotification:(NSNotification *)notification
+{
+//    Log(@"设置内容信息，主要是是设置头部和底部导航");
+    [self updateNaviTheme];
+}
+
+- (void)initWithUserReadShakePrizeListNotification:(NSNotification *)notification{
+    ///摇一摇小红点
+    UIButton    *shakeButton = (UIButton *)[self.view viewWithTag:KFunctionButtonBaseTag+2];
+    UIImageView *shakeHintPoint = (UIImageView *)[shakeButton viewWithTag:KRedPointForShakeTag];
+    [shakeHintPoint setHidden:YES];
+    [FMShareSetting setAppPushPrizeListInforBool:NO];
+    MainTabViewController *mainTabView = FMMainViewController;
+    if (FMShareSetting.appPushRadioActivityBool == NO) {
+        [mainTabView showHintPoint:0 showOrHide:NO];
+    }
+}
+
+
+
+
+@end

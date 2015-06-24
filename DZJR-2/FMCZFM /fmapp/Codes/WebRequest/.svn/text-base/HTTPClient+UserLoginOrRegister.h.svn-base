@@ -1,0 +1,150 @@
+//
+//  HTTPClient+UserLoginOrRegister.h
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "HTTPClient.h"
+
+@interface HTTPClient (UserLoginOrRegister)
+
+#pragma mark - 
+#pragma mark - 用户通过手机号进行注册
+/** 用户通过手机号进行注册获取用户注册后信息内容
+ 
+ *@param (NSString *)userName           用户个人昵称
+ *@return AFHTTPRequestOperation
+ **/
+- (AFHTTPRequestOperation *)getUserRegisterWithUserPersonalPhoneNumber:(NSString *)m_userPhoneNumber
+                                                            completion:(WebAPIRequestCompletionBlock)completion;
+/** 用户通过手机号进行注册中_验证验证码操作
+ 
+ *@param m_phoneNumber 手机号
+ *@param m_securityCode 验证
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getUserWithInPutUserSecurityCodeForUserRegisterWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                                          withSecurityCode:(NSString *)m_securityCode
+                                                                                completion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark -
+#pragma mark - 用户普通注册操作
+/** 获取用户注册后信息内容
+ 
+ *@param (NSString *)userName           用户个人昵称
+ *@param (NSString *)password           用户个人密码
+ *@param (NSInteger )userGender         用户个人性别
+ *@param (NSString *)userCityCode       用户默认城市
+ *@param (NSString *)userLatitude       用户当前纬度
+ *@param (NSString *)userLongitude      用户当前经度
+ *@param (NSString *)deviceToken        用户获取推送ID号
+ *@param (NSString *)deviceNumber       用户设备号
+ *@param (NSString *)m_userPhoneNumber  用户个人手机号
+ *@param (NSInteger )origin             用户来源 苹果注册默认为2
+ *@return AFHTTPRequestOperation 
+ **/
+- (AFHTTPRequestOperation *)getUserRegisterInfor:(NSString*)userName
+                                withUserPassword:(NSString*)password
+                                  withUserGender:(NSInteger )userGender
+                                withUserCityCode:(NSString *)userCityCode
+                                withUserLatitude:(NSString *)userLatitude
+                               withUserLongitude:(NSString *)userLongitude
+                                 withDeviceToken:(NSString *)deviceToken
+                            withUserdeviceNumber:(NSString *)deviceNumber
+                             withUserPhoneNumber:(NSString *)m_userPhoneNumber
+                                  withUserOrigin:(NSInteger)origin
+                                      completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 获取城市类别信息信息内容
+ 
+ *@See  主要获取城市名称和城市编号等内容
+ **/
+- (AFHTTPRequestOperation *)getCitiesInformationWithcompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark -
+#pragma mark - 用户登录操作
+
+/** 获取用户登录后信息内容
+ 
+ *@param (NSString *)userName           用户个人昵称
+ *@param (NSString *)userPassword       用户个人密码
+ *@param (NSString *)userLatitude       用户当前纬度
+ *@param (NSString *)userLongitude      用户当前经度
+ *@param (NSString *)deviceToken        用户获取推送ID号
+ *@param (NSString *)deviceNumber       用户设备号
+ *@param (NSInteger )client              用户来源 苹果注册默认为2
+ *@param
+ **/
+- (AFHTTPRequestOperation *)getUserLoginInforWithUser:(NSString *)userName
+                                     withUserPassword:(NSString *)userPassword
+                                     withUserLatitude:(NSString *)userLatitude
+                                    withUserLongitude:(NSString *)userLongitude
+                                      withDeviceToken:(NSString *)deviceToken
+                                 withUserdeviceNumber:(NSString *)deviceNumber
+                                 withUserLogin_client:(NSInteger)client
+                                           completion:(WebAPIRequestCompletionBlock)completion;
+
+
+#pragma mark -
+#pragma mark - 用户退出操作
+
+/** 根据用户ID，进行用户退出客户端操作
+ 
+ *@param m_userId 用户个人ID
+ **/
+- (AFHTTPRequestOperation *)getUserLogOutInformationWithUserId:(NSString *)m_userId
+                                                withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+#pragma mark -
+#pragma mark - 用户找回密码操作
+/** 根据用户手机号，用户进行找回密码操作
+ 
+ *@param m_phoneNumber 用户个人手机号
+ **/
+- (AFHTTPRequestOperation *)getUserForgetSetupPasswordWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                           withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+//获取手机号验证码（注册时使用）
+- (AFHTTPRequestOperation *)getMobileCheckCode:(NSString *)m_phoneNumber
+                                withCompletion:(WebAPIRequestCompletionBlock)completion;
+    
+/** 用户找回密码中_验证验证码操作
+
+ *@param m_phoneNumber 手机号
+ *@param m_securityCode 验证
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getWithInPutUserSecurityCodeForForgetSetupPasswordWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                                                 withSecurityCode:(NSString *)m_securityCode
+                                                                                       completion:(WebAPIRequestCompletionBlock)completion;
+/** 用户找回密码中_用户通过手机号设置新密码
+ 
+ *@param m_phoneNumber 手机号
+ *@param m_securityCode 验证
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getWithUserSetupPasswordInformationWithWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                                      withPassword:(NSString *)m_Password
+                                                                            completion:(WebAPIRequestCompletionBlock)completion;
+
+/** 根据设备信息，获取启动广告内容
+ 
+ *@param m_deviceStyle  设备类型，1 iPhone4S及以下；2，iPhone5系列；3.iPhone6系列
+ *@param (WebAPIRequestCompletionBlock)completion 回调BLock
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getProgramAdvertisementInforWithDeviceStyle:(NSInteger)m_deviceStyle withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+/** 根据客户端来源，获取推送小红点内容
+ 
+ *@return AFHTTPRequestOperation *
+ **/
+- (AFHTTPRequestOperation *)getProgramRedHintPointInformationWithUserID:(NSString *)m_userID withCompletion:(WebAPIRequestCompletionBlock)completion;
+
+
+@end

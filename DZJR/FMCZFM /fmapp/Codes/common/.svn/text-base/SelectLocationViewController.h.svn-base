@@ -1,0 +1,18 @@
+//
+//  SelectLocationViewController.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import <CoreLocation/CoreLocation.h>
+
+@protocol SelectLocationDelegate <NSObject>
+- (void)didLocationSelected:(NSString* )placeName coord:(CLLocationCoordinate2D)latlon;
+@end
+
+@interface SelectLocationViewController : FMViewController
+@property (weak, nonatomic) id<SelectLocationDelegate> delegate;
+@end

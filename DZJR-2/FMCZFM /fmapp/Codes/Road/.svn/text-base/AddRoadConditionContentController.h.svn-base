@@ -1,0 +1,18 @@
+//
+//  AddRoadConditionContentController.h
+//  fmapp
+//
+//  Created by 张利广 on 14-8-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+
+@interface AddRoadConditionContentController : FMViewController
+/* 有语音生成的路口字符串内容
+ 
+ *@param audioString 语音字符串
+ 
+ **/
+- (id)initWithAudioGenerateString:(NSString *)audioString;
+@end

@@ -1,0 +1,62 @@
+//
+//  UserInfo.h
+//  CheYouHui
+//
+//  Created by Ma Yiming on 12-11-20.
+//
+//
+
+#import <Foundation/Foundation.h>
+#import <CoreLocation/CoreLocation.h>
+
+@interface UserInfo : NSObject
+
+@property (nonatomic, copy) NSString *userID;               //用户ID
+@property (nonatomic, copy) NSString *userName;             //用户名称
+@property (nonatomic, assign) NSInteger userSex;            //用户性别 0为女，1为男
+@property (nonatomic,assign)NSInteger  is_friends;          //是否关注 0未关注 1关注
+@property (nonatomic,copy) NSString *userMobile;                   //手机号
+
+//@property (nonatomic, copy) NSString *userCarImageUrl;      //用户爱车照片url地址
+//@property (nonatomic, copy) NSString *userCarLogoUrl;       //用户车Logo图片url地址
+//@property (nonatomic, copy) NSString *userVisitTime;        //用户访问商家时间
+
+@property (nonatomic, assign) CLLocationCoordinate2D userCoordinate;//用户经纬度
+@property (nonatomic, copy) NSString *userCityName;         //用户注册时的城市名称
+@property (nonatomic, copy) NSString *userStreet;           //用户当前所在位置
+@property (nonatomic, copy) NSString *userCarSeriesName;    //用户车系名称
+@property (nonatomic, copy) NSString *userCarTypeName;      //用户车型名称
+//@property (nonatomic, copy) NSString *userCarTypeImageUrl;  //用户爱车图片(旧版兼容）
+@property (nonatomic, copy) NSString *userRole;             //用户角色
+@property (nonatomic, copy) NSString *userLevel;            //用户等级
+@property (nonatomic, copy) NSString *userLoginTime;        //用户登录时间
+@property (nonatomic, copy) NSString *userDistance;         //用户距离
+//@property (nonatomic, assign) BOOL haveCarImages;           //有爱车图片
+@property (nonatomic, copy) NSString *userPersonalSignature;//用个人签名
+@property (nonatomic, copy) NSArray  *images;               //图片信息FMImage
+@property (nonatomic, copy) NSArray  *activity;             //参加活动
+@property (nonatomic, copy) NSString *audioURL;             //语音介绍文件
+@property (nonatomic, assign) NSInteger audioLength;        //语音介绍长度
+///用户头像
+@property (nonatomic , copy)NSString *userAvatar;           //用户头像
+@property (nonatomic , copy)NSString *userCarImage;         //用户第一张爱车图片
+
+@property (nonatomic,copy)NSString  *backgroundImage;        //用户背景图
+
+@property (nonatomic,copy)NSString  *circle;                 //用户圈子
+@property (nonatomic,copy)NSString  *circleId;        
+
+///用户活动到场率
+@property (nonatomic, copy) NSString    *userPersonalEnrollRatio;
+
+//是否为手机注册用户
+- (BOOL)isMobileUser;
+
+//JSON反序列化车主用户信息
++ (id)userWithUnserializedJSONDic:(NSDictionary *)dic;
+
+//JSON反序列化主持人,客服人员信息
++ (id)emceeWithUnserializedJSONDic:(NSDictionary *)dic;
+
+
+@end

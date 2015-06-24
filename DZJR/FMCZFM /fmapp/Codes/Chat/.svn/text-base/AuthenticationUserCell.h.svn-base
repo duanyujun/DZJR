@@ -1,0 +1,20 @@
+//
+//  AuthenticationUserCell.h
+//  fmapp
+//
+//  Created by SDYK on 14-10-22.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+@class APAvatarImageView;
+@class MessageCellData;
+
+@interface AuthenticationUserCell : UITableViewCell
+
+@property (nonatomic, strong) MessageCellData *cellData;
+
+-(void)displaySearchUserWithData:(MessageCellData *)cellData;
+
+
+@end

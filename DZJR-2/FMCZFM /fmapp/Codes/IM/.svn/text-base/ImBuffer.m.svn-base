@@ -1,0 +1,122 @@
+//
+//  ImBuffer.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-9-30.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "ImBuffer.h"
+@interface ImBuffer ()
+{
+    uint8_t* buffer;
+    uint16_t length;
+    uint16_t used;
+}
+@end
+
+
+@implementation ImBuffer
+
+- (id)init
+{
+	if ((self = [super init]))
+	{
+        buffer = (uint8_t* )malloc(BUFFER_MIN_SIZE);
+        used = 0;
+        length = BUFFER_MIN_SIZE;
+	}
+	return self;
+}
+- (void)dealloc
+{
+    free(buffer);
+}
+
+-(uint8_t* )getBytes
+{
+    return buffer;
+}
+-(uint16_t)getSize
+{
+    return used;
+}
+-(void)empty
+{
+    used = 0;
+}
+-(void)removeHead:(uint16_t) len
+{
+    if (len >= used) {
+        used = 0;
+        return;
+    }
+    memmove(buffer,buffer + len,used - len);
+    used -= len;
+}
+-(BOOL) adjustBuffer:(uint16_t) size
+{
+	uint32_t new_size = size + used;
+	if(new_size > BUFFER_MAX_SIZE)
+		return NO;
+	if(new_size > length)
+	{
+		uint32_t new_len = length;
+		uint8_t* new_buf = NULL;
+		while(new_size > (new_len<<=1));
+		new_buf = (uint8_t* )realloc(buffer,new_len);
+		if(new_buf == NULL)
+			return NO;
+		buffer = new_buf;
+		length = new_len;
+	}
+	return YES;
+}
+-(BOOL) appendData:(const char*)data withLength:(uint16_t)len
+{
+    if(![self adjustBuffer:len])
+		return NO;
+	memcpy(buffer + used, data, len);
+	used += len;
+    return YES;
+}
+-(BOOL) appendLv:(const char*)data withLength:(uint16_t)len
+{
+    if(![self adjustBuffer:(sizeof(uint16_t) + len)])
+		return NO;
+	*((uint16_t*)(buffer + used)) = htons(len);
+	used += sizeof(uint16_t);
+	memcpy(buffer + used, data, len);
+	used += len;
+    return YES;
+}
+-(BOOL) appendByte:(uint8_t)val
+{
+    if(![self adjustBuffer:sizeof(uint8_t)])
+		return NO;
+	memcpy(buffer+ used, &val, sizeof(val));
+	used += sizeof(val);
+    return YES;
+}
+-(BOOL) appendShort:(uint16_t)val
+{
+    if(![self adjustBuffer:sizeof(uint16_t)])
+		return NO;
+	memcpy(buffer+ used, &val, sizeof(val));
+	used += sizeof(val);
+    return YES;
+}
+-(BOOL) appendInt:(uint32_t)val
+{
+    if(![self adjustBuffer:sizeof(uint32_t)])
+		return NO;
+	memcpy(buffer+ used, &val, sizeof(val));
+	used += sizeof(val);
+    return YES;
+}
+-(BOOL) appendString:(NSString* )val
+{
+    NSData *byteVal = [val dataUsingEncoding:NSUTF8StringEncoding];
+    return [self appendLv:[byteVal bytes] withLength:[byteVal length]];
+}
+@end

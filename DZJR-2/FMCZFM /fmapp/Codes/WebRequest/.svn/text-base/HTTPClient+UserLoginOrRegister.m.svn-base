@@ -1,0 +1,230 @@
+//
+//  HTTPClient+UserLoginOrRegister.m
+//  fmapp
+//
+//  Created by 张利广 on 14-5-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "HTTPClient+UserLoginOrRegister.h"
+
+@implementation HTTPClient (UserLoginOrRegister)
+
+#pragma mark -
+#pragma mark - 获取用户注册后信息内容
+- (AFHTTPRequestOperation *)getUserRegisterWithUserPersonalPhoneNumber:(NSString *)m_userPhoneNumber
+                                                            completion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_userPhoneNumber length] <= 10) {
+        return nil;
+    }
+    NSDictionary *parameters = @{KMeKeyUserPhoneNumber: m_userPhoneNumber};
+    return [self postPath:KLoginForForgetPasswordURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark -
+- (AFHTTPRequestOperation *)getUserWithInPutUserSecurityCodeForUserRegisterWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                                              withSecurityCode:(NSString *)m_securityCode
+                                                                                    completion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_phoneNumber length] <= 10||[m_securityCode length] < 3) {
+        return nil;
+    }
+    NSDictionary *parameters = @{KMeKeyUserPhoneNumber: m_phoneNumber,
+                                 KMeKeyUserSecurityCode:m_securityCode};
+    return [self postPath:KLoginForSecurityCodeURL
+               parameters:parameters
+               completion:completion];
+}
+#pragma mark -
+#pragma mark - 获取用户注册后信息内容
+- (AFHTTPRequestOperation*)getUserRegisterInfor:(NSString *)userName
+                               withUserPassword:(NSString *)password
+                                 withUserGender:(NSInteger)userGender
+                               withUserCityCode:(NSString *)userCityCode
+                               withUserLatitude:(NSString *)userLatitude
+                              withUserLongitude:(NSString *)userLongitude
+                                withDeviceToken:(NSString *)deviceToken
+                           withUserdeviceNumber:(NSString *)deviceNumber
+                            withUserPhoneNumber:(NSString *)m_userPhoneNumber
+                                 withUserOrigin:(NSInteger)origin
+                                     completion:(WebAPIRequestCompletionBlock)completion{
+    
+    if ([userName length] <= 0 ||
+        [password length] <= 0 ||
+        [userCityCode length] <= 0) {
+        return nil;
+    }
+    
+    NSMutableDictionary *parametersInfor = [[NSMutableDictionary alloc]init];
+    ///用户名
+    AddObjectForKeyIntoDictionary(userName, kuserName, parametersInfor);
+    ///用户密码
+    AddObjectForKeyIntoDictionary(password, kuserpassword, parametersInfor);
+    ///用户城市名
+    AddObjectForKeyIntoDictionary(userCityCode, kuserCityCode, parametersInfor);
+    ///用户性别
+    AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:userGender], kuserGender, parametersInfor);
+    ///用户位置信息
+    AddObjectForKeyIntoDictionary(userLatitude, kuserLatitude, parametersInfor);
+    ///用户位置信息
+    AddObjectForKeyIntoDictionary(userLongitude, kuserLongitude, parametersInfor);
+    ///用户推送验证号
+    AddObjectForKeyIntoDictionary(deviceToken, kuserDeviceToken, parametersInfor);
+    ///用户手机号设备号
+    AddObjectForKeyIntoDictionary(deviceNumber, kuserDeviceNumber, parametersInfor);
+    if (!IsStringEmptyOrNull(m_userPhoneNumber)) {
+        ///用户手机号
+        AddObjectForKeyIntoDictionary(m_userPhoneNumber, KDataKeyUserMobile, parametersInfor);
+    }
+    ///用户来源 ，苹果来源为2
+    AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:2], kuserOrigin, parametersInfor);
+    
+    /*
+    NSDictionary *parameters = @{kuserName: userName,
+                                 kuserpassword: password,
+                                 kuserGender: [NSNumber numberWithUnsignedInteger:userGender],
+                                 kuserCityCode:userCityCode,
+                                 kuserLatitude:userLatitude,
+                                 kuserLongitude:userLongitude,
+                                 kuserDeviceToken:deviceToken,
+                                 kuserDeviceNumber: deviceNumber,
+                                 KDataKeyUserMobile:m_userPhoneNumber,
+                                 kuserOrigin: [NSNumber numberWithUnsignedInteger:2]
+                                 };*/
+    return [self postPath:kUserRegisterURL
+               parameters:parametersInfor
+               completion:completion];
+}
+
+
+#pragma mark -
+#pragma mark - 获取用户登录后信息内容
+- (AFHTTPRequestOperation *)getUserLoginInforWithUser:(NSString *)userName
+                                     withUserPassword:(NSString *)userPassword
+                                     withUserLatitude:(NSString *)userLatitude
+                                    withUserLongitude:(NSString *)userLongitude
+                                      withDeviceToken:(NSString *)deviceToken
+                                 withUserdeviceNumber:(NSString *)deviceNumber
+                                 withUserLogin_client:(NSInteger)client
+                                           completion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kuserName: userName,
+                                 kuserpassword: userPassword,
+                                 KuserLoginLatitude:userLatitude,
+                                 KuserLoginLongitude:userLongitude,
+                                 kuserDeviceToken:deviceToken,
+                                 kuserDeviceNumber: deviceNumber,
+                                 kuserLoginClient: [NSNumber numberWithUnsignedInteger:client]
+                                 };
+    
+    return [self postPath:kUserLoginURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 获取城市类别信息信息内容
+- (AFHTTPRequestOperation *)getCitiesInformationWithcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{@"cityCode":KProjectCityCodeString,};
+    return [self postPath:KUserRegisterCitySearchURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 根据用户ID，进行用户退出客户端操作
+- (AFHTTPRequestOperation *)getUserLogOutInformationWithUserId:(NSString *)m_userId
+                                                withCompletion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_userId length] <= 0) {
+        return nil;
+    }
+    NSDictionary *parameters = @{kDataKeyId: m_userId};
+    return [self postPath:KUserLogOutURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 根据用户ID，进行用户退出客户端操作
+- (AFHTTPRequestOperation *)getUserForgetSetupPasswordWithUserPhoneNumber:(NSString *)m_phoneNumber withCompletion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_phoneNumber length] <= 10) {
+        return nil;
+    }
+    NSDictionary *parameters = @{KMeKeyUserPhoneNumber: m_phoneNumber};
+    return [self postPath:KLoginForForgetPasswordURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 根据用户ID，进行用户退出客户端操作
+- (AFHTTPRequestOperation *)getMobileCheckCode:(NSString *)m_phoneNumber
+                                withCompletion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_phoneNumber length] <= 10) {
+        return nil;
+    }
+    NSDictionary *parameters = @{KMeKeyUserPhoneNumber: m_phoneNumber};
+    return [self postPath:KGetMobileCheckCodeURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户找回密码中_验证验证码操作
+- (AFHTTPRequestOperation *)getWithInPutUserSecurityCodeForForgetSetupPasswordWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                                                 withSecurityCode:(NSString *)m_securityCode
+                                                                                       completion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_phoneNumber length] <= 10||[m_securityCode length] < 3) {
+        return nil;
+    }
+    NSDictionary *parameters = @{KMeKeyUserPhoneNumber: m_phoneNumber,
+                                 KMeKeyUserSecurityCode:m_securityCode};
+    return [self postPath:KLoginForSecurityCodeURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 用户找回密码中_用户通过手机号设置新密码
+- (AFHTTPRequestOperation *)getWithUserSetupPasswordInformationWithWithUserPhoneNumber:(NSString *)m_phoneNumber
+                                                                          withPassword:(NSString *)m_Password completion:(WebAPIRequestCompletionBlock)completion{
+    if ([m_phoneNumber length] <= 10||
+        [m_Password length] < 6 ||
+        [m_Password length] > 20) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KMeKeyUserPhoneNumber: m_phoneNumber,
+                                 kuserpassword:m_Password};
+    return [self postPath:KLoginForSetupPasswordURL
+               parameters:parameters
+               completion:completion];
+}
+
+#pragma mark -
+#pragma mark - 根据设备信息，获取启动广告内容
+- (AFHTTPRequestOperation *)getProgramAdvertisementInforWithDeviceStyle:(NSInteger)m_deviceStyle withCompletion:(WebAPIRequestCompletionBlock)completion{
+    if (m_deviceStyle <= 0 && m_deviceStyle >= 4) {
+        return nil;
+    }
+         NSDictionary *parameters = @{kDataKeyType: [NSNumber numberWithInteger:m_deviceStyle],};
+         return [self postPath:KProjectionAdvertisementInforURL
+                    parameters:parameters
+                    completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getProgramRedHintPointInformationWithUserID:(NSString *)m_userID
+                                                         withCompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    if ([m_userID length] <= 0) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{KUserPersonalID: m_userID};
+    return [self postPath:KProgramRedHintPointDataURL
+               parameters:parameters
+               completion:completion];
+}
+
+@end

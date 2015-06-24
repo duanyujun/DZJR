@@ -1,0 +1,20 @@
+//
+//  RadioPlayViewController.h
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-13.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "ProgramInfo.h"
+#import "WebViewPlayerController.h"
+
+@interface RadioPlayController : UIViewController<UIScrollViewDelegate,RadioDelegate>
+{
+    NSMutableArray *praisedEmceeArray;
+    
+    NSInteger emceeIndex;//主持人索引
+}
+@property (strong)ProgramInfo* currentProgramInfo; //当前节目信息
+@end

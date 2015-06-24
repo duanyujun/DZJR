@@ -1,0 +1,120 @@
+//
+//  FMTabBarController.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-8.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+#import "FMTabBarController.h"
+#import "UserShakeMainController.h"
+#import "CurrentUserInformation.h"
+
+#define kTableHintPointTag    200
+
+@interface FMTabBarController ()
+
+@end
+
+@implementation FMTabBarController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    
+    [super viewDidLoad];
+    
+    //去掉当前选择button上的阴影
+    if ([self.tabBar respondsToSelector:@selector(setSelectionIndicatorImage:)]) {
+        self.tabBar.selectionIndicatorImage = [UIImage imageNamed:@"TabItem_SelectionIndicatorImage.png"];//设置选中时图片
+    }
+    
+    //去掉顶部阴影条
+    if ([UITabBar instancesRespondToSelector:@selector(setShadowImage:)]) {// > iOS 6.0
+        [self.tabBar setShadowImage:[UIImage imageNamed:@"TabItem_SelectionIndicatorImage"]];
+    }
+        
+    //设置背景
+    [FMThemeManager applySkinToTabBar:self.tabBar];
+}
+
+- (void)viewDidUnload
+{
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+
+
++ (UITabBarItem* )addButtonWithNormalImage:(UIImage *)normalImage
+                           selectedImage:(UIImage*)selectedImage
+                                   title:(NSString* )title
+{
+    UITabBarItem *tabBarItem = nil;
+    if(HUISystemVersionBelow(kHUISystemVersion_7_0)){
+        tabBarItem = [[UITabBarItem alloc] initWithTitle:title image:nil tag:0];
+        [tabBarItem setFinishedSelectedImage:selectedImage withFinishedUnselectedImage:normalImage];
+
+    } else {
+        tabBarItem = [[UITabBarItem alloc] initWithTitle:title image:normalImage selectedImage:selectedImage];
+        [tabBarItem setFinishedSelectedImage:selectedImage withFinishedUnselectedImage:normalImage];
+        [tabBarItem.selectedImage imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+    }
+    return tabBarItem;
+    
+}
+
+- (BOOL)canBecomeFirstResponder{
+    return YES;
+}
+
+- (void)viewWillAppear:(BOOL)animated{
+    
+    [self becomeFirstResponder];
+    [super viewWillAppear:animated];
+}
+
+- (void)viewDidAppear:(BOOL)animated{
+    [self becomeFirstResponder];
+    [super viewDidAppear:animated];
+}
+
+- (void)showHintPoint:(NSInteger)buttonIndex showOrHide:(BOOL)bShow
+{
+    if(buttonIndex >= [self.tabBar.items count])
+        return;
+    
+    CGFloat w = self.tabBar.frame.size.width / [self.tabBar.items count];
+    
+    UIImageView* hintPoint = (UIImageView* )[self.tabBar viewWithTag:kTableHintPointTag + buttonIndex];
+    if(hintPoint == nil){
+        if (bShow == NO) {
+            return;
+        }
+        hintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+        hintPoint.tag = kTableHintPointTag + buttonIndex;
+        hintPoint.frame = CGRectMake(70 + buttonIndex * w, 6, 10, 10);
+        [self.tabBar addSubview:hintPoint];
+    }
+    if (bShow) {
+        hintPoint.hidden = NO;
+    }else{
+        hintPoint.hidden = YES;
+    }
+
+}
+
+
+@end

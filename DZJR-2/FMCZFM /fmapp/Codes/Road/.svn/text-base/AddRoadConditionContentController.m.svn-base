@@ -1,0 +1,680 @@
+//
+//  AddRoadConditionContentController.m
+//  fmapp
+//
+//  Created by 张利广 on 14-8-15.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "AddRoadConditionContentController.h"
+#import "FMSettings.h"
+#import "FMImageView.h"
+#import "AppDelegate.h"
+#import "ExpressView.h"
+#include <libkern/OSAtomic.h>
+#import "RoadConditionInfo.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient+RoadCondition.h"
+#import "UserPutoutDataParameterController.h"
+
+
+#define KMainViewTag                    180111          ///主视图标注
+#define KRoadConditionTextTag           180112          ///用户路况输入
+#define KRoadConditionStyleBtnBaseTag   181111          ///路况类别基标注
+#define KRoadDirectionStyleBtnBaseTag   183111          ///路方向基标注
+
+#define KButtonSizeHight                80.0f
+#define KButtonSizeWidth                self.view.bounds.size.width/4.0f
+@interface AddRoadConditionContentController ()<UITextFieldDelegate,UITableViewDataSource,UITableViewDelegate>
+@property (nonatomic , weak)    UIScrollView        *mainBackGroundScrollView;
+///路况编辑框内内容
+@property (nonatomic , weak)    UITextField         *roadConditionContentTextField;
+///路况搜索视图
+@property (nonatomic,weak)      UITableView         *tableView;
+///路况搜索内容信息
+@property (strong)              NSMutableArray      *tips;
+//请求列表数据的操作
+@property (nonatomic, weak) AFHTTPRequestOperation  *requestDataOperation;
+@property (nonatomic , strong) NSString             *audioGenerateString;
+///用户选择的路况类别编号内容
+@property (nonatomic , assign)  NSInteger           userSelectedRoadStyleTag;
+///用户选择的路况方向编号内容
+@property (nonatomic , assign)  NSInteger           userSelectedRoadDirectionStyleTag;
+///用户选择的路况类别内容
+@property (nonatomic , strong)  NSString            *userSelectedRoadStyleString;
+///用户选择的路况方向内容
+@property (nonatomic , strong)  NSString            *userSelectedRoadDirectionStyleString;
+@property (nonatomic , strong)  NSString            *userLoactionRoadConditionContentString;
+
+
+/** 设置头部按键*/
+- (void)initSetNavBarButton;
+/** 设置返回按键事件*/
+- (void)cancelButtonClick;
+/** 设置发送路况信息事件*/
+- (void)publishRoadCondition;
+/** 初始化界面内容*/
+- (void)initWithContentFrameController;
+
+- (void)initWithSetRoadStyleButtonFrame;
+- (void)initWithSetRoadDirectionButtonFrame;
+
+/** 初始化界面按键
+ 
+ *@param btnCGRect 位置框架
+ *@param btnStyle
+ *@param btnStyle 按键类别 1.表示是路况种类；2.表示是路况方向
+ */
+- (void)initWithButtonFrameWithCGRect:(CGRect)btnCGRect
+                              withTag:(NSInteger)btnTag
+                      withNormalImage:(UIImage *)normalImage
+                   withHighlightImage:(UIImage *)highlightImage
+                         withBtnStyle:(NSInteger)btnStyle
+                        withTitleName:(NSString *)titleName;
+/** 初始化界面选择路况类型按键事件*/
+- (void)initWithUserOperationForRoadStyleButtonEvent:(id)sender;
+/** 初始化界面选择路况方向按键事件*/
+- (void)initWithUSerOperationForRoadDirectionButtonEvent:(id)sender;
+@end
+
+@implementation AddRoadConditionContentController
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        self.enableCustomNavbarBackButton = FALSE;
+        self.audioGenerateString = [[NSString alloc]initWithFormat:@"%@",@""];
+    }
+    
+    return self;
+}
+
+- (id)initWithAudioGenerateString:(NSString *)audioString{
+    self = [super init];
+    if (self) {
+        self.enableCustomNavbarBackButton = FALSE;
+        self.audioGenerateString = [[NSString alloc]initWithFormat:@"%@",audioString];
+    }
+    
+    
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    
+    [self settingNavTitle:@"路况上报"];
+    [self initSetNavBarButton];
+    self.userLoactionRoadConditionContentString = [[NSString alloc]initWithFormat:@"%@",@""];
+    [self initWithContentFrameController];
+    
+    //监测输入文本变化
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(textChanged:)
+                                                 name:UITextFieldTextDidChangeNotification object:nil];
+    
+    ///若语音的内容为空，则需要自己定位并将定位显示在文本框里面
+    if ( IsStringEmptyOrNull(self.audioGenerateString)) {
+        //定位通知
+        [[NSNotificationCenter defaultCenter] addObserver: self
+                                                 selector: @selector(locationUpdateNotification:)
+                                                     name: FMLocationSuccessNotification
+                                                   object: nil];
+        
+        //启动定位
+        [ShareAppDelegate startLocationUpdate];
+    }
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (void)initSetNavBarButton{
+    
+    self.navButtonSize = KNavSize;
+    //取消
+    [self setLeftNavButtonFA:FMIconCancelCross
+                 withFrame:kNavButtonRect
+              actionTarget:self
+                    action:@selector(cancelButtonClick)];
+    
+    [self setRightNavButtonFA:FMIconSubmitSend
+                   withFrame:kNavButtonRect
+                actionTarget:self
+                      action:@selector(publishRoadCondition)];
+    
+
+}
+
+- (void)initWithContentFrameController{
+    
+    CGRect rc = self.view.bounds;
+    
+    float scrollViewHight = rc.size.height + 40.0f;
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:rc];
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    [mainScrollView setBackgroundColor:KDefaultOrNightScrollViewColor];
+    [mainScrollView setContentSize:CGSizeMake(rc.size.width, scrollViewHight)];
+    self.mainBackGroundScrollView = mainScrollView;
+    [self.view addSubview:self.mainBackGroundScrollView];
+    
+    
+    ///背景图设置
+    UIView  *backGrondView = [[UIView alloc]initWithFrame:CGRectMake(10.0f, 10.0f, rc.size.width -20, 40.0f)];
+    [backGrondView setBackgroundColor:KDefaultOrNightBackGroundColor];
+    [backGrondView.layer setBorderWidth:0.5f];
+    [backGrondView.layer setCornerRadius: 4.0f];
+    [backGrondView.layer setBorderColor:[[ThemeManager sharedThemeManager].skin baseTintColor].CGColor];
+    [self.mainBackGroundScrollView addSubview:backGrondView];
+    
+    UITextField *textView = [[UITextField alloc]initWithFrame:CGRectMake(8.0f, 5.0f, rc.size.width -36, 30.0f)];
+    textView.delegate = self;
+    [textView setTextColor:KDefaultOrNightTextColor];
+    [textView setPlaceholder:@"分享当前路况..."];
+    [textView setText:self.audioGenerateString];
+    [textView setReturnKeyType:UIReturnKeyDone];
+    [textView setFont:[UIFont systemFontOfSize:18.0f]];
+    [textView setClearButtonMode:UITextFieldViewModeWhileEditing];
+    [textView setContentHorizontalAlignment:UIControlContentHorizontalAlignmentCenter];
+    [textView setContentVerticalAlignment:UIControlContentVerticalAlignmentCenter];
+    self.roadConditionContentTextField = textView;
+    [textView becomeFirstResponder];
+    [backGrondView addSubview:self.roadConditionContentTextField];
+    
+    
+    ///设置路况类别及方向
+    self.userSelectedRoadStyleTag = 5;
+    [self initWithSetRoadStyleButtonFrame];
+    self.userSelectedRoadDirectionStyleTag = 5;
+    [self initWithSetRoadDirectionButtonFrame];
+    
+    ///设置搜索内容
+    
+    //TableView
+    UITableView* tbView = [[UITableView alloc] initWithFrame:CGRectMake(0,
+                                                                        55.0f,
+                                                                        rc.size.width,
+                                                                        rc.size.height)
+                                                       style:UITableViewStylePlain];
+    tbView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    tbView.backgroundColor =KDefaultOrNightBackGroundColor;
+    tbView.separatorColor=KDefaultOrNightSepratorColor;
+    tbView.dataSource = self;
+    tbView.delegate = self;
+    tbView.hidden = YES;
+    self.tableView = tbView;
+    [self.view addSubview:tbView];
+}
+
+- (void)initWithSetRoadStyleButtonFrame{
+    
+    ///编辑路况类型内容
+    self.userSelectedRoadStyleString = [[NSString alloc]initWithFormat:@"%@",@"非常拥堵！"];
+    NSArray *normalImageArray =[[NSArray alloc]initWithObjects:
+                                [UIImage imageNamed:@"RoadNormalImage1.png"],
+                                [UIImage imageNamed:@"RoadNormalImage2.png"],
+                                [UIImage imageNamed:@"RoadNormalImage3.png"],
+                                [UIImage imageNamed:@"RoadNormalImage4.png"], nil];
+    
+    
+    NSArray *highlightedImageArray = [[NSArray alloc]initWithObjects:
+                                      [UIImage imageNamed:@"RoadHighlightImage1"],
+                                      [UIImage imageNamed:@"RoadHighlightImage2"],
+                                      [UIImage imageNamed:@"RoadHighlightImage3"],
+                                      [UIImage imageNamed:@"RoadHighlightImage4"],nil];
+    NSArray *roadStyleNameArray = [[NSArray alloc]initWithObjects:@"拥堵",@"缓慢",@"畅行",@"事故", nil];
+    for (int indexInt = 1; indexInt <= normalImageArray.count; indexInt ++) {
+        
+        
+        CGRect btnRectSize = CGRectMake(0.0+(indexInt-1)*KButtonSizeWidth, 65, KButtonSizeWidth, KButtonSizeHight);
+        NSInteger butnTag = KRoadConditionStyleBtnBaseTag +indexInt;
+        
+        [self initWithButtonFrameWithCGRect:btnRectSize
+                                    withTag:butnTag
+                            withNormalImage:(UIImage *)[normalImageArray objectAtIndex:(indexInt-1)]
+                         withHighlightImage:(UIImage *)[highlightedImageArray objectAtIndex:(indexInt-1)]
+                               withBtnStyle:1
+                              withTitleName:(NSString *)[roadStyleNameArray objectAtIndex:(indexInt-1)]];
+    }
+}
+- (void)initWithSetRoadDirectionButtonFrame{
+    
+    self.userSelectedRoadDirectionStyleString = [[NSString alloc]initWithFormat:@"%@",@"由南向北"];
+    
+    NSArray *roadStyleNameArray = [[NSArray alloc]initWithObjects:@"西",@"北",@"南",@"东", nil];
+    for (int indexInt = 1; indexInt <= roadStyleNameArray.count; indexInt ++) {
+        
+        CGRect btnRectSize = CGRectMake(0.0+(indexInt-1)*KButtonSizeWidth, 140, KButtonSizeWidth, KButtonSizeHight);
+        NSInteger butnTag = KRoadDirectionStyleBtnBaseTag +indexInt;
+        
+        [self initWithButtonFrameWithCGRect:btnRectSize
+                                    withTag:butnTag
+                            withNormalImage:[UIImage imageNamed:@"RoadDirectionNormal.png"]
+                         withHighlightImage:[UIImage imageNamed:@"RoadDirectionNormal.png"]
+                               withBtnStyle:2
+                              withTitleName:(NSString *)[roadStyleNameArray objectAtIndex:(indexInt-1)]];
+    }
+}
+
+
+- (void)initWithButtonFrameWithCGRect:(CGRect)btnCGRect withTag:(NSInteger)btnTag
+                      withNormalImage:(UIImage *)normalImage
+                   withHighlightImage:(UIImage *)highlightImage
+                         withBtnStyle:(NSInteger)btnStyle
+                        withTitleName:(NSString *)titleName{
+    
+    ///按键内容
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    if (ThemeCategory==5) {
+        button.alpha=0.6;
+    }
+    [button setBackgroundColor:[UIColor clearColor]];
+    [button setTag:btnTag];
+//    [button setFrame:CGRectMake(btnCGRect.origin.x + 22.0f, btnCGRect.origin.y, 36.0f, 36.0f)];
+    [button setFrame:CGRectMake(btnCGRect.origin.x + (KButtonSizeWidth-36)/2, btnCGRect.origin.y, 36.0f, 36.0f)];
+
+    [button setBackgroundImage:normalImage forState:UIControlStateNormal];
+    [button setBackgroundImage:highlightImage forState:UIControlStateHighlighted];
+    if (btnStyle == 1) {
+        [button addTarget:self action:@selector(initWithUserOperationForRoadStyleButtonEvent:)
+         forControlEvents:UIControlEventTouchUpInside];
+    }else if (btnStyle == 2){
+
+        if ((btnTag - KRoadDirectionStyleBtnBaseTag) == 1) {
+            CGAffineTransform secondTransform = CGAffineTransformMakeRotation(M_PI/2*3);
+            button.transform = secondTransform;
+        }
+        else if ((btnTag - KRoadDirectionStyleBtnBaseTag) == 3) {
+             CGAffineTransform secondTransform = CGAffineTransformMakeRotation(M_PI);
+             button.transform = secondTransform;
+         }
+        else if ((btnTag - KRoadDirectionStyleBtnBaseTag) == 4) {
+            CGAffineTransform secondTransform = CGAffineTransformMakeRotation(M_PI/2);
+            button.transform = secondTransform;
+        }
+        
+        [button addTarget:self action:@selector(initWithUSerOperationForRoadDirectionButtonEvent:)
+         forControlEvents:UIControlEventTouchUpInside];
+    }
+    [self.mainBackGroundScrollView addSubview:button];
+    
+    
+    
+    UILabel *titleLable = [[UILabel alloc]init];
+    [titleLable setBackgroundColor:[UIColor clearColor]];
+
+    [titleLable setText:titleName];
+    [titleLable setTextColor:KSubTitleContentTextColor];
+    [titleLable setTextAlignment:NSTextAlignmentCenter];
+    [titleLable setFont:[UIFont systemFontOfSize:13.0f]];
+    [titleLable setFrame:CGRectMake(btnCGRect.origin.x,
+                                    btnCGRect.origin.y +40,
+                                    btnCGRect.size.width, 20.0f)];
+    [self.mainBackGroundScrollView addSubview:titleLable];
+}
+
+- (void)cancelButtonClick{
+    [self dismissModalViewControllerAnimated:YES];
+}
+
+- (void)publishRoadCondition{
+    
+    [self.view endEditing:YES];
+    NSString* contentText = self.roadConditionContentTextField.text;
+    
+    ///若内容为空则提示
+    if (contentText.length < 1) {
+        ShowImportErrorAlertView(@"路况内容不能为空");
+        return;
+    }
+    
+    ///若内容过于少则提示
+    if (contentText.length >=1 && contentText.length <= 6 ) {
+        ShowImportErrorAlertView(@"路况内容不能少于6个字");
+        return;
+    }
+    
+    ///若非语音上报，且未选择方向，则提示
+    if (IsStringEmptyOrNull(self.audioGenerateString)) {
+        if (self.userSelectedRoadDirectionStyleTag > 4) {
+            ShowImportErrorAlertView(@"请选择当前路况和方向");
+            return;
+        }
+    }
+    //若未选择路况上报类别时，则提示
+    if (self.userSelectedRoadStyleTag > 4) {
+        ShowImportErrorAlertView(@"请选择当前路况和方向");
+        return;
+    }
+    
+    ///若定位失败，且非语音上报的，路口内容不能为空
+    if (IsStringEmptyOrNull(self.userLoactionRoadConditionContentString)) {
+        ///若非语音上报
+        if (IsStringEmptyOrNull(self.audioGenerateString)) {
+            ///若路况内容内容为空，且内容符合，则提示
+            if (!IsStringEmptyOrNull(self.roadConditionContentTextField.text)) {
+                NSArray *contentArray = [[NSArray alloc]initWithArray:[self.roadConditionContentTextField.text componentsSeparatedByString:@"，"]];
+                ///是否存在三部分内容
+                if(contentArray.count >= 3){
+                    NSString *firstContentString = [NSString stringWithFormat:@"%@",[contentArray objectAtIndex:0]];
+                    if (IsStringEmptyOrNull(firstContentString)) {
+                        ShowImportErrorAlertView(@"编辑路名内容");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    
+    RoadConditionInfo *roadConditionInfo = [[RoadConditionInfo alloc] init];
+    
+    if([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0){//用户未登录 则userId为0 匿名用户
+        roadConditionInfo.reportUserInfo.userID = @"0";
+        roadConditionInfo.reportUserInfo.userName = @"匿名车友";
+        roadConditionInfo.reportUserInfo.userSex = 1;
+    }else{//用户已登录
+        roadConditionInfo.reportUserInfo.userID = [CurrentUserInformation sharedCurrentUserInfo].userID;
+        roadConditionInfo.reportUserInfo.userName = [[CurrentUserInformation sharedCurrentUserInfo] userName];
+        roadConditionInfo.reportUserInfo.userSex = [[CurrentUserInformation sharedCurrentUserInfo] userSex];
+        roadConditionInfo.reportUserInfo.userAvatar = [[CurrentUserInformation sharedCurrentUserInfo] userAvatar];
+        roadConditionInfo.reportUserInfo.userCityName = [CurrentUserInformation sharedCurrentUserInfo].userCityCode;
+        if (FMShareSetting.agreePublicLocation) {
+            roadConditionInfo.reportUserInfo.userStreet = [[NSUserDefaults standardUserDefaults] valueForKey:@"FMUserLocationInfo"];
+        }
+    }
+    roadConditionInfo.reportTime = @"刚刚";
+    roadConditionInfo.roadConditionContent = contentText;
+    roadConditionInfo.roadConditionCoordinate = [CurrentUserInformation sharedCurrentUserInfo].userCoordinate;
+    roadConditionInfo.roadConditionType = self.userSelectedRoadStyleTag;
+    roadConditionInfo.roadDirectionStyle = self.userSelectedRoadDirectionStyleTag;
+    
+    //发布请求
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient publishRoadCondition:roadConditionInfo
+                             shareType:1
+                            completion:^(WebAPIResponse* response){
+                                Log(@"%@",response.responseObject);
+                                dispatch_async(dispatch_get_main_queue(), ^(void){
+                                    if (response.code == WebAPIResponseCodeSuccess) {
+                                        
+                                        
+                                        SuccessMBProgressHUD(HUIKeyWindow,@"发布成功");
+                                        //添加路况通知
+                                        [[NSNotificationCenter defaultCenter] postNotificationName:FMAddRoadConditionNotification
+                                                                                            object:roadConditionInfo];
+                                        //添加互动通知
+                                        [[NSNotificationCenter defaultCenter] postNotificationName:FMPublishNewQuestionNotification
+                                                                                                object:nil];
+                                        [weakSelf dismissModalViewControllerAnimated:YES];
+                                    }else{
+                                        FailedMBProgressHUD(HUIKeyWindow,@"发布失败");
+                                    }
+                                });
+                            }];
+}
+
+
+#pragma mark -位置更新
+- (void) locationUpdateNotification:(NSNotification *) notification
+{
+    NSString* strRoadInfo = [[NSUserDefaults standardUserDefaults] valueForKey:@"FMUserRoadInfo"];
+    if (IsStringEmptyOrNull(strRoadInfo)) {
+        self.userLoactionRoadConditionContentString = nil;
+        self.userLoactionRoadConditionContentString = [[NSString alloc]initWithFormat:@"%@",@""];
+        return;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^(void){
+        self.userLoactionRoadConditionContentString = nil;
+        self.userLoactionRoadConditionContentString = [[NSString alloc]initWithFormat:@"%@",strRoadInfo];
+        
+        if (self.userSelectedRoadDirectionStyleTag > 4 &&  self.userSelectedRoadStyleTag > 4) {
+            NSString *roadContentString = [NSString stringWithFormat:@"%@",self.userLoactionRoadConditionContentString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }
+        else if (self.userSelectedRoadStyleTag <= 4 && self.userSelectedRoadDirectionStyleTag > 4){
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }else if (self.userSelectedRoadDirectionStyleTag <= 4 && self.userSelectedRoadStyleTag > 4){
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }else if(self.userSelectedRoadDirectionStyleTag <= 4 && self.userSelectedRoadStyleTag <= 4){
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadDirectionStyleString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }
+        [self.roadConditionContentTextField becomeFirstResponder];
+    });
+}
+
+
+- (void) textChanged:(NSNotification *)notification
+{
+    [self getGeoTips:self.roadConditionContentTextField.text];
+}
+
+#pragma mark -获取地理提示信息
+- (void) getGeoTips:(NSString* )keyWord{
+    [self.requestDataOperation cancel];
+    if (self.tips == nil) {
+        self.tips = [NSMutableArray array];
+    }
+    
+    [self.tips removeAllObjects];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient getGeoInfoTips:keyWord completion:^(WebAPIResponse *response) {
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                if ([dataList isKindOfClass:[NSArray class]]) {
+                    [weakSelf.tips addObjectsFromArray:dataList];
+                }
+
+                if (weakSelf.tips.count > 0 ) {
+                    [weakSelf.tableView setHidden:NO];
+                    [weakSelf.tableView reloadData];
+                }else{
+                    [weakSelf.tableView setHidden:YES];
+                    [weakSelf.tableView reloadData];
+                }
+                
+            }
+        });
+    }];
+
+}
+
+#pragma mark - UITableViewDataSource
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.tips count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *tipCellIdentifier = @"tipCellIdentifier";
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:tipCellIdentifier];
+
+    
+    if (cell == nil)
+    {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                      reuseIdentifier:tipCellIdentifier];
+        cell.textLabel.font = kFontWithDefaultSize;
+        cell.backgroundColor=KDefaultOrNightBackGroundColor;
+        cell.backgroundView.backgroundColor=KDefaultOrNightBackGroundColor;
+    }
+    
+    NSString *tip = self.tips[indexPath.row];
+    
+    cell.textLabel.text = tip;
+    cell.textLabel.textColor=KDefaultOrNightTextColor;
+    return cell;
+}
+
+#pragma mark - UITableViewDelegate
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *tip = self.tips[indexPath.row];
+    self.userLoactionRoadConditionContentString = [[NSString alloc]initWithFormat:@"%@",@""];
+    self.userLoactionRoadConditionContentString = [[NSString alloc]initWithFormat:@" %@ ",tip];
+    dispatch_async(dispatch_get_main_queue(), ^(void){
+        if (self.userSelectedRoadDirectionStyleTag > 4 &&  self.userSelectedRoadStyleTag > 4) {
+            NSString *roadContentString = [NSString stringWithFormat:@"%@",self.userLoactionRoadConditionContentString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }
+        else if (self.userSelectedRoadStyleTag <= 4 && self.userSelectedRoadDirectionStyleTag > 4){
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }else if (self.userSelectedRoadDirectionStyleTag <= 4 && self.userSelectedRoadStyleTag > 4){
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }else if(self.userSelectedRoadDirectionStyleTag <= 4 && self.userSelectedRoadStyleTag <= 4){
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadDirectionStyleString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }
+        [self.roadConditionContentTextField becomeFirstResponder];
+    });
+    self.tableView.hidden = YES;
+}
+
+
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField{
+    return YES;
+}
+
+#pragma mark - Method For UITextFieldDelegate
+- (BOOL)textFieldShouldClear:(UITextField *)textField{
+    return YES;
+}
+
+- (BOOL)textFieldShouldEndEditing:(UITextField *)textField{
+    return YES;
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField{
+    [self.roadConditionContentTextField resignFirstResponder];
+    [self.tableView setHidden:YES];
+
+    return YES;
+}
+
+
+#pragma mark - 初始化界面选择路况类型按键事件
+- (void)initWithUserOperationForRoadStyleButtonEvent:(id)sender{
+
+    UIButton *roadStyleButtont = (UIButton *)sender;
+    NSInteger userSelectedIndex = roadStyleButtont .tag - KRoadConditionStyleBtnBaseTag;
+    if (self.userSelectedRoadStyleTag == userSelectedIndex) {
+        return;
+    }
+    UIButton *beforButton = (UIButton *)[self.mainBackGroundScrollView viewWithTag:(self.userSelectedRoadStyleTag + KRoadConditionStyleBtnBaseTag)];
+    [beforButton setBackgroundImage:[UIImage imageNamed:[NSString stringWithFormat:@"RoadNormalImage%d.png",self.userSelectedRoadStyleTag]] forState:UIControlStateNormal];
+    
+    [roadStyleButtont setBackgroundImage:[UIImage imageNamed:[NSString stringWithFormat:@"RoadHighlightImage%d.png",userSelectedIndex]] forState:UIControlStateNormal];
+    self.userSelectedRoadStyleTag = roadStyleButtont .tag - KRoadConditionStyleBtnBaseTag;
+    self.userSelectedRoadStyleString = nil;
+    switch (self.userSelectedRoadStyleTag) {
+        case 1:
+            self.userSelectedRoadStyleString = [[NSString alloc]initWithFormat:@"%@",@"非常拥堵！"];
+            break;
+        case 2:
+            self.userSelectedRoadStyleString = [[NSString alloc]initWithFormat:@"%@",@"缓慢！"];
+            break;
+        case 3:
+            self.userSelectedRoadStyleString = [[NSString alloc]initWithFormat:@"%@",@"畅行！"];
+            break;
+        case 4:
+            self.userSelectedRoadStyleString = [[NSString alloc]initWithFormat:@"%@",@"发生了交通事故，路过请绕行！"];
+            break;
+            
+        default:
+            break;
+    }
+    //若非语音内容，则路况类别信息需要显示
+    if (IsStringEmptyOrNull(self.audioGenerateString)){
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+
+            ///说明没有选择方向，则不编辑方向到内容中
+            if (self.userSelectedRoadDirectionStyleTag > 4) {
+                NSString *roadContentString = [NSString stringWithFormat:@"%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadStyleString];
+                [self.roadConditionContentTextField setText:roadContentString];
+            }
+            
+            else{
+                NSString *roadContentString = [NSString stringWithFormat:@"%@，%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadDirectionStyleString,self.userSelectedRoadStyleString];
+                [self.roadConditionContentTextField setText:roadContentString];
+            }
+            [self.roadConditionContentTextField becomeFirstResponder];
+        });
+    }
+    
+}
+
+#pragma mark - 初始化界面选择路况方向按键事件
+- (void)initWithUSerOperationForRoadDirectionButtonEvent:(id)sender{
+
+    //若有语音内容则将按键失效
+    if (!IsStringEmptyOrNull(self.audioGenerateString)){
+        return;
+    }
+    UIButton *roadStyleButtont = (UIButton *)sender;
+    
+    NSInteger userSelectedIndex = roadStyleButtont .tag - KRoadDirectionStyleBtnBaseTag;
+    
+    if (self.userSelectedRoadDirectionStyleTag == userSelectedIndex) {
+        return;
+    }
+    //设置原先的
+    UIButton *beforButton = (UIButton *)[self.mainBackGroundScrollView viewWithTag:(self.userSelectedRoadDirectionStyleTag + KRoadDirectionStyleBtnBaseTag)];
+    [beforButton setBackgroundImage:[UIImage imageNamed:@"RoadDirectionNormal.png"] forState:UIControlStateNormal];
+    ///更改当前的
+    [roadStyleButtont setBackgroundImage:[UIImage imageNamed:@"RoadDirectionHighlight.png"] forState:UIControlStateNormal];
+    ///保留选中的
+    self.userSelectedRoadDirectionStyleTag = roadStyleButtont .tag - KRoadDirectionStyleBtnBaseTag;
+    
+    self.userSelectedRoadDirectionStyleString = nil;
+    switch (self.userSelectedRoadDirectionStyleTag) {
+        case 1:
+            self.userSelectedRoadDirectionStyleString = [[NSString alloc]initWithFormat:@"%@",@"由东向西"];
+            break;
+        case 2:
+            self.userSelectedRoadDirectionStyleString = [[NSString alloc]initWithFormat:@"%@",@"由南向北"];
+            break;
+        case 3:
+            self.userSelectedRoadDirectionStyleString = [[NSString alloc]initWithFormat:@"%@",@"由北向南"];
+            break;
+        case 4:
+            self.userSelectedRoadDirectionStyleString = [[NSString alloc]initWithFormat:@"%@",@"由西向东"];
+            break;
+            
+        default:
+            break;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^(void){
+
+        if (self.userSelectedRoadStyleTag > 4) {
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadDirectionStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }else{
+            NSString *roadContentString = [NSString stringWithFormat:@"%@，%@，%@",self.userLoactionRoadConditionContentString,self.userSelectedRoadDirectionStyleString,self.userSelectedRoadStyleString];
+            [self.roadConditionContentTextField setText:roadContentString];
+        }
+        [self.roadConditionContentTextField becomeFirstResponder];
+    });
+    
+}
+
+
+
+@end

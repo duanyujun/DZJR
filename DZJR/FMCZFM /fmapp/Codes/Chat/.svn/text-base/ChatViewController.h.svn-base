@@ -1,0 +1,31 @@
+//
+//  ChatViewController.h
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+#import "UserInfo.h"
+
+@interface ChatViewController : FMViewController
+
+//对方用户信息
+@property (nonatomic, strong)  UserInfo         *userFriendInfo;
+@property (readwrite, strong)  NSMutableArray   *dataSource;
+@property (nonatomic, weak)    UITableView      *messageListTableView;  // 消息列表
+@property (nonatomic,assign)   BOOL             whetherBackRootView;
+@property (nonatomic,assign)   BOOL             whetherPushInfo;
+///已收到别人的信息
+///@See 默认为NO， 已接收数据设置为YES；否则为NO；
+@property (nonatomic,assign)   BOOL             whetherReceiveData;
+///是否已经发送数据
+///@See 默认为NO， 已发送数据设置为YES；否则为NO；
+@property (nonatomic,assign)   BOOL             whetherSendData;
+
+- (id)initWithPeerInfo:(UserInfo* )friendInfo ;
+- (void)showNewMessage:(FMMessage *)addedMessage location:(NSInteger)pos;
+- (void)updateMessage:(uint32_t)flowno updateStauts:(IMMessageStatus)status;
+- (BOOL)showMessageTime:(FMMessage *)message insertPos:(NSInteger)pos;
+@end

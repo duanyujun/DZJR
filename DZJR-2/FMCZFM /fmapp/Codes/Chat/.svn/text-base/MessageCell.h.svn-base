@@ -1,0 +1,32 @@
+//
+//  MessageCell.h
+//  fmapp
+//
+//  Created by SDYK on 14-9-29.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+@class CellFrameModel;
+@class UserInfo;
+@class MessageCell;
+
+@protocol MessageCellDelegate <NSObject>
+
+- (void)showMyselfInformation;
+- (void)showFriendInformation;
+- (void)startWaitting;
+- (void)stopWaitting;
+
+//长按事件触发
+- (void)messageCellLongPressed:(MessageCell *)cell ;
+
+@end
+
+@interface MessageCell : UITableViewCell
+
+@property (nonatomic, strong) CellFrameModel *cellFrame;
+@property (nonatomic, weak)   id<MessageCellDelegate> delegate;
+@property (nonatomic, weak) FMAudioManager    *audioManager;
+
+@end

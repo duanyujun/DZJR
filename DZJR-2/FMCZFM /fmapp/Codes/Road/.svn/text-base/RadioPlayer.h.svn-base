@@ -1,0 +1,22 @@
+//
+//  RadioPlayer.h
+//  RadioPlayer
+//
+//  Created by mayiming on 14-2-26.
+//  Copyright (c) 2014年 mayiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface RadioPlayer : NSObject
+{
+}
+
+@property (nonatomic,assign) BOOL isPlayed;//是否已经播放状态值
+
++ (RadioPlayer *) sharedInstance;//单例
+- (void) setRadioUrlString:(NSString *) urlString;//设置播放地址
+- (void) play;//开始播放
+- (void) stop;//停止播放
+
+@end

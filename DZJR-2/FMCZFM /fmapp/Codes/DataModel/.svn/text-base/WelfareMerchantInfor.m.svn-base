@@ -1,0 +1,341 @@
+//
+//  WelfareMerchantInfor.m
+//  fmapp
+//
+//  Created by 张利广 on 14-9-20.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "WelfareMerchantInfor.h"
+#import "NSAttributedString+Height.h"
+#import "AttributedStringHelper.h"
+
+@interface WelfareMerchantInfor ()
+@property (nonatomic,assign)    CGFloat contentHeight;                      //缓存问题高度
+@end
+
+@implementation WelfareMerchantInfor
+- (id)init{
+    self = [super init];
+    if (self) {
+        self.welfareMerchanPayUserInfo = [[UserInfo alloc]init];
+        self.contentHeight = -1;
+
+    }
+    
+    return self;
+}
+
++(id)initWithWelfareMerchantInforWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    
+    
+    Log(@"\n猜你喜欢商家内容\n %@\n",dicInfor);
+    
+    WelfareMerchantInfor *businessInfor = [[WelfareMerchantInfor alloc]init];
+    
+    if (businessInfor == Nil) {
+        return businessInfor;
+    }
+    if (dicInfor.count <= 1) {
+        return Nil;
+    }
+    [businessInfor setWelfareMerchantId:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [businessInfor setWelfareMerchantTitleInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"title")];
+    [businessInfor setWelfareMerchantInforStyle:(WelfareMerchantStyle)IntForKeyInUnserializedJSONDic(dicInfor, @"type")];
+    [businessInfor setWelfareMerchanIconImageURLKey:StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    [businessInfor setWelfareMerchanCellLeftParameterString:StringForKeyInUnserializedJSONDic(dicInfor, @"arg1")];
+    if (!businessInfor.welfareMerchanCellLeftParameterString) {
+        businessInfor.welfareMerchanCellLeftParameterString=@"0";
+    }
+    
+    [businessInfor setWelfareMerchanCellRightParameterString:StringForKeyInUnserializedJSONDic(dicInfor, @"arg2")];
+    if (!businessInfor.welfareMerchanCellRightParameterString) {
+        businessInfor.welfareMerchanCellRightParameterString=@"0";
+    }
+    ///第一类型
+    if (businessInfor.welfareMerchantInforStyle == WelfareMerchantForRecommendStyle) {
+        [businessInfor setWelfareMerchantLimitUnitPrice:FloatForKeyInUnserializedJSONDic(dicInfor, @"arg1")];
+        [businessInfor setWelfareMerchantUnitPrice:FloatForKeyInUnserializedJSONDic(dicInfor, @"arg2")];
+        [businessInfor setWelfareMerchantTitleInfor:[NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(dicInfor, @"title")]];
+    }
+    
+    ///第五类精品推荐
+    if(businessInfor.welfareMerchantInforStyle == WelfareMerchantForBoutiqueStyle){
+        [businessInfor setWelfareMerchanWebShareURLString:StringForKeyInUnserializedJSONDic(dicInfor, @"share_url")];
+        [businessInfor setWelfareMerchanWebURLString:StringForKeyInUnserializedJSONDic(dicInfor, @"url")];
+    }
+    
+    return businessInfor;
+}
+
+- (NSDictionary *)getWelfareMerchantInforParameter{
+    NSMutableDictionary *paramDic = [[NSMutableDictionary alloc]init];
+    ///用户名
+    AddObjectForKeyIntoDictionary(self.welfareMerchanPayUserInfo.userID, @"userId", paramDic);
+    ///手机号
+    AddObjectForKeyIntoDictionary(self.welfareMerchanPayUserInfo.userMobile, @"mobile", paramDic);
+    ///验证码
+    AddObjectForKeyIntoDictionary(self.welfareMerchanSecurityCodeString, @"code", paramDic);
+    ///商品ID
+    AddObjectForKeyIntoDictionary(self.welfareMerchantId, @"id", paramDic);
+    //商品订单号
+    AddObjectForKeyIntoDictionary(self.welfareMerchanTradeOrderNumber, @"orderNumber", paramDic);
+    ///商品购买总量
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInt:self.welfareMerchantPayNumberQuantity], @"number", paramDic);
+    ///用户需要支付的金额内容
+    AddObjectForKeyIntoDictionary([NSNumber numberWithFloat:self.welfareUserPayReallyTotalPricesRMB], @"price", paramDic);
+    
+    return paramDic;
+}
+//摇一摇内容
++(id)getShakeinfoWithUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    WelfareMerchantInfor *businessInfor = [[WelfareMerchantInfor alloc]init];
+    
+    if (businessInfor == Nil) {
+        return businessInfor;
+    }
+    if (dicInfor.count <= 1) {
+        return Nil;
+    }
+    [businessInfor setWelfareMerchantId:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [businessInfor setWelfareMerchantTitleInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    //[businessInfor setWelfareMerchanIconImageURLKey:StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    [businessInfor setWelfareMerchantTime:IntForKeyInUnserializedJSONDic(dicInfor, @"time")];
+    
+    //互动ID
+    [businessInfor setQuestionId:IntForKeyInUnserializedJSONDic(dicInfor, @"questionId")];
+    
+    //评论
+    [businessInfor setComment_content:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_content")];
+    [businessInfor setComment_pic:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_pic")];
+    [businessInfor setComment_time:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_time")];
+    [businessInfor setComment_total:IntForKeyInUnserializedJSONDic(dicInfor, @"comment_total")];
+    [businessInfor setComment_userName:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_userName")];
+    
+    
+    AttributedStringHelper *attributedStringSmallHelper = [[AttributedStringHelper alloc] init];
+    UIColor* textColor = [FMThemeManager.skin textColor] ;
+    
+    if (!businessInfor.comment_content) {
+        businessInfor.comment_content=@"在此发表评论";
+    }
+    
+    businessInfor.commentContent = [attributedStringSmallHelper getAttributedStringWithNSString:businessInfor.comment_content textColor:textColor];
+    //奖品
+    [businessInfor setSurplus:IntForKeyInUnserializedJSONDic(dicInfor, @"surplus")];
+    [businessInfor setTotal:IntForKeyInUnserializedJSONDic(dicInfor, @"total")];
+    [businessInfor setCoin:IntForKeyInUnserializedJSONDic(dicInfor, @"coin")];
+    
+    //赞助商
+    [businessInfor setSponsor_telephone:IntForKeyInUnserializedJSONDic(dicInfor, @"sponsor_telephone")];
+    
+    [businessInfor setWelfareMerchanPhotoImagesArrayURLKey:ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    [businessInfor setHits:IntForKeyInUnserializedJSONDic(dicInfor, @"hits")];
+
+    [businessInfor setSponsor_name:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_name")];
+    
+    [businessInfor setSponsor_address:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_address")];
+    [businessInfor setSponsor_pic:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_pic")];
+
+    [businessInfor setWelfareMerchanTelePhone:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_telephone")];
+    [businessInfor setSponsor_id:IntForKeyInUnserializedJSONDic(dicInfor, @"sponsor_id")];
+    
+    return businessInfor;
+  
+}
+//活动详情
++(id)getActivityinfoWithUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    WelfareMerchantInfor *businessInfor = [[WelfareMerchantInfor alloc]init];
+    
+    if (businessInfor == Nil) {
+        return businessInfor;
+    }
+    if (dicInfor.count <= 1) {
+        return Nil;
+    }
+    [businessInfor setWelfareMerchantId:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [businessInfor setWelfareMerchantTitleInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    //[businessInfor setWelfareMerchanIconImageURLKey:StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    [businessInfor setActivityTime:StringForKeyInUnserializedJSONDic(dicInfor, @"date")];
+    [businessInfor setQuestionId:IntForKeyInUnserializedJSONDic(dicInfor, @"questionId")];
+    [businessInfor setNumber:StringForKeyInUnserializedJSONDic(dicInfor, @"number")];
+
+    //评论
+    [businessInfor setComment_content:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_content")];
+    [businessInfor setComment_pic:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_pic")];
+    [businessInfor setComment_time:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_time")];
+    [businessInfor setComment_total:IntForKeyInUnserializedJSONDic(dicInfor, @"comment_total")];
+    [businessInfor setComment_userName:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_userName")];
+    AttributedStringHelper *attributedStringSmallHelper = [[AttributedStringHelper alloc] init];
+    UIColor* textColor = [FMThemeManager.skin textColor] ;
+    
+    if (!businessInfor.comment_content) {
+        businessInfor.comment_content=@"在此发表评论";
+    }
+    
+    businessInfor.commentContent = [attributedStringSmallHelper getAttributedStringWithNSString:businessInfor.comment_content textColor:textColor];
+    
+    //已报名人数
+    [businessInfor setTotal:IntForKeyInUnserializedJSONDic(dicInfor, @"total")];
+    
+    //地址
+    [businessInfor setSponsor_address:StringForKeyInUnserializedJSONDic(dicInfor, @"address")];
+    
+    [businessInfor setHits:IntForKeyInUnserializedJSONDic(dicInfor, @"hits")];
+    [businessInfor setStatus:IntForKeyInUnserializedJSONDic(dicInfor, @"status")];
+    
+    
+    [businessInfor setWelfareMerchanPhotoImagesArrayURLKey:ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    
+    
+    return businessInfor;
+    
+}
+//精品限购
++(id)getMerchantForRecommendWithUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    WelfareMerchantInfor *businessInfor = [[WelfareMerchantInfor alloc]init];
+    
+    if (businessInfor == Nil) {
+        return businessInfor;
+    }
+    if (dicInfor.count <= 1) {
+        return Nil;
+    }
+    [businessInfor setWelfareMerchantId:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [businessInfor setWelfareMerchantTitleInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    //[businessInfor setWelfareMerchanIconImageURLKey:StringForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    [businessInfor setWelfareMerchantTime:IntForKeyInUnserializedJSONDic(dicInfor, @"time")];
+    
+    [businessInfor setQuestionId:IntForKeyInUnserializedJSONDic(dicInfor, @"questionId")];
+
+    //评论
+    [businessInfor setComment_content:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_content")];
+    [businessInfor setComment_pic:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_pic")];
+    [businessInfor setComment_time:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_time")];
+    [businessInfor setComment_total:IntForKeyInUnserializedJSONDic(dicInfor, @"comment_total")];
+    [businessInfor setComment_userName:StringForKeyInUnserializedJSONDic(dicInfor, @"comment_userName")];
+    
+    [businessInfor setState:IntForKeyInUnserializedJSONDic(dicInfor, @"state")];
+    
+    AttributedStringHelper *attributedStringSmallHelper = [[AttributedStringHelper alloc] init];
+    UIColor* textColor = [FMThemeManager.skin textColor] ;
+    
+    if (!businessInfor.comment_content) {
+        businessInfor.comment_content=@"说说你的消费体验";
+    }
+    
+    businessInfor.commentContent = [attributedStringSmallHelper getAttributedStringWithNSString:businessInfor.comment_content textColor:textColor];
+    
+    [businessInfor setCurrent_price:StringForKeyInUnserializedJSONDic(dicInfor, @"current_price")];
+    [businessInfor setOriginal_price:StringForKeyInUnserializedJSONDic(dicInfor, @"original_price")];
+    [businessInfor setWelfareMerchantLimitUnitPrice:FloatForKeyInUnserializedJSONDic(dicInfor, @"current_price")];
+    [businessInfor setWelfareMerchantUnitPrice:FloatForKeyInUnserializedJSONDic(dicInfor, @"original_price")];
+    
+    [businessInfor setStatus:IntForKeyInUnserializedJSONDic(dicInfor, @"status")];
+
+    //奖品
+    [businessInfor setSurplus:IntForKeyInUnserializedJSONDic(dicInfor, @"surplus")];
+    [businessInfor setTotal:IntForKeyInUnserializedJSONDic(dicInfor, @"total")];
+    [businessInfor setCoin:IntForKeyInUnserializedJSONDic(dicInfor, @"coin")];
+    [businessInfor setBusiness_count:IntForKeyInUnserializedJSONDic(dicInfor, @"business_count")];
+    
+    //赞助商
+    [businessInfor setSponsor_telephone:IntForKeyInUnserializedJSONDic(dicInfor, @"sponsor_telephone")];
+    [businessInfor setWelfareMerchanPhotoImagesArrayURLKey:ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+    [businessInfor setSponsor_name:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_name")];
+    [businessInfor setSponsor_address:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_address")];
+    [businessInfor setSponsor_pic:StringForKeyInUnserializedJSONDic(dicInfor, @"sponsor_pic")];
+    [businessInfor setHits:IntForKeyInUnserializedJSONDic(dicInfor, @"hits")];
+
+    return businessInfor;
+}
+//附近商家
++(id)getMerchantForNearbyWithUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    WelfareMerchantInfor *businessInfor = [[WelfareMerchantInfor alloc]init];
+    
+    if (businessInfor == Nil) {
+        return businessInfor;
+    }
+    if (dicInfor.count <= 1) {
+        return Nil;
+    }
+    [businessInfor setWelfareMerchantId:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    [businessInfor setWelfareMerchantTitleInfor:StringForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    
+    [businessInfor setWelfareMerchanPhotoImagesArrayURLKey:ObjForKeyInUnserializedJSONDic(dicInfor, @"pic")];
+
+    [businessInfor setSponsor_address:StringForKeyInUnserializedJSONDic(dicInfor, @"address")];
+    
+    NSString *longStr=StringForKeyInUnserializedJSONDic(dicInfor, @"longitude");
+    
+    [businessInfor setWelfareMerchantLimitUnitPrice:[longStr floatValue]];
+    NSString *latStr=StringForKeyInUnserializedJSONDic(dicInfor, @"latitude");
+    
+    [businessInfor setWelfareMerchantUnitPrice:[latStr floatValue]];
+    [businessInfor setHits:IntForKeyInUnserializedJSONDic(dicInfor, @"hits")];
+
+    
+    
+    [businessInfor setSponsor_telephone:IntForKeyInUnserializedJSONDic(dicInfor, @"telephone")];
+
+    [businessInfor setWelfareMerchanTelePhone:StringForKeyInUnserializedJSONDic(dicInfor, @"telephone")];
+    
+    
+    return businessInfor;
+
+}
++(CGFloat)returnMerchantTitleInforHeightWithMerchantTitleInfor:(NSString *)merchantTitleInfor
+{
+    UILabel *detailLabel=[[UILabel alloc]initWithFrame:CGRectMake(40, 215, KProjectScreenWidth-20, MAXFLOAT)];
+    detailLabel.backgroundColor=[UIColor clearColor];
+    detailLabel.textColor=KDefaultOrNightTextColor;
+    detailLabel.font=[UIFont systemFontOfSize:18];
+    detailLabel.numberOfLines=0;
+    
+    CGSize detailLabelSize=[merchantTitleInfor sizeWithFont:detailLabel.font constrainedToSize:detailLabel.bounds.size lineBreakMode:NSLineBreakByCharWrapping];
+    
+    return detailLabelSize.height;
+
+}
++(CGFloat)returncommentHeightWithcommentInfor:(NSString *)comment
+{
+    UILabel *detailLabel=[[UILabel alloc]initWithFrame:CGRectMake(40, 215, KProjectScreenWidth-20, MAXFLOAT)];
+    detailLabel.backgroundColor=[UIColor clearColor];
+    detailLabel.textColor=KDefaultOrNightTextColor;
+    detailLabel.font=[UIFont systemFontOfSize:16];
+    detailLabel.numberOfLines=3;
+    
+    CGSize detailLabelSize=[comment sizeWithFont:detailLabel.font constrainedToSize:detailLabel.bounds.size lineBreakMode:NSLineBreakByCharWrapping];
+    
+    return detailLabelSize.height;
+
+}
+
+- (GLfloat)getShortContentHeight:(GLfloat)containerWidth
+{
+    self.contentHeight = [self.commentContent boundingHeightForWidth:containerWidth];
+    return self.contentHeight;
+}
+
+
+@end
+
+
+@implementation PayReqForWX
+
+- (id)init{
+    self = [super init];
+    
+    if (self) {
+        
+    }
+    
+    return self;
+}
+
+@end
+

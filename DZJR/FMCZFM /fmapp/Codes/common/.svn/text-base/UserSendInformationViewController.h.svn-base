@@ -1,0 +1,55 @@
+//
+//  UserSendInformationViewController.h
+//  fmapp
+//
+//  Created by 张利广 on 14-6-20.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+#import "ExpressView.h"
+#import "UserPutoutDataParameterController.h"
+
+/** 设置初始化类型 QQ:2584740530
+ 
+ *@param InitWithSearchReceiveStyle = 1,初始化寻物招领新增界面
+ *@param InitWithFreeRideStyle = 2 ， 初始化顺风车新增界面
+ *@param InitWithInforNetWorkStyle = 3 ,初始化946信息网新增界面
+ *@See  根据初始化设置，实现不同的功能
+ **/
+typedef enum {
+    InitWithSearchReceiveStyle = 1,     /**< 初始化寻物招领新增界面*/
+    InitWithFreeRideStyle = 2,          /**< 初始化顺风车新增界面*/
+    InitWithInforNetWorkStyle = 3 ,      /**< 初始化946信息网新增界面*/
+    InitWithFreshThingStyle = 4         /**< 初始化我要曝光新增模块*/
+}InitWithControlerStyle;
+
+
+/** 数据发送成功刷新协议
+ @See 若用户上传的数据类型与当前界面显示的一致，则将界面刷新
+ **/
+@protocol SendInformationDelegate <NSObject>
+
+/** 数据发送成功刷新协议方法
+ 
+ *@param (NSInteger)m_sendStyle ,数据类型ID
+ *@See 若用户上传的数据类型与当前界面显示的一致，则将界面刷新
+ **/
+- (void)userSendDataFinishWithUserSendStyle:(NSInteger)m_sendStyle;
+
+@end
+
+/** 用户发布 找到了，顺风车，信息网数据界面****/
+@interface UserSendInformationViewController : FMViewController<SendInformationDelegate,UserParameterInforDelegate,UITextFieldDelegate,UITextViewDelegate,UIScrollViewDelegate,UIActionSheetDelegate,UINavigationControllerDelegate,UIImagePickerControllerDelegate,ExpressViewDelegate>
+
+/** 初始化界面
+ 
+ *@param (id<SendInformationDelegate>)m_delegate 操作协议
+ *@param (InitWithControlerStyle)m_initStyle 初始化界面类别
+ *@See InitWithSearchReceiveStyle = 1,初始化寻物招领新增界面
+ *@See InitWithFreeRideStyle = 2 ， 初始化顺风车新增界面
+ *@See InitWithInforNetWorkStyle = 3 ,初始化946信息网新增界面
+ **/
+- (id)initWithUserSendFinishDelegate:(id<SendInformationDelegate>)m_delegate
+                       withInitStyle:(InitWithControlerStyle)m_initStyle;
+@end

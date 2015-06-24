@@ -1,0 +1,33 @@
+//
+//  InitTableView.h
+//  fmapp
+//
+//  Created by 张利广 on 14-6-16.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "MerchantInfo.h"
+#import "SearchOrCityOrInformationTableViewCell.h"
+
+
+/** 根据数据类型和，模块类型初始化不同的界面**/
+@interface InitTableView : UIView<UITableViewDataSource,UITableViewDelegate,UserSelectedDelegate,UIActionSheetDelegate,UITextFieldDelegate>
+
+/** 初始化界面
+ 
+ *@param (CGRect)frame  界面布局
+ *@param (NSInteger )m_dataStyle 数据类型
+ *@param (NSInteger)m_moduleStyle 模块类型 1.找到了；2.都市顺风车；3.信息网；4.特约商家 5.特约商户详情内容 7.我的奖品
+ **/
+- (id)initWithFrame:(CGRect)frame withDataStyle:(NSInteger )m_dataStyle withModuleStyle:(NSInteger)m_moduleStyle;
+
+- (id)initWithFrame:(CGRect)frame withBusinessID:(NSString *)businessID withModuleStyle:(NSInteger)m_moduleStyle;
+
+
+- (id)initWithFrame:(CGRect)frame withMerchantInfor:(MerchantInfo *)m_Infor;
+
+
+/** 用户点击某个按键，进行数据刷新***/
+- (void)initWithUserUpdateTheDataContentWithClickOperation;
+@end

@@ -1,0 +1,1379 @@
+//
+//  QuestionDetailViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-17.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "QuestionDetailViewController.h"
+#import "AppDelegate.h"
+#import "UserInfoCell.h"
+#import "PublishView.h"
+#import "LoginController.h"
+#import "QuestionInfoCell.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient+Interaction.h"
+#import "HTTPClient.h"
+#import "HTTPClient+Friends.h"
+#import "ScreenshotViewController.h"
+#import "PublishQuestionViewController.h"
+#import "FriendDetailedInforViewController.h"
+#import "RightBarItemMenusView.h"
+#import "HTTPClient+Friends.h"
+#import "FontAwesome.h"
+#import "ChatViewController.h"
+
+#define kQuestionDetailRelyCell                 @"ReplyCell"
+#define kQuestionDetailQuestionInfoCell         @"QuestionInfoCell"
+#define kQuestionDetailUserInfoCell             @"UserInfoCell"
+
+#define kPublishViewHeight                      45         //发布视图高度
+#define kDeleteQuestionAlertViewTag             13321
+
+#define kActionSheetPostTag                     10001
+#define kActionSheetRequestTag                  10002
+#define kActionSheetSelfRequestTag              10003
+
+
+
+@interface QuestionDetailViewController ()<UITableViewDataSource, UITableViewDelegate,PublishViewDelegate,
+QuestionInfoCellDelegate,UIActionSheetDelegate,RightBarItemMenusDelegate,FriendDetaildAttentionInfoDelegate>
+
+@property (nonatomic,weak)      UITableView                     *tableView;
+@property (readwrite,strong)    DataPage                        *dataSource;            //列表的数据源
+@property (nonatomic,weak)      AFHTTPRequestOperation          *requestDataOperation;  //请求列表数据的操作
+@property (nonatomic,weak)      HUILoadMoreCell                 *loadMoreCell;
+@property (nonatomic,strong)    QuestionInfo                    *curQuestionInfo;       //当前问题
+@property (nonatomic,weak)      PublishView                     *publishView;           //发布视图
+@property (assign)              Boolean                         isLoading;              //是否正在加载
+@property (nonatomic,weak)      QuestionInfo                    *currentFeedBackAnswer; //当前被举报回复
+//@property (no)
+///判断是否已经点赞
+///@See 若为YES，则表示已经点赞，则点赞按键不能再使用；
+///@See 若为NO，则可以继续使用；
+///@See 默认为NO；
+@property (nonatomic,assign)    BOOL                            isAlreadyPraiseBool;
+@property (nonatomic , assign)  BOOL                            isLoadFinishForRep;
+@property (nonatomic , strong)    RightBarItemMenusView   *rightBarMenusView;
+
+@property (nonatomic,weak)     UIButton          *goodBtn;
+@property (nonatomic,weak)     UILabel            *praiseLabel;
+
+//关注按钮
+@property (nonatomic,copy)NSString                          *userAttentionString;
+
+@property (nonatomic,strong)QuestionInfoCell          *clickCell;
+
+
+//- (void)initWithScreenShotsOperationButtonEvent;
+@end
+
+@implementation QuestionDetailViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        self.dataSource = [DataPage page];
+        self.whetherDelete=NO;
+        
+    }
+    return self;
+}
+
+- (id)initWithQuestionInfo:(QuestionInfo* )questionInfo
+{
+    self = [super init];
+    if (self) {
+        self.dataSource = [DataPage page];
+        self.curQuestionInfo = questionInfo;
+        //        self.curQuestionInfo.questionContent = nil;
+        self.whetherDelete=NO;
+    }
+    return self;
+}
+- (id)initWithQuestionId:(NSString* )questionId
+{
+    self = [super init];
+    if (self) {
+        self.dataSource = [DataPage page];
+        self.curQuestionInfo = [[QuestionInfo alloc] init];
+        //若是从非互动列表进入的，将默认为公开的。
+        self.curQuestionInfo.questionID = [NSString stringWithString:questionId];
+        self.whetherDelete=NO;
+    }
+    return self;
+}
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [[ThemeManager sharedThemeManager].skin backgroundColor];
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view.
+    CGRect rc = self.view.bounds;
+    [self settingNavTitle:@"详情"];
+    if(!self.userAttentionString)
+    {
+        self.userAttentionString=@"关注此人";
+    }
+    
+    self.navButtonSize = KNavSize;
+    [self setLeftNavButtonFA:FMIconLeftArrow withFrame:kNavButtonRect actionTarget:self action:@selector(leftBackBarButtonEvent)];
+    
+    self.isAlreadyPraiseBool = NO;
+    self.isLoadFinishForRep = YES;
+    
+    NSArray *menusArray= [[NSArray alloc]initWithObjects:self.userAttentionString,@"截屏分享",@"举报该帖", nil];
+    NSArray *menusIconArray = [[NSArray alloc]initWithObjects:[NSNumber numberWithInteger:FMIconMapFriend],[NSNumber numberWithInteger:FMIconShakeList],[NSNumber numberWithInteger:FMIconQRCode], nil];
+    
+    self.rightBarMenusView = [[RightBarItemMenusView alloc]initWithFrame:CGRectMake(0.0f, 0.0f, KProjectScreenWidth, KProjectScreenHeight) withMenusArray:menusArray withTitleIcon:NO withMenusIconArray:menusIconArray];
+    [self.rightBarMenusView setDelegate:self];
+    [self.view addSubview:self.rightBarMenusView];
+    
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(leftloginNotification:)
+                                                 name: FMUserLoginNotification
+                                               object: nil];
+    
+    
+    
+    [self.rightBarMenusView setHidden:YES];
+    
+    //TableView
+    UITableView* tbView = [[UITableView alloc] initWithFrame:CGRectMake(0.0f,
+                                                                        0.0f,
+                                                                        rc.size.width,
+                                                                        rc.size.height - kPublishViewHeight)
+                                                       style:UITableViewStylePlain];
+    tbView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    tbView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    tbView.backgroundColor = [UIColor clearColor];
+    tbView.dataSource = self;
+    tbView.delegate = self;
+    [self.view addSubview:tbView];
+    _tableView = tbView;
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(didTapOnTableView:)];
+    [tbView addGestureRecognizer:tap];
+    
+    //发布文本框
+    PublishView* commentView = [[PublishView alloc] initWithFrame:CGRectMake(0.0f,
+                                                                             rc.size.height - kPublishViewHeight,
+                                                                             rc.size.width,
+                                                                             kPublishViewHeight)];
+    commentView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleTopMargin;
+    
+    commentView.delegate = self;
+    commentView.is_publicInfor = self.userSendInforIsPublic;
+    commentView.replyQuestionId = self.curQuestionInfo.questionID;
+    
+    [self.view addSubview:commentView];
+    self.publishView = commentView;
+    
+    [self addNotification];
+    [self addKeyboardNotification];
+    //RefreshControl for TableView
+    __weak __typeof(&*self)weakSelf = self;
+    [self.tableView addPullToRefreshWithActionHandler:^(void){
+        [weakSelf refreshListData];
+    }];
+    ConfiguratePullToRefreshViewAppearanceForScrollView(self.tableView);
+    [self getQuestionInfo:self.curQuestionInfo.questionID];
+}
+-(void)initWithScreenshotButtonEvent
+{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0) {
+        //登陆控制器
+        LoginController *loginController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:loginController];
+        [self presentModalViewController:navController animated:YES];
+        return;
+    }
+    
+    
+    ScreenshotViewController *publishQuestionController = [[ScreenshotViewController alloc] init];
+    FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:publishQuestionController];
+    
+    [self.view.window.rootViewController presentModalViewController:navController animated:YES];
+    
+    
+}
+#pragma mark - 设置右侧按键点击事件
+- (void)initWithRightBarButtonEvent{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0) {
+        //登陆控制器
+        LoginController *loginController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:loginController];
+        [self presentModalViewController:navController animated:YES];
+        return;
+    }
+    
+    if (self.rightBarMenusView.hidden==NO) {
+        
+        [self.rightBarMenusView setHidden:YES];
+        
+    }
+    else
+    {
+        
+        //清除以前的（RightBarItemMenusView）视图
+        for(UIView *v in self.view.subviews)
+        {
+            if ([v isKindOfClass:[RightBarItemMenusView class]]) {
+                [v removeFromSuperview];
+            }
+        }
+        
+        if ([self.curQuestionInfo.publishUserInfo isMobileUser]&&![self.curQuestionInfo.publishUserInfo.userID isEqual:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+            
+            NSArray *menusArray= [[NSArray alloc]initWithObjects:self.userAttentionString,@"截屏分享",@"举报该帖", nil];
+            NSArray *menusIconArray = [[NSArray alloc]initWithObjects:[NSNumber numberWithInteger:FMIconMapFriend],[NSNumber numberWithInteger:FMIconShakeList],[NSNumber numberWithInteger:FMIconQRCode], nil];
+            
+            self.rightBarMenusView = [[RightBarItemMenusView alloc]initWithFrame:CGRectMake(0.0f, 0.0f, KProjectScreenWidth, KProjectScreenHeight) withMenusArray:menusArray withTitleIcon:NO withMenusIconArray:menusIconArray];
+            [self.rightBarMenusView setDelegate:self];
+            [self.rightBarMenusView setHidden:NO];
+            [self.view addSubview:self.rightBarMenusView];
+        }
+        else
+        {
+            NSArray *menusArray= [[NSArray alloc]initWithObjects:self.userAttentionString,@"截屏分享", nil];
+            NSArray *menusIconArray = [[NSArray alloc]initWithObjects:[NSNumber numberWithInteger:FMIconMapFriend],[NSNumber numberWithInteger:FMIconShakeList],[NSNumber numberWithInteger:FMIconQRCode], nil];
+            self.rightBarMenusView = [[RightBarItemMenusView alloc]initWithFrame:CGRectMake(0.0f, -0.0f, KProjectScreenWidth, KProjectScreenHeight) withMenusArray:menusArray withTitleIcon:NO withMenusIconArray:menusIconArray];
+            [self.rightBarMenusView setDelegate:self];
+            [self.rightBarMenusView setHidden:NO];
+            [self.view addSubview:self.rightBarMenusView];
+            
+        }
+    }
+}
+- (void)initWithUserOperationRightBarItemMenusItemButtonEvent:(NSInteger)barItemIndex{
+    [self.rightBarMenusView setHidden:YES];
+    
+    if(barItemIndex==1)
+    {
+        
+        if([self.userAttentionString isEqualToString:@"关注此人"])
+        {
+            [self initWithUserAddAttentionFriendOperation];
+        }
+        else
+        {
+            [self initWIthUserDelegateAttentionFriendOperation];
+        }
+        
+    }
+    if (barItemIndex==2) {
+        ScreenshotViewController *publishQuestionController = [[ScreenshotViewController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:publishQuestionController];
+        
+        [self.view.window.rootViewController presentModalViewController:navController animated:YES];
+    }
+    if (barItemIndex==3) {
+        UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:@"我们坚决反对色情、暴力、欺诈信息，对您的举报会认真处理"
+                                                                delegate:self
+                                                       cancelButtonTitle:@"取消"
+                                                  destructiveButtonTitle:@"举报"
+                                                       otherButtonTitles: nil];
+        actionSheet.tag=kActionSheetPostTag;
+        [actionSheet showInView:self.view.window];
+        
+    }
+}
+
+- (void)viewWillLayoutSubviews:(BOOL)animated
+{
+    CGRect rc = self.view.bounds;
+    self.publishView.frame = CGRectMake(0.0f,
+                                        rc.size.height - kPublishViewHeight,
+                                        rc.size.width,
+                                        kPublishViewHeight);
+    self.tableView.frame = CGRectMake(0.0f,
+                                      0.0f,
+                                      rc.size.width,
+                                      rc.size.height - kPublishViewHeight);
+}
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (NSString* )getLastAnswerId
+{
+    NSString *lastId = @"0";
+    if (self.dataSource.count > 0) {
+        QuestionInfo *question = [self.dataSource.data lastObject];
+        lastId = question.questionID;
+    }
+    return lastId;
+}
+- (void)refreshListData
+{
+    //停掉当前未完成的请求操作
+    [self.requestDataOperation cancel];
+    //清空当前数据源中所有数据
+    [self.dataSource cleanAllData];
+    self.isLoading = YES;
+    self.isLoadFinishForRep = YES;
+    [self loadMoreListData];
+    [self.tableView reloadData];
+    
+}
+- (void)loadMoreListData
+{
+    [self getReplyData:[self getLastAnswerId]];
+}
+
+#pragma mark -获取问题详细信息和回复信息
+- (void) getQuestionInfo:(NSString *)questionId
+{
+    
+    
+    __weak __typeof(&*self)weakSelf = self;
+    
+    [self startWaitting];
+    self.requestDataOperation =
+    [FMHTTPClient getQusetionInfo:self.curQuestionInfo.questionID
+                        pageIndex:[self.dataSource nextPageIndex]
+                       withUserId:[CurrentUserInformation sharedCurrentUserInfo].userLoginState != 0 ? [CurrentUserInformation sharedCurrentUserInfo].userID:@""
+                         pageSize:[self.dataSource pageSize]
+                       withPublic:self.userSendInforIsPublic
+                       completion:^(WebAPIResponse *response) {
+                           
+                           dispatch_async(dispatch_get_main_queue(), ^(void){
+                               //关掉PullToRefreshView
+                               if (weakSelf.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+                               {
+                                   UpdateLastRefreshDataForPullToRefreshViewOnView([weakSelf tableView]);
+                                   
+                                   [weakSelf.tableView.pullToRefreshView stopAnimating];
+                               }
+                               weakSelf.isLoading = NO;
+                               [weakSelf stopWaitting];
+                               if(response.code == WebAPIResponseCodeSuccess){
+                                   
+                                   ///数据内容
+                                   NSDictionary *dataDictionary = [[NSDictionary alloc]initWithDictionary:ObjForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData)];
+                                   
+                                   if (dataDictionary.count > 0) {
+                                       //问题信息
+                                       NSDictionary *questionDic = [dataDictionary objectForKey:@"question"];
+                                       if ([questionDic isKindOfClass:[NSDictionary class]])
+                                       {
+                                           weakSelf.curQuestionInfo = [QuestionInfo questionWithUnserializedJSONDic:questionDic];
+                                           
+                                           if (self.curQuestionInfo.publishUserInfo.is_friends==0) {
+                                               
+                                               weakSelf.userAttentionString=@"关注此人";
+                                           }
+                                           else
+                                           {
+                                               weakSelf.userAttentionString=@"取消关注";
+                                           }
+                                           [weakSelf createNav];
+                                       }
+                                       
+                                       //回复
+                                       NSMutableArray *questionList = [NSMutableArray array];
+                                       
+                                       for (NSDictionary *dic in [dataDictionary objectForKey:@"answer"])
+                                       {
+                                           QuestionInfo *question = [QuestionInfo answerWithUnserializedJSONDic:dic];
+                                           if (question) {
+                                               [questionList addObject:question];
+                                           }
+                                           
+                                       }
+                                       //                                             }
+                                       //页数
+                                       NSNumber* pages = ObjForKeyInUnserializedJSONDic(response.responseObject,kDataKeyPageCount);
+                                       if (pages) {
+                                           weakSelf.dataSource.pageCount = [pages unsignedIntegerValue];
+                                       }
+                                       //避免服务器返回数据异常导致loadmore循环加载
+                                       if ([questionList count] == 0) {
+                                           weakSelf.dataSource.pageCount = 0;
+                                       }
+                                       [weakSelf.dataSource appendPage:questionList];
+                                   }
+                                   [weakSelf.tableView reloadData];
+                               }else {
+                                   
+                                   if (response.code == WebAPIResponseCodeNetError) {
+                                       ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+                                   }
+                                   
+                                   if (self.loadMoreCell) {
+                                       [self.loadMoreCell stopLoadingAnimation];
+                                       if (response.code == WebAPIResponseCodeNetError) {
+                                           self.loadMoreCell.textLabel.text = LOADMORE_LOADFAILD;
+                                       }else{
+                                           self.loadMoreCell.textLabel.text = LOADMORE_LOADOVER;
+                                       }
+                                   }
+                               }
+                           });
+                       }];
+}
+
+#pragma mark -获取回复列表
+- (void) getReplyData:(NSString *)lastId
+{
+    
+    if (self.isLoadFinishForRep == NO) {
+        Log(@"find Load Error ,And Return ");
+        return;
+    }
+    self.isLoadFinishForRep = NO;
+    __weak __typeof(&*self)weakSelf = self;
+    
+    self.requestDataOperation =
+    [FMHTTPClient getQusetionAnswerList:self.curQuestionInfo.questionID
+                           lastAnswerId:lastId
+                             withUserId:[CurrentUserInformation sharedCurrentUserInfo].userLoginState != 0 ? [CurrentUserInformation sharedCurrentUserInfo].userID:@""
+                              pageIndex:[self.dataSource nextPageIndex]
+                               pageSize:[self.dataSource pageSize]
+                           withIsPublic:self.userSendInforIsPublic
+                             completion:^(WebAPIResponse *response) {
+                                 Log(@"%@",response.responseObject);
+                                 
+                                 dispatch_async(dispatch_get_main_queue(), ^(void){
+                                     //关掉PullToRefreshView
+                                     if (weakSelf.tableView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+                                     {
+                                         UpdateLastRefreshDataForPullToRefreshViewOnView([weakSelf tableView]);
+                                         [weakSelf.tableView.pullToRefreshView stopAnimating];
+                                     }
+                                     
+                                     weakSelf.isLoading = NO;
+                                     weakSelf.isLoadFinishForRep = YES;
+                                     if(response.code == WebAPIResponseCodeSuccess){
+                                         
+                                         NSMutableArray *questionList = [NSMutableArray array];
+                                         if ([[response.responseObject objectForKey:kDataKeyData] isKindOfClass:[NSArray class]]) {
+                                             
+                                             for (NSDictionary *dic in [response.responseObject objectForKey:kDataKeyData])
+                                             {
+                                                 QuestionInfo *question = [QuestionInfo answerWithUnserializedJSONDic:dic];
+                                                 if (question) {
+                                                     if (question.status != QuestionStatusBlack ||
+                                                         question.status != QuestionStatusAdminDel) {
+                                                         [questionList addObject:question];
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                         //页数
+                                         NSNumber* pages = ObjForKeyInUnserializedJSONDic(response.responseObject,kDataKeyPageCount);
+                                         if (pages) {
+                                             weakSelf.dataSource.pageCount = [pages unsignedIntegerValue];
+                                         }
+                                         //总个数
+                                         NSString *commentTimesString = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(response.responseObject,kDataKeyDataCount)];
+                                         if (!IsStringEmptyOrNull(commentTimesString)) {
+                                             weakSelf.curQuestionInfo.commentTimes = commentTimesString;
+                                         }
+                                         
+                                         //避免服务器返回数据异常导致loadmore循环加载
+                                         if ([questionList count] == 0) {
+                                             weakSelf.dataSource.pageCount = 0;
+                                         }
+                                         
+                                         [weakSelf.dataSource appendPage:questionList];
+                                         [weakSelf.tableView reloadData];
+                                         
+                                     }else {
+                                         
+                                         if (response.code == WebAPIResponseCodeNetError) {
+                                             ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+                                             
+                                         }
+                                         
+                                         if (self.loadMoreCell) {
+                                             [self.loadMoreCell stopLoadingAnimation];
+                                             if (response.code == WebAPIResponseCodeNetError) {
+                                                 self.loadMoreCell.textLabel.text = LOADMORE_LOADFAILD;
+                                             }else{
+                                                 self.loadMoreCell.textLabel.text = LOADMORE_LOADOVER;
+                                             }
+                                         }
+                                     }
+                                 });
+                             }];
+    
+}
+#pragma mark - 发布视图
+- (void)publishComment:(QuestionInfo* )selectComment
+{
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0){
+        //登陆控制器
+        LoginController *loginController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:loginController];
+        [self presentModalViewController:navController animated:YES];
+    }else {
+        
+        self.publishView.selectComment = selectComment;
+        [self.publishView.commentView becomeFirstResponder];
+        
+    }
+}
+#pragma mark --用户发布赞信息
+- (void)initWithUserPublishSupportInfor:(id)sender{
+    
+    if ([CurrentUserInformation sharedCurrentUserInfo].userLoginState == 0) {
+        //登陆控制器
+        LoginController *loginController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:loginController];
+        [self presentModalViewController:navController animated:YES];
+        return;
+    }
+    
+    QuestionInfo* questionInfo = [[QuestionInfo alloc] init];
+    questionInfo.publishUserInfo.userID = [[CurrentUserInformation sharedCurrentUserInfo] userID];
+    questionInfo.publishUserInfo.userCityName = [[CurrentUserInformation sharedCurrentUserInfo] userCityCode];
+    questionInfo.questionID = self.curQuestionInfo.questionID;
+    questionInfo.questionContent = @"[强]";
+    questionInfo.commentedUserInfo.userRole = @"0";
+    questionInfo.commentedUserInfo.userID = @"0";
+    
+    //位置
+    BOOL agreeOpenUserLocation = [[NSUserDefaults standardUserDefaults] boolForKey:@"AgreeOpenUserLocation"];//同意公开位置
+    if (agreeOpenUserLocation) {
+        NSString *locationInfo = [NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] valueForKey:@"FMUserLocationInfo"]];
+        questionInfo.publishUserInfo.userStreet = locationInfo;
+    }
+    WaittingMBProgressHUD(HUIKeyWindow,@"发送中...");
+    //发布请求
+    __weak __typeof(&*self)weakSelf = self;
+    [FMHTTPClient AnswerPraiseQuesiton:questionInfo completion:^(WebAPIResponse *response) {
+        Log(@"%@",response.responseObject);
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            if (response.code == WebAPIResponseCodeSuccess) {
+                SuccessMBProgressHUD(HUIKeyWindow,@"发布成功");
+                
+                NSInteger goodTimes=IntForKeyInUnserializedJSONDic(response.responseObject, @"data");
+                
+                
+                self.curQuestionInfo.goodTimes=[NSString stringWithFormat:@"%d",goodTimes];
+                
+                [weakSelf.tableView triggerPullToRefresh];
+                
+                self.isAlreadyPraiseBool = YES;
+            }else{
+                
+                Log(@"you get here ")
+                FailedMBProgressHUD(HUIKeyWindow,@"发布失败");
+            }
+        });
+    }];
+}
+-(void)updateAddress:(NSString* )strAddress
+{
+    
+    CGRect rc = self.goodBtn.frame;
+    
+    CGSize titleSize=[strAddress sizeWithFont:[UIFont systemFontOfSize:12]];
+    
+    [self.goodBtn setFrame:CGRectMake(KProjectScreenWidth-10-(20+titleSize.width+10),
+                                      rc.origin.y,
+                                      23+titleSize.width+10,
+                                      25)];
+    self.praiseLabel.frame=CGRectMake(23, 5, titleSize.width+5, 15);
+    self.praiseLabel.text=strAddress;
+    
+}
+
+#pragma mark -添加通知
+- (void) addNotification
+{
+    //发布回复通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(publishAnswerSucceedNotification:)
+                                                 name: FMPublishNewAnswerNotification
+                                               object: nil];
+    
+    //删除回复通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(deleteAnswerSucceedNotification:)
+                                                 name: FMDeleteReplyNotification
+                                               object: nil];
+}
+#pragma mark -添加键盘出现或消失时的通知
+- (void) addKeyboardNotification{
+    //添加键盘出现通知
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillAppear:) name:UIKeyboardWillShowNotification object:nil];
+    //添加键盘隐藏通知
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillDisappear:) name:UIKeyboardWillHideNotification object:nil];
+}
+#pragma mark -键盘出现时的通知
+- (void) keyboardWillAppear:(NSNotification *)notification
+{
+    
+    CGRect keyBoardRect=[notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+    CGFloat deltaY=keyBoardRect.size.height;
+    [self.publishView resetButton];
+    [self didPublishViewLayoutChanged:deltaY withHeight:self.publishView.frame.size.height];
+    
+}
+#pragma mark -键盘隐藏时的通知
+- (void) keyboardWillDisappear:(NSNotification *) notification
+{
+    //
+    [self didPublishViewLayoutChanged:0.0 withHeight:self.publishView.frame.size.height];
+    
+}
+- (void) publishAnswerSucceedNotification:(NSNotification *)notification
+{
+    [self.tableView triggerPullToRefresh];
+}
+- (void) deleteAnswerSucceedNotification:(NSNotification *)notification
+{
+    [self.tableView triggerPullToRefresh];
+}
+
+
+#pragma mark -显示剪贴板
+- (void) showPasteBoardMenu:(UILongPressGestureRecognizer *) longPressGestureRecognizer
+{
+    if (longPressGestureRecognizer.state == UIGestureRecognizerStateEnded) {
+        return;
+    }else if (longPressGestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        [longPressGestureRecognizer.view becomeFirstResponder];
+        UIMenuController *menu = [UIMenuController sharedMenuController];
+        [menu setMenuVisible:YES animated:YES];
+        [menu setTargetRect:CGRectMake(110, 18, 100, 20) inView:longPressGestureRecognizer.view];
+    }
+    return;
+}
+
+- (BOOL)canBecomeFirstResponder
+{
+    return YES;
+}
+
+- (BOOL)canPerformAction:(SEL)action withSender:(id)sender{
+    if (action == @selector(cut:)){
+        return NO;
+    }
+    else if(action == @selector(copy:)){
+        return YES;
+    }
+    else if(action == @selector(paste:)){
+        return NO;
+    }
+    else if(action == @selector(select:)){
+        return NO;
+    }
+    else if(action == @selector(selectAll:)){
+        return NO;
+    }
+    else
+    {
+        return [super canPerformAction:action withSender:sender];
+    }
+}
+
+#pragma mark -复制
+- (void)copy:(id)sender{
+    UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+    [pasteboard setString:self.curQuestionInfo.questionContent];
+}
+
+
+#pragma mark - UITableViewDataSource
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 2;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    switch (section) {
+        case 0:
+            return 2;
+        default:
+            return [self.dataSource count] + 1;             //添加一行显示“正在加载”或“加载完毕”;;
+    }
+}
+
+- (NSString* )getCellIndentifier:(NSIndexPath* )indexPath
+{
+    NSString *cellKeyString = kQuestionDetailRelyCell;
+    if ([indexPath section] == 0) {
+        if (indexPath.row == 0) {
+            cellKeyString = kQuestionDetailUserInfoCell;
+        }else if(indexPath.row == 1){
+            cellKeyString = kQuestionDetailQuestionInfoCell;
+        }
+    }else if([indexPath section] == 1){
+        if ([self _isLoadMoreCellAtIndexPath:indexPath]) {
+            cellKeyString = kHUILoadMoreCellIdentifier;
+        }else{
+            cellKeyString = kQuestionDetailRelyCell;
+        }
+    }
+    return cellKeyString;
+}
+
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+        
+    }else if([cellIdentifier isEqualToString:kQuestionDetailUserInfoCell]){
+        
+        return [[UserInfoCell alloc] init];
+        
+    }else if([cellIdentifier isEqualToString:kQuestionDetailQuestionInfoCell]){
+        QuestionInfoCell* cell = [[QuestionInfoCell alloc] init];
+        
+        ///在这里进行长按处理了啊
+        //长按复制功能
+        UILongPressGestureRecognizer *longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(showPasteBoardMenu:)];
+        [cell addGestureRecognizer:longPressRecognizer];
+        
+        cell.delegate = self;
+        return cell;
+    }else{
+        QuestionInfoCell* cell = [[QuestionInfoCell alloc] init];
+        cell.delegate = self;
+        return cell;
+    }
+    return nil;
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellIdentifier = [self getCellIndentifier:indexPath];
+    BOOL isLoadMoreCell = [self _isLoadMoreCellAtIndexPath:indexPath];
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (!cell) {
+        cell = [self createCellWithIdentifier:cellIdentifier];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    }
+    
+    if (!isLoadMoreCell)
+        [self _configureCell:cell forRowAtIndexPath:indexPath];
+    else
+    {
+        self.loadMoreCell = (HUILoadMoreCell*)cell;
+        if ([self.dataSource canLoadMore])
+        {
+            if ([self.dataSource count] > 0) {
+                __weak __typeof(&*self)weakSelf = self;
+                [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                    [weakSelf loadMoreListData];
+                }];
+                [(HUILoadMoreCell*)cell startLoadMore];
+            }
+        }
+        else
+        {
+            if (self.isLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+                [(HUILoadMoreCell*)cell startLoadMore];
+            }else{
+                cell.textLabel.text = LOADMORE_LOADOVER;
+            }
+        }
+    }
+    
+    return cell;
+}
+
+- (void)_configureCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    self.curQuestionInfo.whetherDelete=self.whetherDelete;
+    
+    if (!self.curQuestionInfo) {
+        return;
+    }
+    
+    if ([indexPath section] == 0) {
+        if (indexPath.row == 0) {
+            UserInfoCell* userInfoCell = (UserInfoCell* )cell;
+            [userInfoCell displayUserInfo:self.curQuestionInfo];
+            
+        }else if(indexPath.row == 1){
+            QuestionInfoCell* questionCell = (QuestionInfoCell* )cell;
+            [questionCell displayQuestionDetail:self.curQuestionInfo];
+        }
+    }else if([indexPath section] == 1){
+        if (![self _isLoadMoreCellAtIndexPath:indexPath]) {
+            QuestionInfoCell* replyCell = (QuestionInfoCell* )cell;
+            replyCell.cellType=1;
+            QuestionInfo *replyComment = (QuestionInfo *)[self.dataSource.data objectAtIndex:[indexPath row]];
+            [replyCell displayReply:replyComment];
+        }
+    }
+}
+
+
+#pragma mark - UITableViewDelegate
+-(void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
+{
+    [self.view endEditing:YES];
+}
+
+- (BOOL)_isLoadMoreCellAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.section != 1) {
+        return FALSE;
+    }
+    return (indexPath.row == [self.dataSource count]);
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    CGFloat rowHeight = 0;
+    
+    if (indexPath.section == 0) {
+        if(indexPath.row == 0){
+            rowHeight=80.0f;
+            
+        }else if(indexPath.row == 1){
+            CGFloat questionContentHeight = 0;
+            
+            questionContentHeight = [self.curQuestionInfo getContentHeight:KProjectScreenWidth-20];//问题高度
+            
+            NSString *timeAndCityNameStr = [NSString stringWithFormat:@"%@   %@",
+                                            self.curQuestionInfo.createTime,self.curQuestionInfo.publishUserInfo.userCityName];
+            CGSize timeAndCityNameLabelSize = [timeAndCityNameStr sizeWithFont:[UIFont systemFontOfSize:10.0f]];
+            CGFloat h = [QuestionInfoCell getQuestionImageHeight:self.curQuestionInfo];
+            
+            rowHeight =  24 + questionContentHeight + 20 + timeAndCityNameLabelSize.height + h;
+            
+        }
+    }else if(indexPath.section == 1){
+        if ([self _isLoadMoreCellAtIndexPath:indexPath]) {
+            return kSizeLoadMoreCellHeight;
+        }
+        QuestionInfo *replyComment = (QuestionInfo *)[self.dataSource.data objectAtIndex:[indexPath row]];
+        
+        //用户名称Size
+        CGSize userNameLabelSize = [replyComment.publishUserInfo.userName sizeWithFont:[UIFont systemFontOfSize:15.0f]];
+        
+        //问题内容
+        CGFloat contentLabelHeight = [replyComment getContentHeight:KProjectScreenWidth-60];
+        
+        //创建时间Size
+        CGSize createTimeLabelSize = [replyComment.createTime sizeWithFont:[UIFont systemFontOfSize:11.0f]];
+        
+        rowHeight = 14 + userNameLabelSize.height + 10 + contentLabelHeight + 10 + createTimeLabelSize.height + 22;
+        
+    }
+    
+    return rowHeight;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    
+    if ([self _isLoadMoreCellAtIndexPath:indexPath]){
+        return;
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    [self.clickCell hideMoreBtnWithAnimateWithDuration];
+
+    if (indexPath.section == 0){
+        if (indexPath.row == 0) {
+            FriendDetailedInforViewController *viewController = [[FriendDetailedInforViewController alloc]
+                                                                 initWithUserInfo:self.curQuestionInfo.publishUserInfo];
+            viewController.attentionDelegate=self;
+            [self.view endEditing:YES];
+            [self.navigationController pushViewController:viewController animated:YES];
+            
+        }else if(indexPath.row == 1){
+            [self publishComment:nil];
+        }
+    } else if (indexPath.section == 1){
+        
+        QuestionInfo *replyComment = (QuestionInfo *)[self.dataSource.data objectAtIndex:[indexPath row]];
+        
+        if (![[[CurrentUserInformation sharedCurrentUserInfo] userID] isEqualToString:replyComment.publishUserInfo.userID]) {
+            [self publishComment:replyComment];//显示评论视图
+        }
+    }
+    
+}
+- (UIView *) tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section
+{
+    UIView *cellHeaderView = nil;
+    
+    if (section == 1) {
+        CGFloat leftHeight=23.0f;
+        cellHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, KProjectScreenWidth, 40)];
+        cellHeaderView.backgroundColor = [[FMThemeManager skin] backgroundColor];
+        
+        
+        
+        UILabel* sayImageView = [FontAwesome labelWithFAIcon:FMIconReply
+                                                        size:14.0
+                                                       color:KSubTitleContentTextColor];
+        sayImageView.frame=CGRectMake(12, leftHeight, 15, 15);
+        [cellHeaderView addSubview:sayImageView];
+        
+        CGSize saySize=[self.curQuestionInfo.commentTimes sizeWithFont:[UIFont systemFontOfSize:12]];
+        
+        UILabel *sayLabel=[[UILabel alloc]initWithFrame:CGRectMake(32, leftHeight, saySize.width+5, 15)];
+        sayLabel.font=[UIFont systemFontOfSize:11];
+        sayLabel.textColor=KSubTitleContentTextColor;
+        sayLabel.backgroundColor=[UIColor clearColor];
+        sayLabel.text= [NSString stringWithFormat:@"%@",self.curQuestionInfo.commentTimes];
+        [cellHeaderView addSubview:sayLabel];
+        
+        UILabel* eyeImageView = [FontAwesome labelWithFAIcon:FMIconAttention
+                                                        size:14.0
+                                                       color:KSubTitleContentTextColor];
+        eyeImageView.frame=CGRectMake(sayLabel.frame.origin.x+sayLabel.frame.size.width+8, leftHeight, 15, 15);
+        [cellHeaderView addSubview:eyeImageView];
+        
+        CGSize eyeSize=[self.curQuestionInfo.viewTimes sizeWithFont:[UIFont systemFontOfSize:12]];
+        
+        UILabel *eyeLabel=[[UILabel alloc]initWithFrame:CGRectMake(eyeImageView.frame.origin.x+15+5, leftHeight, eyeSize.width+5, 15)];
+        eyeLabel.font=[UIFont systemFontOfSize:11];
+        eyeLabel.textColor=KSubTitleContentTextColor;
+        eyeLabel.backgroundColor=[UIColor clearColor];
+        eyeLabel.text= [NSString stringWithFormat:@"%@",self.curQuestionInfo.viewTimes];
+        
+        [cellHeaderView addSubview:eyeLabel];
+        
+        ///用户称赞设置
+        UIButton    *supportButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        supportButton.titleLabel.font = kFontWithSmallSize;
+        [supportButton frameButtonWithImageColor:[UIColor clearColor]];
+        [supportButton setTitleColor:[ThemeManager sharedThemeManager].skin.baseTintColor forState:UIControlStateNormal];
+        [supportButton setFrame:CGRectMake(KProjectScreenWidth-60-10,16.0f, 55, 25.0f)];
+        [supportButton addTarget:self action:@selector(initWithUserPublishSupportInfor:)
+                forControlEvents:UIControlEventTouchUpInside];
+        
+        UIImageView *imageView=[[UIImageView alloc]initWithFrame:CGRectMake(0, 2, 18, 18)];
+        imageView.image=[FontAwesome imageWithIcon:FMIconAgree iconColor:[ThemeManager sharedThemeManager].skin.baseTintColor iconSize:20];
+        
+        [supportButton addSubview:imageView];
+        
+        UILabel *goodLabel=[[UILabel alloc]init];
+        goodLabel.text=self.curQuestionInfo.goodTimes;
+        goodLabel.backgroundColor=[UIColor clearColor];
+        goodLabel.textColor=KSubTitleContentTextColor;
+        goodLabel.textAlignment=NSTextAlignmentLeft;
+        goodLabel.font=[UIFont systemFontOfSize:13];
+        self.praiseLabel=goodLabel;
+        [supportButton addSubview:goodLabel];
+        self.goodBtn=supportButton;
+        
+        [self updateAddress:self.curQuestionInfo.goodTimes];
+        
+        ////若对自己点赞则不能显示
+        if (![[CurrentUserInformation sharedCurrentUserInfo].userID isEqualToString:self.curQuestionInfo.publishUserInfo.userID]) {
+            //Log(@"用户对自己点赞是不能通过的");
+            
+            [cellHeaderView addSubview:supportButton];
+        }
+        
+        if (self.isAlreadyPraiseBool == YES) {
+            [self.goodBtn setUserInteractionEnabled:NO];
+        }
+        //添加分隔线
+        UIView *_separatorView = [[UIView alloc] init];
+        _separatorView.frame = CGRectMake(0, 49.5f, KProjectScreenWidth, 0.5);
+        _separatorView.backgroundColor = [UIColor colorWithRed:200/255.0f green:200/255.0f blue:200/255.0f alpha:1];
+        [cellHeaderView addSubview:_separatorView];
+        
+        //增加箭头视图
+        UIImageView *cellHeaderArrowImageView = [[UIImageView alloc] initWithFrame:CGRectMake(25-6, 43, 12, 7)];
+        cellHeaderArrowImageView.image = [UIImage imageNamed:@"Interaction_Detail_SectionHeaderArrow.png"];
+        [cellHeaderView addSubview:cellHeaderArrowImageView];
+        
+        if(ThemeCategory==5)
+        {
+            cellHeaderArrowImageView.alpha=0.6;
+        }
+    }
+    
+    return cellHeaderView;
+}
+
+- (CGFloat) tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+    CGFloat headerHeight = 0;
+    
+    if(section == 1){
+        headerHeight = 50;
+    }
+    
+    return headerHeight;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    if (section == [tableView numberOfSections] - 1) {
+        return  50.0f;
+    }
+    return  0.0;
+    
+}
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section
+{
+    UIView *__view = [[UIView alloc] initWithFrame:CGRectMake(0,
+                                                              0,
+                                                              CGRectGetWidth(tableView.bounds),
+                                                              [self tableView:tableView heightForFooterInSection:section])];
+    [__view setBackgroundColor:[UIColor clearColor]];
+    return __view;
+}
+-(void) didTapOnTableView:(UIGestureRecognizer*) recognizer {
+    
+    if ([self.publishView.commentView isFirstResponder]) {
+        recognizer.cancelsTouchesInView = YES;
+        [self.view endEditing:YES];
+    }else{
+        recognizer.cancelsTouchesInView = NO;
+    }
+}
+- (void)leftBackBarButtonEvent{
+    
+    [self.view endEditing:YES];
+    [self.navigationController popViewControllerAnimated:YES];
+    
+}
+
+#pragma mark -QuestionInfoCellDelegate
+
+-(void)replyMoreBtnClickWithSecfCell:(QuestionInfoCell *)clickCell
+{
+    
+    if (self.clickCell!=clickCell) {
+        
+        [self.clickCell hideMoreBtnWithAnimateWithDuration];
+        self.clickCell=clickCell;
+        
+    }
+}
+-(void)questionReplyMoreBtnWithDetail:(QuestionInfo *)question WithSelectBtnTag:(NSInteger)index
+{
+    self.currentFeedBackAnswer = question;
+
+    if ([question.publishUserInfo.userID isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        
+            UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+            [pasteboard setString:question.questionContent];
+            
+    }
+    else
+    {
+    if(index==0)
+    {
+        ChatViewController *chatViewController = [[ChatViewController alloc] initWithPeerInfo:question.publishUserInfo];
+        chatViewController.whetherBackRootView=NO;
+        [self.navigationController pushViewController:chatViewController animated:YES];
+ 
+        
+    }
+    else if (index==1)
+    {
+        UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+        [pasteboard setString:question.questionContent];
+        
+    }
+    else
+    {
+        UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:@"我们坚决反对色情、暴力、欺诈信息，对您的举报会认真处理"
+                                                                delegate:self
+                                                       cancelButtonTitle:@"取消"
+                                                  destructiveButtonTitle:@"举报"
+                                                       otherButtonTitles:nil];
+        actionSheet.tag=kActionSheetRequestTag;
+        [actionSheet showInView:self.view.window];
+ 
+    }
+    }
+}
+
+- (void)questionCellLongPressed:(QuestionInfoCell *)cell
+{
+    if (cell.curQuestion == self.curQuestionInfo) {
+        //        [self showPasteBoardMenu:cell];
+    }else{
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            
+            //注册控制器
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+            
+            return;
+        }
+        
+        
+        //举报
+        self.currentFeedBackAnswer = cell.curQuestion;
+        
+        if (![cell.curQuestion.publishUserInfo.userID isEqual:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+            
+            UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:@"我们坚决反对色情、暴力、欺诈信息，对您的举报会认真处理"
+                                                                    delegate:self
+                                                           cancelButtonTitle:@"取消"
+                                                      destructiveButtonTitle:@"举报"
+                                                           otherButtonTitles: @"复制", nil];
+            actionSheet.tag=kActionSheetRequestTag;
+            [actionSheet showInView:self.view.window];
+            
+        }
+        else
+        {
+            UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:nil
+                                                                    delegate:self
+                                                           cancelButtonTitle:@"取消"
+                                                      destructiveButtonTitle:@"复制"
+                                                           otherButtonTitles: nil];
+            actionSheet.tag=kActionSheetSelfRequestTag;
+            [actionSheet showInView:self.view.window];
+            
+        }
+        
+    }
+}
+- (void)questionCellDelete:(QuestionInfoCell *)cell
+{
+    self.currentFeedBackAnswer = cell.curQuestion;
+    NSString *strMessage;
+    if (cell.curQuestion == self.curQuestionInfo) {
+        strMessage = @"是否删除该帖子?";
+    }else{
+        strMessage = @"是否删除该回复?";
+    }
+    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@""
+                                                        message:strMessage
+                                                       delegate:self cancelButtonTitle:@"取消"
+                                              otherButtonTitles:@"确定", nil];
+    alertView.tag = kDeleteQuestionAlertViewTag;
+    alertView.delegate = self;
+    [alertView show];
+}
+
+#pragma mark - 点击用户头像进入用户详情界面
+- (void)questionCellPrassClickeDetailed:(QuestionInfoCell *)cell{
+    Log(@"进入详情界面了啊");
+    
+    self.currentFeedBackAnswer = cell.curQuestion ;
+    FriendDetailedInforViewController *viewController = [[FriendDetailedInforViewController alloc]
+                                                         initWithUserInfo:self.currentFeedBackAnswer.publishUserInfo];
+    [self.view endEditing:YES];
+    [self.navigationController pushViewController:viewController animated:YES];
+}
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if (alertView.tag != kDeleteQuestionAlertViewTag) {
+        return;
+    }
+    if (self.currentFeedBackAnswer == nil) {
+        return;
+    }
+    if (buttonIndex == 1) {
+        __weak __typeof(&*self)weakSelf = self;
+        WaittingMBProgressHUD(self.view, @"正在删除...");
+        if (self.currentFeedBackAnswer == self.curQuestionInfo) {
+            [FMHTTPClient deleteQuesiton:self.currentFeedBackAnswer.questionID
+                                  userId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                              withPublic:self.userSendInforIsPublic
+                              completion:^(WebAPIResponse *response) {
+                                  
+                                  dispatch_async(dispatch_get_main_queue(), ^(void){
+                                      
+                                      if(response.code == WebAPIResponseCodeSuccess){
+                                          
+                                          [[NSNotificationCenter defaultCenter] postNotificationName:FMDeleteQuestionNotification object:nil];//触发删除问题通知
+                                          [weakSelf.navigationController popViewControllerAnimated:YES];
+                                      }else{
+                                          FailedMBProgressHUD(weakSelf.view, @"删除失败");
+                                      }
+                                  });
+                              }];
+        }else{
+            [FMHTTPClient deleteReply:self.currentFeedBackAnswer.questionID
+                               userId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                           withPublic:self.userSendInforIsPublic
+                           completion:^(WebAPIResponse *response) {
+                               
+                               dispatch_async(dispatch_get_main_queue(), ^(void){
+                                   
+                                   if(response.code == WebAPIResponseCodeSuccess){
+                                       SuccessMBProgressHUD(weakSelf.view, @"删除成功");
+                                       [weakSelf.tableView triggerPullToRefresh];
+                                   }else{
+                                       FailedMBProgressHUD(weakSelf.view,@"删除失败");
+                                   }
+                               });
+                           }];
+        }
+    }
+}
+#pragma mark -UIActionSheetDelegate
+- (void) actionSheet:(UIActionSheet *)actionSheet willDismissWithButtonIndex:(NSInteger)buttonIndex
+{
+    if (actionSheet.tag==kActionSheetPostTag) {
+        if (self.curQuestionInfo == nil) {
+            return;
+        }
+        
+        
+        if (buttonIndex == 0 ) {
+            WaittingMBProgressHUD(ShareAppDelegate.window, @"正在发送...");
+            [FMHTTPClient feedbackQuestion:self.curQuestionInfo.questionID
+                                    userId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                           withPublicState:self.curQuestionInfo.is_public
+                                completion:^(WebAPIResponse *response) {
+                                    
+                                    dispatch_async(dispatch_get_main_queue(), ^(void){
+                                        
+                                        if(response.code == WebAPIResponseCodeSuccess){
+                                            SuccessMBProgressHUD(ShareAppDelegate.window, @"举报成功");
+                                            
+                                        }else{
+                                            FailedMBProgressHUD(ShareAppDelegate.window,@"举报失败");
+                                        }
+                                    });
+                                }];
+        }
+        
+    }
+    else if(actionSheet.tag==kActionSheetRequestTag)
+    {
+        
+        if (self.currentFeedBackAnswer == nil) {
+            return;
+        }
+        __weak __typeof(&*self)weakSelf = self;
+        if (buttonIndex == 0 ) {
+            WaittingMBProgressHUD(self.view, @"正在发送...");
+            [FMHTTPClient feedbackAnswer:self.currentFeedBackAnswer.questionID
+                                  userId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                         withPublicState:self.userSendInforIsPublic
+                              completion:^(WebAPIResponse *response) {
+                                  
+                                  dispatch_async(dispatch_get_main_queue(), ^(void){
+                                      
+                                      if(response.code == WebAPIResponseCodeSuccess){
+                                          SuccessMBProgressHUD(weakSelf.view, @"举报成功");
+                                          
+                                      }else{
+                                          FailedMBProgressHUD(weakSelf.view,@"举报失败");
+                                      }
+                                  });
+                              }];
+        }
+    }
+    else if (actionSheet.tag==kActionSheetSelfRequestTag)
+    {
+        
+        if (self.currentFeedBackAnswer == nil) {
+            return;
+        }
+        
+        if (buttonIndex == 0 ) {
+            //////复制信息
+            UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+            [pasteboard setString:self.currentFeedBackAnswer.questionContent];
+        }
+    }
+}
+#pragma mark -PublishViewDelegate
+- (void)didPublishViewLayoutChanged:(CGFloat)bottom withHeight:(CGFloat)height;
+{
+    [UIView beginAnimations:@"LayoutView" context:nil];
+    [UIView setAnimationDuration:0.3f];
+    
+    CGRect rc = self.view.bounds;
+    
+    self.publishView.frame = CGRectMake(0,
+                                        rc.size.height - height - bottom,
+                                        rc.size.width,
+                                        height);
+    [UIView commitAnimations];
+}
+
+///添加关注 ， 即关注此人
+- (void)initWithUserAddAttentionFriendOperation{
+    
+    WaittingMBProgressHUD(HUIKeyWindow, @"正在发送...");
+    [FMHTTPClient addToAttentionList:[CurrentUserInformation sharedCurrentUserInfo].userID
+                     attentionUserId:self.curQuestionInfo.publishUserInfo.userID completion:^(WebAPIResponse *response) {
+                         dispatch_async(dispatch_get_main_queue(), ^(void){
+                             
+                             if(response.code == WebAPIResponseCodeSuccess){
+                                 
+                                 SuccessMBProgressHUD(HUIKeyWindow, @"关注成功");
+                                 self.userAttentionString=@"取消关注";
+                                 
+                             }else{
+                                 
+                                 FailedMBProgressHUD(HUIKeyWindow,@"关注失败");
+                             }
+                         });
+                     }];
+}
+//取消关注
+- (void)initWIthUserDelegateAttentionFriendOperation{
+    WaittingMBProgressHUD(HUIKeyWindow, @"正在发送...");
+    [FMHTTPClient CancelToAttentionList:[CurrentUserInformation sharedCurrentUserInfo].userID
+                        attentionUserId:self.curQuestionInfo.publishUserInfo.userID
+                             completion:^(WebAPIResponse *response) {
+                                 dispatch_async(dispatch_get_main_queue(), ^(void){
+                                     
+                                     if(response.code == WebAPIResponseCodeSuccess){
+                                         
+                                         FinishMBProgressHUD(HUIKeyWindow);
+                                         self.userAttentionString=@"关注此人";
+                                         
+                                     }else{
+                                         
+                                         FailedMBProgressHUD(HUIKeyWindow,@"取消失败");
+                                     }
+                                 });
+                             }];
+    
+}
+-(void)initWithFriendDetaildWithAttentionInfo:(NSString *)attentionInfo AndWithUserId:(NSString *)userId
+{
+    if ([self.curQuestionInfo.publishUserInfo.userID isEqualToString:userId]) {
+        
+        self.userAttentionString=attentionInfo;
+    }
+}
+
+- (void) leftloginNotification:(NSNotification *) notification{
+    
+    [self createNav];
+}
+
+-(void)createNav
+{
+    
+    if (![self.curQuestionInfo.publishUserInfo.userID isEqual:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        
+        [self setRightNavButtonFA:FMIconList
+                        withFrame:kNavButtonRect
+                     actionTarget:self
+                           action:@selector(initWithRightBarButtonEvent)];
+    }
+    else
+    {
+        
+        [self setRightNavButtonFA:FMIconCut
+                        withFrame:kNavButtonRect
+                     actionTarget:self
+                           action:@selector(initWithScreenshotButtonEvent)];
+    }
+}
+
+@end

@@ -1,0 +1,28 @@
+//
+//  ImBuffer.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-9-30.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+
+#define BUFFER_MIN_SIZE		0x20
+#define BUFFER_MAX_SIZE		0xFFFF
+
+
+@interface ImBuffer : NSObject
+
+-(BOOL) appendData:(const char*)data withLength:(uint16_t)len;
+-(BOOL) appendLv:(const char*)data withLength:(uint16_t)len;
+-(BOOL) appendByte:(uint8_t)val;
+-(BOOL) appendShort:(uint16_t)val;
+-(BOOL) appendInt:(uint32_t)val;
+-(BOOL) appendString:(NSString* )val;
+-(uint8_t* )getBytes;
+-(uint16_t)getSize;
+-(void)empty;
+-(void)removeHead:(uint16_t) len;
+@end

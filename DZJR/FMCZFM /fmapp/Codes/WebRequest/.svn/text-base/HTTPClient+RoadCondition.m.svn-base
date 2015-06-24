@@ -1,0 +1,130 @@
+//
+//  HTTPClient+Interaction.m
+//  FM_CZFW
+//
+//  Created by liyuhui on 14-4-14.
+//  Copyright (c) 2014年 ETelecom. All rights reserved.
+//
+
+#import "HTTPClient+RoadCondition.h"
+
+@implementation HTTPClient (RoadCondition)
+
+- (AFHTTPRequestOperation *)getRoadConditionAround:(CLLocationCoordinate2D)location
+                                        completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = @{kDataKeyLatitude: [NSNumber numberWithDouble:location.latitude],
+                                 kDataKeyLongitude: [NSNumber numberWithDouble:location.longitude]
+                                 };
+    
+    return [self postPath:kRoadConditionsURL
+               parameters:parameters
+               completion:completion];
+}
+
+//获取地理提示信息
+- (AFHTTPRequestOperation *)getGeoInfoTips:(NSString* )keyWord
+                                completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = @{@"name": keyWord};
+    
+    
+    return [self postPath:KGetGeoInfoTipURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)publishRoadCondition:(RoadConditionInfo* )roadConditionInfo
+                                       shareType:(NSInteger)shareType
+                                      completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSMutableDictionary *parameters = (NSMutableDictionary* )[roadConditionInfo generateRoadConditionJSONDic];
+    if (parameters == nil) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    [parameters setObject:[NSNumber numberWithInteger:shareType] forKey:@"is_interact"];
+    return [self postPath:kAddRoadConditionInfoURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getRoadConditionForAudioInforLocationCoordinate:(CLLocationCoordinate2D)location
+                                                                 completion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{kDataKeyLatitude: [NSNumber numberWithDouble:location.latitude],
+                                 kDataKeyLongitude: [NSNumber numberWithDouble:location.longitude]
+                                 };
+    return [self postPath:KRoadGetInforForAudioURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)userOperationDeleteRoadConditionItemInforForRoadId:(NSString *)roadID
+                                                                    withUserId:(NSString *)userID
+                                                                withCompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{KUserPersonalID: userID,
+                                 kDataKeyId:roadID
+                                 };
+    
+    return [self postPath:KRoadUserDeleteRoadItemURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getRoadConditionInforForDoubleLocationCoordinateWithLeftLocationCoordinate:(CLLocationCoordinate2D)leftLocation
+                                                                           withRightLocationCoordinate:(CLLocationCoordinate2D)rightLocation
+                                                                                        withcompletion:(WebAPIRequestCompletionBlock)completion{
+    NSDictionary *parameters = @{@"latitude1": [NSNumber numberWithDouble:leftLocation.latitude],
+                                 @"longitude1": [NSNumber numberWithDouble:leftLocation.longitude],
+                                 @"latitude2": [NSNumber numberWithDouble:rightLocation.latitude],
+                                 @"longitude2": [NSNumber numberWithDouble:rightLocation.longitude],
+                                 };
+    return [self postPath:KRoadGetIniforListForSquareURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+- (AFHTTPRequestOperation *)getRoadMainControllerBusinessInformationDataWithcompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KRoadForWelfareMerchantURL
+               parameters:Nil
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getTransactionParameterToServiceForPayBusinessWithParam:(WelfareMerchantInfor *)businessParameter withcompletion:(WebAPIRequestCompletionBlock)completion{
+    
+    return [self postPath:KRoadTransactionParamUploadURL
+               parameters:[businessParameter getWelfareMerchantInforParameter]
+                 completion:completion];
+}
+
+
+- (AFHTTPRequestOperation *)userPaySuccessWithAlipayResponseData:(NSString *)responseStr
+                                                  purchaseAmount:(NSString *)number
+                                                          userId:(NSString *)userId
+                                                 withTradeNumber:(NSString *)tradeNumber
+                                                      completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([responseStr length] <= 0 || [number length] <=  0 || [userId length] <= 0) {
+        return nil;
+    }
+    NSDictionary *parameters = @{@"alipay": responseStr,
+                                @"number": number,
+                                @"userId": userId,
+                                 @"out_trade_no": tradeNumber};
+    
+    return [self postPath:KRoadCarWelfareFinishURL
+               parameters:parameters
+               completion:completion];
+}
+
+
+- (AFHTTPRequestOperation *)getWeiXinChatParamForPayWithCompletion:(WebAPIRequestCompletionBlock)completion{
+    return [self postPath:KWeixinChatPayParamURL
+               parameters:nil
+               completion:completion];
+}
+
+@end

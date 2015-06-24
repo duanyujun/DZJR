@@ -1,0 +1,1050 @@
+//
+//  ChatViewController.m
+//  fmapp
+//
+//  Created by SDYK on 14-9-17.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "ChatViewController+xmpp.h"
+#import "MessageCell.h"
+#import "WARVChatPanelView.h"
+#import "CellFrameModel.h"
+#import "FMMessage.h"
+#import "FMAudioManager.h"
+#import "FMImageView.h"
+#import "IMManager.h"
+#import "ImBuffer.h"
+#import "IMClient.h"
+#import "HTTPClient.h"
+#import "FMSettings.h"
+#import "CurrentUserInformation.h"
+#import "MeViewController.h"
+#import "FriendDetailedInforViewController.h"
+#import "UserInfo.h"
+#import "HTTPClient+Friends.h"
+#import "ExpressView.h"
+#import <AVFoundation/AVFoundation.h>
+#import "TSMessage.h"
+#import "TSMessageView.h"
+#import "ChatViewController+xmpp.h"
+#import "FBEncryptorAES.h"
+#import "LocalDataManagement.h"
+
+
+#define kMessageKey                     @"msgKey"
+#define kMessageKeyFooter               @"msgKeyFooter"
+#define kXMPPNewMsgNotifaction          @"xmppNewMsgNotifaction"
+
+
+
+#define kPublishViewHeight              45          // 发布视图高度
+#define KPublishExpressHeight           216
+#define kTakePictureActionSheetTag      10010
+#define KCopyTextActionSheetTag         10011
+#define KCopyAndDeleteTextActionSheetTag  10012
+#define KDeleteChatActionSheetTag         10013
+
+#define KCodeWordsViewBGColor           [UIColor colorWithRed:0.0f green:0.0f blue:0.0f alpha:0.5]
+
+@interface ChatViewController () <UITableViewDelegate, UITableViewDataSource, WARVChatPanelViewDelegate,
+UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIActionSheetDelegate,
+MessageCellDelegate, UITextViewDelegate,FMAudioManagerDelegate>
+
+
+@property (nonatomic, weak)   WARVChatPanelView  *sendMessageView;     // 发布视图
+@property (nonatomic, strong) ExpressView      *expressionView;        // 表情视图
+@property (nonatomic, assign) HUIKeybordType    nextKeyBoard;
+
+// 录音相关
+@property (nonatomic, strong)  FMAudioManager   *audioManager;
+@property (nonatomic, strong)  IMManager        *imManager;
+
+@property (nonatomic, weak)    AFHTTPRequestOperation   *requestDataOperation;  //请求列表数据的操作
+@property (nonatomic, weak)     HUILoadMoreCell          *loadMoreCell;
+@property (nonatomic, assign)   BOOL                     canLoadMore;
+@property (nonatomic, assign)   NSInteger                lastMsgNo;
+
+@property (nonatomic,strong) CellFrameModel         *cellCopyCount;
+
+
+@property (nonatomic, assign, readonly) UIEdgeInsets originalTableViewContentInset;
+
+
+@end
+
+@implementation ChatViewController
+
+//- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+//{
+//    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+//    if (self) {
+//        self.enableCustomNavbarBackButton =NO;
+//    }
+//    return self;
+//}
+
+- (id)initWithPeerInfo:(UserInfo* )friendInfo;
+{
+    self = [super init];
+    if (self) {
+        
+        self.enableCustomNavbarBackButton = FALSE;
+        self.userFriendInfo = friendInfo;
+        [self settingNavTitle:[friendInfo userName]];
+        
+        self.dataSource = [NSMutableArray array];
+        self.canLoadMore = YES;
+        _lastMsgNo = 0;
+        self.whetherBackRootView=YES;
+        self.whetherPushInfo=NO;
+    }
+    return self;
+}
+
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KButtonBackgroundImageColor;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    self.whetherReceiveData = NO;
+    self.whetherSendData = NO;
+    
+    
+    self.imManager = [IMManager sharedIMManager];
+    if (![self.imManager.Client isConnected]) {
+        [TSMessage showNotificationWithTitle:NSLocalizedString(@"服务器连接已断开,无法发送消息", nil) type:TSMessageNotificationTypeError];
+    }
+    CGRect rect = self.view.bounds;
+    self.navButtonSize = KNavSize;
+    //    [self setRightNavButtonFA:FMIconFriend
+    //                    withFrame:kNavButtonRect
+    //                 actionTarget:self
+    //                       action:@selector(rightItemClicked)];
+    
+    [self setLeftNavButtonFA:FMIconLeftArrow withFrame:kNavButtonRect
+                actionTarget:self action:@selector(leftBackButtonEvent)];
+    
+    [self setRightNavButtonFA:FMIconMe
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(rightItemClicked)];
+    
+    // TabelView
+    UITableView *tableView = [[UITableView alloc] initWithFrame:CGRectMake(0.0f,
+                                                                           0.0f,
+                                                                           rect.size.width,
+                                                                           rect.size.height-kPublishViewHeight)
+                                                          style:UITableViewStylePlain];
+    tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    tableView.delegate = self;
+    tableView.dataSource = self;
+    tableView.backgroundColor = [UIColor clearColor];
+    
+    [self.view addSubview:tableView];
+    self.messageListTableView = tableView;
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc]
+                                   initWithTarget:self action:@selector(didTapOnTableView:)];
+    [tableView addGestureRecognizer:tap];
+    
+    
+    // 发布文本框
+    WARVChatPanelView *commentView = [[WARVChatPanelView alloc] initWithFrame:CGRectMake(0.0f,
+                                                                                         rect.size.height - kPublishViewHeight,
+                                                                                         rect.size.width,
+                                                                                         kPublishViewHeight)];
+    
+    commentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
+    commentView.delegate = self;
+    [self.view addSubview:commentView];
+    self.sendMessageView = commentView;
+    
+    [self addKeyboardNotification];
+    
+    self.imManager = [IMManager sharedIMManager];
+    self.audioManager = [[FMAudioManager alloc] init];
+    self.audioManager.delegate = self;
+    [self.imManager.Client addDelegate:self
+                         delegateQueue:dispatch_get_main_queue()];
+    [self.messageListTableView.panGestureRecognizer addTarget:self action:@selector(handlePanGesture:)];
+    
+}
+- (void)viewDidAppear:(BOOL)animated{
+    if (self.whetherPushInfo) {
+        [self sendTextMessage:@"【系统提示】我看了你在圈子里发布的帖子，想和你私信聊聊。"];
+        self.whetherPushInfo=NO;
+    }
+}
+- (void)viewDidUnload
+{
+    if (HUISystemVersionBelow(kHUISystemVersion_6_0))
+        [super viewDidUnload];
+    
+    [self.requestDataOperation cancel];
+    self.messageListTableView.dataSource = nil;
+    self.messageListTableView.delegate = nil;
+    self.audioManager = nil;
+    [self.imManager.Client removeDelegate:self
+                            delegateQueue:dispatch_get_main_queue()];
+}
+- (void)viewWillDisappear:(BOOL)animated
+{
+    ///若发送和接受进行过一次，则需要进行通知操作
+    if (self.whetherSendData == YES || self.whetherReceiveData == YES) {
+        //发送会话完成通知消息
+        CellFrameModel* msgModel = nil;
+        if (self.dataSource.count > 0) {
+            msgModel = [self.dataSource lastObject];
+        }
+        [[NSNotificationCenter defaultCenter] postNotificationName:FMIMP2PChatFinishNotification
+                                                            object:msgModel.message];
+        ///若有接收，则需要设置为已读
+        if (self.whetherReceiveData == YES) {
+            
+            ///设置为已读
+            [self getMsgReadInforWithCurrUserId:[CurrentUserInformation sharedCurrentUserInfo].userID
+                                 withChatUserID:self.userFriendInfo.userID];
+        }
+    }
+}
+- (void)viewWillAppear:(BOOL)animated
+{
+    [self scrollToBottomAnimated:NO];
+    _originalTableViewContentInset = self.messageListTableView.contentInset;
+    
+}
+- (ExpressView *)expressionView
+{
+    if (_expressionView != nil)
+        return _expressionView;
+    
+    CGRect rc = self.view.frame;
+    
+    _expressionView = [[ExpressView alloc] initWithFrame:CGRectMake(0,
+                                                                    rc.size.height-KPublishExpressHeight,
+                                                                    rc.size.width,
+                                                                    KPublishExpressHeight)];
+    _expressionView.delegate = self.sendMessageView;
+    return _expressionView;
+    
+}
+- (void)leftBackButtonEvent{
+    [FMShareSetting setAppUserPersonalChatUserIdString:@""];
+    if (self.whetherBackRootView) {
+        [self.navigationController popToRootViewControllerAnimated:YES];
+        
+    }
+    else
+    {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+- (void)handlePanGesture:(UIPanGestureRecognizer *)pan {
+    if (pan.state == UIGestureRecognizerStateBegan) {
+        if ([self.sendMessageView.textField isFirstResponder]) {
+            self.nextKeyBoard = HUIKeybordNone;
+            self.sendMessageView.textField.inputView = nil;
+            [self.view endEditing:YES];
+        }
+    }
+}
+
+- (void)scrollToBottomAnimated:(BOOL)animated
+{
+    NSInteger rows = [self.messageListTableView numberOfRowsInSection:0];
+    if (rows > 0) {
+        [self.messageListTableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:rows-1 inSection:0]
+                                         atScrollPosition:UITableViewScrollPositionBottom
+                                                 animated:animated];
+    }
+}
+
+- (void)showNewMessages:(NSArray *)messageList{
+    
+    [self.messageListTableView beginUpdates];
+    int n = [messageList count];
+    NSMutableArray *indexPaths = [NSMutableArray arrayWithCapacity:n];
+    for (FMMessage *addedMessage in messageList) {
+        CellFrameModel* newCellFrameModel = [[CellFrameModel alloc] init];
+        newCellFrameModel.message = addedMessage;
+        [self.dataSource insertObject:newCellFrameModel atIndex:0];
+        [indexPaths insertObject:[NSIndexPath indexPathForRow:(n-1) inSection:0] atIndex:0];
+        n--;
+    }
+    [self.messageListTableView insertRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationNone];
+    [self.messageListTableView endUpdates];
+}
+
+
+- (void)showNewMessage:(FMMessage *)addedMessage location:(NSInteger)pos{
+    
+    //int rows = [self.dataSource count] + 1;
+    CellFrameModel* newCellFrameModel = [[CellFrameModel alloc] init];
+    newCellFrameModel.message = addedMessage;
+    
+    addedMessage.msgNo = self.lastMsgNo++;
+    if(pos == -1)
+    {
+        [self.dataSource addObject:newCellFrameModel];
+    }else{
+        [self.dataSource insertObject:newCellFrameModel atIndex:pos];
+    }
+    //使用insertRowsAtIndexPaths的方式会导致scrollToBottomAnimated不准，故采用reloadData方式
+    /*
+     NSMutableArray *indexPaths = [NSMutableArray arrayWithCapacity:1];
+     if(pos == -1){
+     [indexPaths addObject:[NSIndexPath indexPathForRow:rows inSection:0]];
+     }else{
+     [indexPaths addObject:[NSIndexPath indexPathForRow:pos inSection:0]];
+     }
+     
+     [self.messageListTableView insertRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationNone];
+     */
+    [self.messageListTableView reloadData];
+    [self scrollToBottomAnimated:YES];
+    
+}
+-(void)deleteSelfMessageWithlocation:(NSInteger)pos
+{
+    
+    [self.dataSource removeObjectAtIndex:pos-1];
+    [self.messageListTableView reloadData];
+    //    [self scrollToBottomAnimated:YES];
+}
+
+- (void)updateMessage:(uint32_t)flowno updateStauts:(IMMessageStatus)status
+{
+    NSArray* visibleRows = [self.messageListTableView indexPathsForVisibleRows];
+    for (NSIndexPath* path in visibleRows) {
+        if (path.row > 0 && path.row <= [self.dataSource count] ) {
+            CellFrameModel* cell = [self.dataSource objectAtIndex:(path.row - 1)];
+            FMMessage* msg = cell.message;
+            if (msg.flowno == flowno) {
+                msg.msgStatus = status;
+                NSArray* reloadRows = [NSArray arrayWithObjects:path, nil];
+                [self.messageListTableView reloadRowsAtIndexPaths:reloadRows withRowAnimation:UITableViewRowAnimationNone];
+                break;
+            }
+        }
+    }
+}
+- (BOOL)showMessageTime:(FMMessage *)message insertPos:(NSInteger)pos
+{
+    int n = pos;
+    if(pos < 0){
+        n = [self.dataSource count];
+    }
+    if (n == 0) {
+        return YES;
+    } else {
+        CellFrameModel *pastCellFrame = self.dataSource[n - 1];
+        if (message.msgTime - pastCellFrame.message.msgTime > 60) {
+            return YES;
+        }
+        
+    }
+    return NO;
+}
+
+- (void)viewWillLayoutSubviews:(BOOL)animated
+{
+    CGRect rc = self.view.bounds;
+    self.sendMessageView.frame = CGRectMake(0.0f,
+                                            rc.size.height - kPublishViewHeight,
+                                            rc.size.width,
+                                            kPublishViewHeight);
+    self.messageListTableView.frame = CGRectMake(0.0f,
+                                                 0.0f,
+                                                 rc.size.width,
+                                                 rc.size.height - kPublishViewHeight);
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+
+- (void)dealloc
+{
+    
+}
+
+#pragma mark UITableViewDataSource
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 1;
+}
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count] + 1;
+}
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+        
+    }
+    MessageCell *cell = [[MessageCell alloc] init];
+    cell.delegate = self;
+    cell.audioManager = self.audioManager;
+    return cell;
+}
+
+- (float)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if ([self _isLoadMoreCellAtIndexPath:indexPath]) {
+        return kSizeLoadMoreCellHeight;
+    }
+    
+    if (indexPath.row <= [self.dataSource count]) {
+        CellFrameModel *cellFrame = [self.dataSource objectAtIndex:(indexPath.row - 1)];
+        return cellFrame.cellHeight;
+    }
+    return 40.0f;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellIdentifier = @"MessageCell";
+    BOOL isLoadingMoreCell = [self _isLoadMoreCellAtIndexPath:indexPath];
+    cellIdentifier = isLoadingMoreCell ? kHUILoadMoreCellIdentifier : cellIdentifier;
+    
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    if (cell == nil) {
+        cell = [self createCellWithIdentifier:cellIdentifier];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    }
+    if (!isLoadingMoreCell) {
+        [self _configureCell:cell forRowAtIndexPath:indexPath];
+    } else {
+        self.loadMoreCell = (HUILoadMoreCell*)cell;
+        if (self.canLoadMore)
+        {
+            __weak __typeof(&*self)weakSelf = self;
+            [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                [weakSelf loadMoreMessageData];
+            }];
+            [(HUILoadMoreCell*)cell startLoadMore];
+        }
+        else
+        {
+            if (self.messageListTableView.pullToRefreshView.state == SVPullToRefreshStateLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+            }else{
+                cell.textLabel.text = @"无更多历史消息";
+            }
+        }
+    }
+    
+    return cell;
+}
+
+- (void)_configureCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.row > [self.dataSource count]) {
+        return;
+    }
+    CellFrameModel *cellFrame = [self.dataSource objectAtIndex:(indexPath.row - 1)];
+    MessageCell *messageCell = (MessageCell *)cell;
+    messageCell.cellFrame = cellFrame;
+    messageCell.cellFrame.selectedCellIndexPath=indexPath;
+
+}
+#pragma mark UITableViewDelegate
+- (BOOL)_isLoadMoreCellAtIndexPath:(NSIndexPath *)indexPath
+{
+    return (indexPath.row == 0);
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    
+}
+#pragma mark SendMessageViewDelegate
+
+- (void)didPublishViewLayoutChanged:(CGFloat)bottom withHeight:(CGFloat)height;
+{
+    
+    [UIView beginAnimations:@"LayoutView" context:nil];
+    [UIView setAnimationDuration:0.3f];
+    
+    CGRect rect = self.view.bounds;
+    
+    self.sendMessageView.frame = CGRectMake(0,
+                                            rect.size.height - height - bottom,
+                                            rect.size.width,
+                                            height);
+    [UIView commitAnimations];
+    
+    self.messageListTableView.contentInset = UIEdgeInsetsMake(0.0f,
+                                                              0.0f,
+                                                              bottom + height,
+                                                              0.0f);
+    [self scrollToBottomAnimated:YES];
+    
+}
+
+
+#pragma mark 按钮点击事件
+- (void)rightItemClicked
+{
+    FriendDetailedInforViewController *friendDetailedInfoViewController =
+    [[FriendDetailedInforViewController alloc] initWithUserId:self.userFriendInfo.userID];
+    [self.navigationController pushViewController:friendDetailedInfoViewController animated:YES];
+}
+
+
+- (NSString *)getFirstMsgId
+{
+    NSString *firstMsgId = @"0";
+    if ([self.dataSource count] >0) {
+        CellFrameModel *cellFrame = [self.dataSource firstObject];
+        firstMsgId = [NSString stringWithFormat:@"%d",cellFrame.message.messageId];
+    }
+    return firstMsgId;
+}
+
+- (void)loadMoreMessageData
+{
+    // 停掉当前未完成的请求操作
+    [self.requestDataOperation cancel];
+    
+    [self getIMChatRecordWithFristMsgId:[self getFirstMsgId]
+                            currentPage:1];
+}
+
+
+
+////字符填充（填充“0”）
+- (NSString *)formatStringWithString:(NSString *)string length:(int)length{
+    
+    int strLen = [string length];
+    
+    NSString *sourceString = @"0";
+    
+    NSMutableString *result = [[NSMutableString alloc] init];
+    
+    for (int i = 0; i < (length - strLen); i++)
+    {
+        [result appendString:sourceString];
+    }
+    [result appendString:string];
+    
+    return result;
+}
+
+///拼接用户ID
+- (NSString *)getUsersIdInforStrWithUserId:(NSString *)userId
+                            withChatUserId:(NSString *)chatUserId{
+    ///对方ID内容
+    NSInteger chatUserIdInteger = [chatUserId integerValue];
+    ///当前用户ID内容
+    NSInteger userIdInteger = [userId integerValue];
+    
+    NSMutableString *securyCode = [NSMutableString stringWithString:@""];
+    
+    ///较大的用户ID排在前段
+    if(chatUserIdInteger > userIdInteger){
+        
+        [securyCode appendString:[self formatStringWithString:userId length:9]];
+        [securyCode appendString:[self formatStringWithString:chatUserId length:9]];
+        
+    }else{
+        
+        [securyCode appendString:[self formatStringWithString:chatUserId length:9]];
+        [securyCode appendString:[self formatStringWithString:userId length:9]];
+    }
+    
+    return securyCode;
+}
+
+///获取密码内容
+- (NSString *)currentUserPassword{
+    
+    ///当前用户登录的密码
+    LocalDataManagement *dataManagement = [[LocalDataManagement alloc] init];
+    //用户登录字典
+    NSDictionary *userLoginDic = [[NSDictionary alloc] initWithDictionary:[dataManagement getUserFileWithUserFileType:CYHUserLoginInfoFile]];
+    
+    NSString *userPwd = [NSString stringWithFormat:@"%@",[userLoginDic objectForKey:@"Password"]];//密码;
+    
+    return [EncryptPassword(userPwd) lowercaseString];
+}
+
+- (NSString *)getsecuryCodeStringWithUserId:(NSString *)userId
+                             withChatUserId:(NSString *)chatUserId{
+    
+    ///用户ID字符串
+    NSString *userIdString = [self getUsersIdInforStrWithUserId:userId withChatUserId:chatUserId];
+    
+    ///当前用户ID
+    NSString *userPwd = [self currentUserPassword];
+    
+    
+    ///加密处理设置
+    char iv[] = {0x12, 0x34, 0x56, 0x78, 0x90,0xAB, 0xCD, 0xEF,
+        0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF};
+    NSData *ivData = [NSData dataWithBytes:iv length:16];
+    
+    NSData *data = [FBEncryptorAES encryptData:[userIdString dataUsingEncoding:NSUTF8StringEncoding]
+                                           key:[userPwd dataUsingEncoding:NSUTF8StringEncoding]
+                                            iv:ivData];
+    return [data base64EncodedString];
+}
+
+#pragma mark 查询聊天记录
+- (void)getIMChatRecordWithFristMsgId:(NSString *)firstId currentPage:(NSInteger)page
+{
+    CurrentUserInformation* myInfo = [CurrentUserInformation sharedCurrentUserInfo];
+    
+    NSString *securyCodeString = [self getsecuryCodeStringWithUserId:myInfo.userID withChatUserId:self.userFriendInfo.userID];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation =
+    [FMHTTPClient getMessageWithLatestDataForChatHistoryWithLoginUserId:
+     [CurrentUserInformation sharedCurrentUserInfo].userID
+                                                           withToUserId:self.userFriendInfo.userID
+                                                          withLastMsgId:firstId
+                                                               withPage:page
+                                                         withSecuryCode:securyCodeString
+                                                             completion:^(WebAPIResponse *response) {
+                                                                 Log(@"%@",response.responseObject);
+                                                                 dispatch_async(dispatch_get_main_queue(), ^(void) {
+                                                                     
+                                                                     if (response.code == WebAPIResponseCodeSuccess) {
+                                                                         //NSMutableArray *cellList = [NSMutableArray array];
+                                                                         int insert_count = 0;
+                                                                         NSArray *dataArray = [response.responseObject objectForKey:kDataKeyData];
+                                                                         if ([dataArray isKindOfClass:[NSArray class]]) {
+                                                                             NSArray* dataList = [[dataArray reverseObjectEnumerator] allObjects];
+                                                                             for (NSDictionary *dic in dataList) {
+                                                                                 FMMessage *message = [[FMMessage alloc] init];
+                                                                                 NSString *content = StringForKeyInUnserializedJSONDic(dic, @"content");
+                                                                                 NSString *createTime = StringForKeyInUnserializedJSONDic(dic, @"createtime");
+                                                                                 NSInteger msgId = IntForKeyInUnserializedJSONDic(dic, @"id");
+                                                                                 NSString *userId = StringForKeyInUnserializedJSONDic(dic, @"userId");
+                                                                                 
+                                                                                 if ([userId isEqualToString:myInfo.userID])
+                                                                                 {
+                                                                                     message.sendOrReceive = MessageSend;
+                                                                                     message.userName = myInfo.userName;
+                                                                                     message.userIconKey = myInfo.userCarBrandImageUrl;
+                                                                                     
+                                                                                 } else {
+                                                                                     message.sendOrReceive = MessageReceive;
+                                                                                     message.userName = weakSelf.userFriendInfo.userName;
+                                                                                     message.userIconKey = weakSelf.userFriendInfo.userAvatar;
+                                                                                 }
+                                                                                 message.userId=userId;
+                                                                                 message.chatUserId = weakSelf.userFriendInfo.userID;
+                                                                                 message.content = content;
+                                                                                 message.msgTime = [createTime intValue];
+                                                                                 message.messageId = msgId;
+                                                                                 message.isShowTime = [weakSelf showMessageTime:message insertPos:insert_count];
+                                                                                 message.msgNo = weakSelf.lastMsgNo++;
+                                                                                 CellFrameModel* newCellFrameModel = [[CellFrameModel alloc] init];
+                                                                                 newCellFrameModel.message = message;
+                                                                                 [weakSelf.dataSource insertObject:newCellFrameModel atIndex:insert_count];
+                                                                                 insert_count++;
+                                                                                 
+                                                                             }
+                                                                         }
+                                                                         //无更多信息
+                                                                         if (insert_count == 0) {
+                                                                             weakSelf.canLoadMore = NO;
+                                                                         }
+                                                                         NSArray* visibleArr = [weakSelf.messageListTableView indexPathsForVisibleRows];
+                                                                         [weakSelf.messageListTableView reloadData];
+                                                                         
+                                                                         
+                                                                         
+                                                                         if ([visibleArr count] == 0) {
+                                                                             [weakSelf scrollToBottomAnimated:NO];
+                                                                         }else{
+                                                                             NSIndexPath* path = [visibleArr lastObject];
+                                                                             NSIndexPath* newPath = [NSIndexPath indexPathForRow:path.row + insert_count
+                                                                                                                       inSection:path.section];
+                                                                             [weakSelf.messageListTableView scrollToRowAtIndexPath:newPath
+                                                                                                                  atScrollPosition:UITableViewScrollPositionBottom
+                                                                                                                          animated:NO];
+                                                                         }
+                                                                     } else {
+                                                                         
+                                                                         if (response.code == WebAPIResponseCodeNetError) {
+                                                                             ShowAutoHideMBProgressHUD(weakSelf.view,NETERROR_LOADERR_TIP);
+                                                                         }
+                                                                         self.canLoadMore = NO;
+                                                                         if (self.loadMoreCell) {
+                                                                             [self.loadMoreCell stopLoadingAnimation];
+                                                                             if (response.code == WebAPIResponseCodeNetError) {
+                                                                                 self.loadMoreCell.textLabel.text = LOADMORE_LOADFAILD;
+                                                                             } else {
+                                                                                 self.loadMoreCell.textLabel.text = LOADMORE_LOADOVER;
+                                                                             }
+                                                                         }
+                                                                         
+                                                                     }
+                                                                     
+                                                                 });
+                                                             }];
+}
+
+#pragma mark MessageCellDelegate
+- (void)showMyselfInformation
+{
+    FriendDetailedInforViewController *meViewController = [[FriendDetailedInforViewController alloc] initWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID];
+    [self.navigationController pushViewController:meViewController animated:YES];
+}
+
+- (void)showFriendInformation
+{
+    FriendDetailedInforViewController *friendDetailedInfoViewController = [[FriendDetailedInforViewController alloc] initWithUserId:self.userFriendInfo.userID];
+    [self.navigationController pushViewController:friendDetailedInfoViewController animated:YES];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
+{
+    [picker dismissModalViewControllerAnimated:YES];
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+    
+}
+
+#pragma mark 添加键盘出现或消失时的通知
+- (void) addKeyboardNotification
+{
+    // 添加键盘出现通知
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardWillAppear:)
+                                                 name:UIKeyboardWillShowNotification
+                                               object:nil];
+    // 添加键盘隐藏通知
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardWillDisappear:)
+                                                 name:UIKeyboardWillHideNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardDidHide:)
+                                                 name:UIKeyboardDidHideNotification
+                                               object:nil];
+}
+
+#pragma mark 键盘通知
+// 键盘出现时的通知
+- (void)keyboardWillAppear:(NSNotification *)notification
+{
+    CGRect keyBoardRect = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+    CGFloat deltaY      = keyBoardRect.size.height;
+    
+    
+    [self didPublishViewLayoutChanged:deltaY
+                           withHeight:self.sendMessageView.frame.size.height];
+    
+    
+    self.messageListTableView.contentInset = UIEdgeInsetsMake(0.0f,
+                                                              0.0f,
+                                                              self.originalTableViewContentInset.bottom+keyBoardRect.size.height,
+                                                              0.0f);
+    [self scrollToBottomAnimated:YES];
+    
+    
+}
+
+// 键盘隐藏时的通知
+- (void)keyboardWillDisappear:(NSNotification *)notification
+{
+    
+    [self didPublishViewLayoutChanged:0.0
+                           withHeight:self.sendMessageView.frame.size.height];
+    
+    [UIView animateWithDuration:0.25f
+                     animations:^{
+                         
+                         self.messageListTableView.contentInset = UIEdgeInsetsMake(0.0f,
+                                                                                   0.0f,
+                                                                                   self.originalTableViewContentInset.bottom,
+                                                                                   0.0f);
+                         [self scrollToBottomAnimated:YES];
+                     }
+                     completion:^(BOOL finished) {
+                         
+                     }];
+}
+
+- (void)keyboardDidHide:(NSNotification *)notification {
+    
+    if (self.nextKeyBoard == HUIKeybordExpress) {
+        self.sendMessageView.textField.inputView = self.expressionView;
+        [self.sendMessageView.textField becomeFirstResponder];
+    }else if (self.nextKeyBoard == HUIKeybordDefault) {
+        self.sendMessageView.textField.inputView = nil;
+        [self.sendMessageView.textField becomeFirstResponder];
+    }
+    
+}
+#pragma mark 点击收起键盘
+-(void) didTapOnTableView:(UIGestureRecognizer*) recognizer
+{
+    
+    if ([self.sendMessageView.textField isFirstResponder]) {
+        recognizer.cancelsTouchesInView = YES;
+        self.nextKeyBoard = HUIKeybordNone;
+        self.sendMessageView.textField.inputView = nil;
+        [self.view endEditing:YES];
+        
+    } else {
+        recognizer.cancelsTouchesInView = NO;
+    }
+}
+
+#pragma mark WARVChatPanelViewDelegate
+- (void)chatPanelViewExpessClick:(WARVChatPanelView *)view
+{
+    if([self.sendMessageView.textField isFirstResponder])
+    {
+        self.sendMessageView.textField.inputView = self.expressionView;
+        self.nextKeyBoard = HUIKeybordExpress;
+        [self.sendMessageView.textField resignFirstResponder];
+    }else{
+        self.sendMessageView.textField.inputView = self.expressionView;
+        [self.sendMessageView.textField becomeFirstResponder];
+    }
+}
+- (void)chatPanelViewKeyboardClick:(WARVChatPanelView *)view
+{
+    if([self.sendMessageView.textField isFirstResponder])
+    {
+        self.sendMessageView.textField.inputView = nil;
+        self.nextKeyBoard = HUIKeybordDefault;
+        [self.sendMessageView.textField resignFirstResponder];
+    }else{
+        self.sendMessageView.textField.inputView = nil;
+        [self.sendMessageView becomeFirstResponder];
+    }
+}
+//点击图片按钮
+- (void)chatPanelViewImageClick:(WARVChatPanelView *)view
+{
+    UIActionSheet *takePictureActionSheet = [[UIActionSheet alloc] initWithTitle:@""
+                                                                        delegate:self
+                                                               cancelButtonTitle:@"取消"
+                                                          destructiveButtonTitle:nil
+                                                               otherButtonTitles:@"拍照", @"从相册选择", nil];
+    takePictureActionSheet.tag = kTakePictureActionSheetTag;
+    [takePictureActionSheet showInView:self.view];
+}
+//录音结束
+- (void)chatPanelViewFinishedRecord:(WARVChatPanelView *)view withData:(AMRInfo* )audioData
+{
+    if(audioData.amrLength < 1)
+    {
+        ShowAutoHideMBProgressHUD(HUITopWindow,@"语音时间太短");
+    }else{
+        [self sendVoiceMessage:audioData];
+    }
+}
+//发送信息
+- (void)chatPanelViewSendMsg:(WARVChatPanelView *)view withData:(NSString* )textData
+{
+    [self sendTextMessage:textData];
+}
+#pragma mark UIActionSheetDelegate
+- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
+{
+    
+    if (actionSheet.tag==KCopyTextActionSheetTag) {
+        
+        if (buttonIndex == 0 ) {
+            
+            //////复制信息
+            UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+            [pasteboard setString:self.cellCopyCount.message.content];
+        }
+        
+    }
+    else if (actionSheet.tag==KCopyAndDeleteTextActionSheetTag)
+    {
+        if (buttonIndex == 0 ) {
+            
+            //////复制信息
+            UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
+            [pasteboard setString:self.cellCopyCount.message.content];
+        }
+        else if (buttonIndex==1)
+        {
+            [self ChatMessageDelete];
+        }
+        
+    }
+    else if (actionSheet.tag==KDeleteChatActionSheetTag)
+    {
+        if (buttonIndex == 0 ) {
+            
+            [self ChatMessageDelete];
+        }
+    }
+    else
+    {
+        if (buttonIndex != 2) {
+            
+            UIImagePickerController *imagePickerController = [[UIImagePickerController alloc] init];
+            imagePickerController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+            imagePickerController.delegate = self;
+            imagePickerController.allowsEditing = NO;
+            
+            if (buttonIndex == 0) {
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+            } else if (buttonIndex == 1) {
+                imagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+            }
+            
+            FMNavigationController *navg = (FMNavigationController *)self.navigationController;
+            [navg presentModalViewController:imagePickerController animated:YES];
+        }
+    }
+    
+}
+
+#pragma mark UIImagePickerControllerDelegate
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
+{
+    UIImage *imageinfo  = [info objectForKey:@"UIImagePickerControllerOriginalImage"];
+    CGSize imageSize    = imageinfo.size;
+    if (imageSize.width < 1) {
+        return;
+    }
+    // 图片宽度限制在640，高度依比例缩放
+    CGFloat imageHeight = imageSize.height * KProjectScreenWidth / imageSize.width;
+    imageSize.width     = KProjectScreenWidth;
+    imageSize.height    = imageHeight;
+    UIGraphicsBeginImageContext(imageSize);
+    [imageinfo drawInRect: CGRectMake(0, 0, imageSize.width,imageSize.height)];
+    UIImage *smallImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    [[UIApplication sharedApplication] setStatusBarStyle:[FMThemeManager.skin statusbarStyle]];
+    [self.navigationController dismissModalViewControllerAnimated:YES];
+    [self sendImageMessage:smallImage];
+}
+
+#pragma mark ---------------FMAudioManagerDelegate--------------
+
+- (void)audioPlayStatus:(NSInteger)status
+{
+    __weak __typeof(&*self)weakSelf = self;
+    NSInteger msgNo = self.audioManager.tag;
+    BOOL isPlaying = (status == 0);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        //更新当前显示中的播放状态
+        NSArray* visibleRows = [weakSelf.messageListTableView indexPathsForVisibleRows];
+        for (NSIndexPath* path in visibleRows) {
+            if (path.row > 0 && path.row <= [weakSelf.dataSource count] ) {
+                CellFrameModel* cell = [weakSelf.dataSource objectAtIndex:(path.row - 1)];
+                FMMessage* msg = cell.message;
+                if (msg.msgNo == msgNo) {
+                    msg.isVoicePlaying  = isPlaying;
+                    NSArray* reloadRows = [NSArray arrayWithObjects:path, nil];
+                    [self.messageListTableView reloadRowsAtIndexPaths:reloadRows withRowAnimation:UITableViewRowAnimationNone];
+                    return;
+                }
+            }
+        }
+        //如果当前显示行没有该该消息，需要更新FMMessage状态
+        for (CellFrameModel* cell in weakSelf.dataSource) {
+            FMMessage* msg = cell.message;
+            if (msg.msgNo == msgNo) {
+                msg.isVoicePlaying  = isPlaying;
+                break;
+            }
+        }
+    });
+    
+}
+
+///cell长按拷贝
+-(void)messageCellLongPressed:(MessageCell *)cell
+{
+    self.cellCopyCount=cell.cellFrame;
+    
+    
+    if ([self.cellCopyCount.message.userId isEqualToString:[CurrentUserInformation sharedCurrentUserInfo].userID]) {
+        
+        
+        if (self.cellCopyCount.message.messageType==MessageTypeText) {
+            
+            UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:nil
+                                                                    delegate:self
+                                                           cancelButtonTitle:@"取消"
+                                                      destructiveButtonTitle:@"复制"
+                                                           otherButtonTitles:@"删除",nil];
+            actionSheet.tag=KCopyAndDeleteTextActionSheetTag;
+            [actionSheet showInView:self.view.window];
+            
+        }
+        else
+        {
+            UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:nil
+                                                                    delegate:self
+                                                           cancelButtonTitle:@"取消"
+                                                      destructiveButtonTitle:@"删除"
+                                                           otherButtonTitles: nil];
+            actionSheet.tag=KDeleteChatActionSheetTag;
+            [actionSheet showInView:self.view.window];
+            
+        }
+        
+    }
+    else
+    {
+        UIActionSheet *actionSheet = [[UIActionSheet alloc]initWithTitle:nil
+                                                                delegate:self
+                                                       cancelButtonTitle:@"取消"
+                                                  destructiveButtonTitle:@"复制"
+                                                       otherButtonTitles: nil];
+        actionSheet.tag=KCopyTextActionSheetTag;
+        [actionSheet showInView:self.view.window];
+    }
+    
+}
+-(void)ChatMessageDelete
+{
+    WaittingMBProgressHUD(HUIKeyWindow, @"删除中");
+    [FMHTTPClient chatMessageDeleteWIthUserReadForChatInforWithUserId:self.cellCopyCount.message.userId withMessageId:[NSString stringWithFormat:@"%d",self.cellCopyCount.message.messageId] completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            Log(@"%@",response.responseObject);
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                [self deleteSelfMessageWithlocation:self.cellCopyCount.selectedCellIndexPath.row];
+                
+                FinishMBProgressHUD(HUIKeyWindow);
+                
+                
+            }
+            else{
+                FailedMBProgressHUD(HUIKeyWindow, @"删除失败");
+            }
+            
+        });
+        
+    }];
+    
+}
+
+///设置为已读信息
+- (void)getMsgReadInforWithCurrUserId:(NSString *)userID withChatUserID:(NSString *)chatUserId {
+    [FMHTTPClient getMessageWIthUserReadForChatInforWithUserId:userID withToUserId:chatUserId completion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            
+            if (response.code == WebAPIResponseCodeSuccess) {
+            }
+        });
+    }];
+}
+@end

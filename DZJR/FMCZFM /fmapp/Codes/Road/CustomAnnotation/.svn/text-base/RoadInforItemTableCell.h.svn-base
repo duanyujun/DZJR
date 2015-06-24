@@ -1,0 +1,30 @@
+//
+//  RoadInforItemTableCell.h
+//  fmapp
+//
+//  Created by 张利广 on 14-8-5.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "RoadConditionInfo.h"
+
+
+/** 用户删除路协议设置**/
+@protocol RoadInforItemTableCellDelegate <NSObject>
+
+/** 用户删除单条数据内容
+
+ *@param m_roadConditionInfor 路况内容
+ *@return void
+ ***/
+- (void)initWithUserDeleteRoadInforItemOperationEvent:(RoadConditionInfo *)m_roadConditionInfor;
+
+@end
+
+@interface RoadInforItemTableCell : UITableViewCell
+@property (nonatomic , assign)  id<RoadInforItemTableCellDelegate> deleate;
+@property (nonatomic , weak)    RoadConditionInfo       *cellRoadConditionInfor;
+- (void)initWithRoadInforItemForRoadInfor:(RoadConditionInfo *)roadConditionItemInfor;
+
+@end

@@ -1,0 +1,22 @@
+//
+//  ProgramInfo.h
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-13.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface ProgramInfo : NSObject
+
+@property (nonatomic,copy) NSString *identity;      //ID
+@property (nonatomic,copy) NSString *name;          //节目名称
+@property (nonatomic,copy) NSString *startTime;     //开始时间
+@property (nonatomic,copy) NSString *endTime;       //结束时间
+@property (nonatomic,copy) NSArray  *emceeArray;    //主持人数组
+
+//JSON反序列化节目信息
++ (id)programWithUnserializedJSONDic:(NSDictionary *)dic;
+
+@end

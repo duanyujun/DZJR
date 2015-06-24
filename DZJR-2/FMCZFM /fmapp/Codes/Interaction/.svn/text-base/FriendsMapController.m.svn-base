@@ -1,0 +1,650 @@
+//
+//  CarOwnersMapController.m
+//  FM_CZFW
+//
+//  Created by MaYiming on 13-11-12.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "FriendsMapController.h"
+#import "CurrentUserInformation.h"
+#import "UserInfo.h"
+#import "CustomMKAnnotation.h"
+#import "MerchantInfo.h"
+#import <AudioToolbox/AudioToolbox.h>
+#import "AppDelegate.h"
+#import "HTTPClient+Friends.h"
+#import "FMMapInfoBar.h"
+//#import "PublishQuestionController.h"
+#import "FriendDetailedInforViewController.h"
+
+#define kLocationButtonTag 10002
+#define kClearAnnotationsButtonTag 10003
+
+#define kUserInfoDetailHeight       80
+
+@interface FriendsMapController ()
+@property (nonatomic,weak)MKMapView                     *mainMapView;
+@property (nonatomic, weak)   AFHTTPRequestOperation    *requestDataOperation;          //请求列表数据的操作
+@property (nonatomic, strong) NSMutableArray            *nearbyUsersAnnotationsArray;
+@property (nonatomic, strong) FMMapInfoBar              *mapInfoBar;                    //地图底部信息条
+@property (nonatomic, weak)  MKAnnotationView           *selectAnnotationView;          //当前击中的路况标签
+@property (nonatomic, strong)CustomMKAnnotation         *longPressAnnotation;           //长按指示标注
+@property (nonatomic , assign)CLLocationCoordinate2D    leftLocationCoordinate;
+@property (nonatomic , assign)CLLocationCoordinate2D    rightLocationCoordinate;
+@property (nonatomic , assign)  BOOL                    isMapPolymerizationLimit;
+@property (nonatomic , strong) NSMutableDictionary      *nearbyFriendsInforDictionary;
+
+- (void)initWithFriendsInforForLeftCoordinate:(CLLocationCoordinate2D )leftCoor
+                                 withRightCoordinate:(CLLocationCoordinate2D )rightCoor;
+@end
+
+@implementation FriendsMapController
+{
+    CALayer *_backLayer;
+}
+- (id)init
+{
+    self = [super init];
+    if (self) {
+       self.enableCustomNavbarBackButton = FALSE;
+    }
+    return self;
+}
+-(void)createView
+{
+    
+    
+    _backLayer.frame= self.view.bounds;//设置layer的区域
+    
+    [self.view.layer addSublayer:_backLayer];
+    
+    if(ThemeCategory==5)
+    {
+        _backLayer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.3].CGColor;
+    }
+    else
+    {
+        _backLayer.backgroundColor = [UIColor colorWithRed:1 green:1 blue:1 alpha:0].CGColor;
+    }
+
+}
+
+- (void)viewDidLoad
+{
+    if ([self respondsToSelector:@selector(edgesForExtendedLayout)]){
+        self.edgesForExtendedLayout = UIRectEdgeNone;
+    }
+    _backLayer= [CALayer layer];
+    [self settingNavTitle:@"附近车友"];
+    [self settingNavButtonItem];//设置导航栏按钮
+    
+    self.isMapPolymerizationLimit = NO;
+    self.nearbyFriendsInforDictionary = [[NSMutableDictionary alloc]init];
+    self.nearbyUsersAnnotationsArray = [[NSMutableArray alloc]init];
+    
+    //定位通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(locationUpdateNotification:)
+                                                 name: FMLocationSuccessNotification
+                                               object: nil];
+    
+    //添加地图视图 index 0
+    MKMapView *mainMapView = [[MKMapView alloc] initWithFrame:self.view.bounds];
+    mainMapView.showsUserLocation = YES;
+    mainMapView.delegate = self;
+    
+    ////添加地图单击手势
+    UITapGestureRecognizer *mapViewTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(mapViewTapped:)];
+    mapViewTapRecognizer.delegate = self;
+    [mainMapView addGestureRecognizer:mapViewTapRecognizer];
+    
+    //添加地图长按手势
+    UILongPressGestureRecognizer *mapLongPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPressGestureRecognizer:)];
+    [mainMapView addGestureRecognizer:mapLongPressGesture];
+     
+    self.mainMapView = mainMapView;
+    [self.view addSubview:mainMapView];
+    
+    //添加定位按钮
+    UIButton *locationButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    [locationButton setTag:kLocationButtonTag];
+    [locationButton addTarget:self action:@selector(mapViewButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [locationButton setImage:[UIImage imageNamed:@"MapView_Location.png"] forState:UIControlStateNormal];
+    [locationButton setFrame:CGRectMake(10, self.view.bounds.size.height - 105, 43, 43)];
+    
+    [mainMapView addSubview:locationButton];
+    
+    /*
+    //添加清除标注按钮
+    UIButton *clearLongPressAnnotationsButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    [clearLongPressAnnotationsButton setTag:kClearAnnotationsButtonTag];
+    [clearLongPressAnnotationsButton addTarget:self action:@selector(mapViewButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [clearLongPressAnnotationsButton setImage:[UIImage imageNamed:@"MapView_Clear.png"] forState:UIControlStateNormal];
+    [clearLongPressAnnotationsButton setFrame:CGRectMake(10, self.view.bounds.size.height - 60, 43, 43)];
+    [[self.view viewWithTag:kMapViewTag] addSubview:clearLongPressAnnotationsButton];
+    */
+    //启动定位
+    [ShareAppDelegate startLocationUpdate];
+    
+    [super viewDidLoad];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+-(void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:NO];
+    [self createView];
+}
+-(void)viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+//    [self hideUserInfoDetail];
+}
+#pragma mark -
+#pragma mark -自定义方法
+
+#pragma mark -设置导航栏左右Item
+- (void) settingNavButtonItem
+{
+    self.navButtonSize=KNavSize;
+
+    [self setLeftNavButtonFA:FMIconLeftArrow
+                   withFrame:kNavButtonRect
+                actionTarget:self
+                      action:@selector(initWithBackViewController)];
+}
+
+- (void)initWithBackViewController{
+    [self hideUserInfoDetail];
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+#pragma mark -地图长按手势
+- (void)longPressGestureRecognizer:(UIGestureRecognizer*)gestureRecognizer
+{
+    if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+        return;
+    }else if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        CGPoint touchPoint = [gestureRecognizer locationInView:self.mainMapView];//这里touchPoint是点击的某点在地图控件中的地位
+        
+    
+        CLLocationCoordinate2D touchMapCoordinate = [self.mainMapView convertPoint:touchPoint toCoordinateFromView:self.mainMapView];//这里touchMapCoordinate就是该点的经纬度了
+        
+        if( self.longPressAnnotation){
+            [self.mainMapView removeAnnotation:self.longPressAnnotation];
+        }
+        self.longPressAnnotation = [[CustomMKAnnotation alloc] init];
+        self.longPressAnnotation.title = @"目标中心";
+        self.longPressAnnotation.subtitle = @"可查看该点周边1公里车友";
+        self.longPressAnnotation.type = FMLongPressAnnotation;
+        self.longPressAnnotation.coordinate = touchMapCoordinate;
+        [self.mainMapView addAnnotation:self.longPressAnnotation];
+        
+        [self getMapDataWithCoordinate:touchMapCoordinate];//获取周边车友标注
+    }
+    return;
+}
+
+#pragma mark -清除用户位置
+- (void) rightItemClicked:(id) sender
+{
+    //显示清除位置提示对话框
+    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"提示"
+                                                        message:@"是否清除位置信息并退出？"
+                                                       delegate:self
+                                              cancelButtonTitle:@"取消"
+                                              otherButtonTitles:@"确定", nil];
+    //alertView.tag = kCloseLocationAlertViewTag;
+    [alertView show];
+}
+
+#pragma mark -获取地图数据
+- (void) getMapDataWithCoordinate:(CLLocationCoordinate2D) coordinate
+{
+    if (!_nearbyUsersAnnotationsArray) {
+        _nearbyUsersAnnotationsArray = [[NSMutableArray alloc] init];
+    }
+    
+    [self.requestDataOperation cancel];
+    __weak __typeof(&*self)weakSelf = self;
+    
+    //移除现有路况信息
+    if ([self.nearbyUsersAnnotationsArray count] > 0) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            [weakSelf.mainMapView removeAnnotations:self.nearbyUsersAnnotationsArray];
+            [weakSelf.nearbyUsersAnnotationsArray removeAllObjects];
+        });
+    }
+    //请求附近车友
+    self.requestDataOperation =
+    [FMHTTPClient getFriendsNeayByLongitude:coordinate.longitude
+                                   latitude:coordinate.latitude
+                                 completion:^(WebAPIResponse *response) {
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                if ([dataList isKindOfClass:[NSArray class]]) {
+                    for (NSDictionary* dic in dataList) {
+                        UserInfo *userInfo = [UserInfo userWithUnserializedJSONDic:dic];
+                        CustomMKAnnotation *annotation = [[CustomMKAnnotation alloc] init];
+                        annotation.type = FMNearbyPeopleAnnotation;
+                        //annotation.title = userInfo.userName;
+                        annotation.coordinate = userInfo.userCoordinate;
+                        annotation.tag = [userInfo.userID intValue];
+                        annotation.data = userInfo;
+                        
+                        [weakSelf.nearbyUsersAnnotationsArray addObject:annotation];//将标注添加到数组
+                        
+                    }
+                }
+                [weakSelf.mainMapView addAnnotations:weakSelf.nearbyUsersAnnotationsArray];
+            }
+        });
+    }];
+}
+
+#pragma mark -地图单击手势
+- (void) mapViewTapped:(UITapGestureRecognizer *) gestureRecognizer
+{
+    [self hideUserInfoDetail];
+}
+#pragma mark -地图按钮点击时
+- (void) mapViewButtonClicked:(id) sender
+{
+    UIButton *mapViewButton = (UIButton *) sender;
+    
+    if(mapViewButton.tag == kLocationButtonTag){//定位按钮
+        
+        MKCoordinateSpan theSpan;
+        theSpan.latitudeDelta = 0.01;
+        theSpan.longitudeDelta = 0.01;
+        
+        MKCoordinateRegion coordinateRegion = MKCoordinateRegionMake([CurrentUserInformation sharedCurrentUserInfo].userCoordinate, theSpan);
+        [self.mainMapView setRegion:coordinateRegion animated:YES];
+        
+    }
+    
+}
+#pragma mark -隐藏用户详情
+-(void)hideUserInfoDetail
+{
+//    CustomMKAnnotation *customAnnotation = (CustomMKAnnotation *)annotation;
+    //取消选中标签
+    if (self.selectAnnotationView) {
+        [self updateMapMark:self.selectAnnotationView isHighlight:NO];
+        self.selectAnnotationView = nil;
+    }
+    //隐藏路况详情
+    if (self.mapInfoBar && self.mapInfoBar.hidden == NO) {
+        CGRect rc = self.navigationController.view.bounds;
+        [UIView animateWithDuration:0.3f animations:^{
+            [self.mapInfoBar setFrame:CGRectMake(0, rc.size.height,
+                                                 rc.size.width,
+                                                 kUserInfoDetailHeight)];
+        } completion:^(BOOL finished) {
+            if (finished) {
+                [self.mapInfoBar removeFromSuperview];
+                self.mapInfoBar = nil;
+            }
+        }];
+    }
+}
+#pragma mark -车友详细视图点击时
+- (void) peopleDetailInfoViewTapped:(UITapGestureRecognizer *) tapGestureRecognizer
+{
+    
+    UserInfo *selectUserInfor = nil;
+
+    //取消选中标签
+    if (self.selectAnnotationView) {
+        [self updateMapMark:self.selectAnnotationView isHighlight:NO];
+        CustomMKAnnotation *customAnnotation = (CustomMKAnnotation *)self.selectAnnotationView.annotation;
+        selectUserInfor = (UserInfo *)customAnnotation.data;
+    }
+    
+    if (selectUserInfor != nil) {
+        
+        FriendDetailedInforViewController *viewController = [[FriendDetailedInforViewController alloc] initWithUserInfo:selectUserInfor];
+        [self.navigationController pushViewController:viewController animated:YES];
+    }
+    
+    
+    [self hideUserInfoDetail];
+}
+#pragma mark -位置更新
+- (void) locationUpdateNotification:(NSNotification *) notification
+{
+    CLLocationCoordinate2D currentUserCoordinate2D = [CurrentUserInformation sharedCurrentUserInfo].userCoordinate;
+    //获取路况信息
+    [self getMapDataWithCoordinate:currentUserCoordinate2D];//获取地图数据
+    
+    /*
+    if (self.nearbyUsersAnnotationsArray.count > 0) {
+        NSArray *annotationsArray = [NSArray arrayWithArray:self.mainMapView.annotations];
+        [self.mainMapView removeAnnotations:annotationsArray];
+        [self.nearbyUsersAnnotationsArray removeAllObjects];
+        [self.nearbyFriendsInforDictionary removeAllObjects];
+        if (self.nearbyFriendsInforDictionary) {
+            self.nearbyFriendsInforDictionary = nil;
+            self.nearbyFriendsInforDictionary = [[NSMutableDictionary alloc]init];
+        }
+    }
+     */
+    
+    //设置地图级别和位置
+    MKMapView *mainMapView = self.mainMapView;
+    MKCoordinateSpan theSpan;
+    theSpan.latitudeDelta = 0.01;
+    theSpan.longitudeDelta = 0.01;
+    MKCoordinateRegion coordinateRegion = MKCoordinateRegionMake(currentUserCoordinate2D, theSpan);
+    [mainMapView setRegion:coordinateRegion animated:NO];
+}
+
+#pragma mark -
+#pragma mark -MKMapViewDelegate
+- (MKAnnotationView *) mapView:(MKMapView *)mapView viewForAnnotation:(id<MKAnnotation>)annotation{
+    MKAnnotationView *annotationView = nil;
+    
+    if( [annotation isKindOfClass:[CustomMKAnnotation class]]){
+        CustomMKAnnotation *customAnnotation = (CustomMKAnnotation *)annotation;
+        
+        if (customAnnotation.type == FMNearbyPeopleAnnotation) {
+            UserInfo *userInfo = (UserInfo *)customAnnotation.data;
+            
+            annotationView = [mapView dequeueReusableAnnotationViewWithIdentifier:@"UserAnnotation"];
+            
+            if (!annotationView) {
+                MKAnnotationView *userAnnotationView = [[MKAnnotationView alloc] initWithAnnotation:customAnnotation reuseIdentifier:@"UserAnnotation"];
+                
+                CGRect userAnnotationViewFrame = userAnnotationView.frame;
+                userAnnotationViewFrame.size = CGSizeMake(30, 40);
+                userAnnotationView.frame = userAnnotationViewFrame;
+                userAnnotationView.canShowCallout = NO;
+
+                
+                annotationView = userAnnotationView;
+            }
+            
+            if (userInfo.userSex == 1) {//0：女；1：男
+                annotationView.image = [UIImage imageNamed:@"ManAnnotation_Normal.png"];
+            }else{
+                annotationView.image = [UIImage imageNamed:@"WomanAnnotation_Normal.png"];
+            }
+        }else if (customAnnotation.type == FMNearbyPrivilegeMerchantAnnotation) {
+            annotationView = [mapView dequeueReusableAnnotationViewWithIdentifier:@"MerchantAnnotation"];
+            
+            if (!annotationView) {
+                MKAnnotationView *merchantAnnotationView = [[MKAnnotationView alloc] initWithAnnotation:customAnnotation reuseIdentifier:@"MerchantAnnotation"];
+                merchantAnnotationView.image = [UIImage imageNamed:@"QuestionAndAnswers_PrivilegeMerchantAnnotation.png"];
+                merchantAnnotationView.tag = customAnnotation.tag;
+                
+                CGRect merchantAnnotationViewFrame = merchantAnnotationView.frame;
+                merchantAnnotationViewFrame.size = CGSizeMake(30, 40);
+                merchantAnnotationView.frame = merchantAnnotationViewFrame;
+                merchantAnnotationView.canShowCallout = NO;
+                
+                annotationView = merchantAnnotationView;
+            }
+        }else{
+            MKPinAnnotationView *pinAnnotationView = (MKPinAnnotationView *)[mapView dequeueReusableAnnotationViewWithIdentifier:@"LongPressAnnotation"];
+            
+            if (!pinAnnotationView) {
+                pinAnnotationView = [[MKPinAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:@"LongPressAnnotation"];
+                pinAnnotationView.animatesDrop = YES;
+                pinAnnotationView.canShowCallout = YES;
+            }
+            
+            return  pinAnnotationView;
+        }
+    }
+    
+    return annotationView;
+}
+
+#pragma mark -
+#pragma mark -UIAlertViewDelegate
+- (void) alertView:(UIAlertView *)alertView willDismissWithButtonIndex:(NSInteger)buttonIndex
+{
+    /*
+    if (alertView.tag == kCloseLocationAlertViewTag) {//关闭当前位置AlertView
+        if (buttonIndex == 1) {//如果确定清除位置信息
+            //发送动画
+            [networkWaitingView showNetWorkLoadWaitingViewAtFatherController:self andWhetherDisplay:YES withStateContent:@"发送中..." withErrorState:NO withQuitTihsView:NO];
+            
+            dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                //设置post字符串
+                NSString *postString = [NSString stringWithFormat:@"userId=%@&is_public=2",[[CurrentUserInformation sharedCurrentUserInfo] userID]];
+                NSURLRequest *request = [self getRequestWithURLString:kCloseLocationURL andPostString:postString];
+                NSData *returnData = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:nil];
+                NSString *dataString = [[NSString alloc] initWithData:returnData encoding:NSUTF8StringEncoding];
+                if ([dataString isEqualToString:@"1"]) {//关闭成功
+                    dispatch_async(dispatch_get_main_queue(),^{
+                        //关闭成功试图
+                        [networkWaitingView showNetWorkLoadWaitingViewAtFatherController:self andWhetherDisplay:NO withStateContent:@"关闭成功" withErrorState:NO withQuitTihsView:YES];
+                        
+                        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"AgreeOpenUserLocation"];//设置本地数据 AgreeOpenUserLocation 为 NO
+                        
+                        //返回到互动首界面
+                        UIViewController *interactionController = [self.navigationController.viewControllers objectAtIndex:0];
+                        [self.navigationController popToViewController:interactionController animated:YES];
+                    });
+                }else{
+                    [networkWaitingView showNetWorkLoadWaitingViewAtFatherController:self andWhetherDisplay:NO withStateContent:@"关闭失败" withErrorState:YES withQuitTihsView:NO];//结束发布动画
+                }
+                [dataString release];
+            });
+            
+        }
+    }
+     */
+}
+#pragma mark -更新地图标签
+-(void)updateMapMark:(MKAnnotationView* )annotationView isHighlight:(BOOL)bHighlight
+{
+    CustomMKAnnotation *annotation = (CustomMKAnnotation *)annotationView.annotation;
+    UserInfo* userInfo = (UserInfo* )annotation.data;
+    NSString *annotationImageName = nil;
+    switch (userInfo.userSex) {
+        case 0:
+            annotationImageName = bHighlight ? @"WomanAnnotation_Highlight.png":
+                                               @"WomanAnnotation_Normal.png";
+            break;
+        case 1:
+            annotationImageName = bHighlight ? @"ManAnnotation_Highlight.png":
+                                               @"ManAnnotation_Normal.png";
+            break;
+        default:
+            break;
+    }
+    annotationView.image = [UIImage imageNamed:annotationImageName];
+}
+#pragma mark -
+#pragma mark -手势Delegate
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
+{
+    /*
+    
+    //点击的不是地图标签，交由mapViewTapped处理
+    if (![touch.view isKindOfClass:[MKAnnotationView class]]) {
+        return YES;
+    }
+   
+    if (![annotationView.annotation isKindOfClass:[CustomMKAnnotation class]]) {
+        return YES;
+    }
+     
+     */
+    
+    
+    if (![touch.view isKindOfClass:[MKAnnotationView class]]) {
+        return YES;
+    }
+    
+    MKAnnotationView *annotationView = (MKAnnotationView *)touch.view;
+    
+    if (![annotationView.annotation isKindOfClass:[CustomMKAnnotation class]]) {
+        return YES;
+    }
+
+    CustomMKAnnotation *customMKAnnotation = (CustomMKAnnotation *)annotationView.annotation;
+    if (customMKAnnotation.type == FMLongPressAnnotation) {
+        return YES;
+    }
+    //更改选中标签颜色
+    if (self.selectAnnotationView) {
+        [self updateMapMark:self.selectAnnotationView isHighlight:NO];
+    }
+    self.selectAnnotationView = annotationView;
+    [self updateMapMark:annotationView isHighlight:YES];
+    
+    
+    //更新路况详情
+    CGRect rc = self.navigationController.tabBarController.view.bounds;
+    if (self.mapInfoBar == nil) {
+        FMMapInfoBar *mapInfoBar = [[FMMapInfoBar alloc]initWithFrame:CGRectMake(0,
+                                                                                 rc.size.height,
+                                                                                 rc.size.width,
+                                                                                 kUserInfoDetailHeight)];
+        //添加手势
+        UITapGestureRecognizer *tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                        action:@selector(peopleDetailInfoViewTapped:)];
+        [mapInfoBar addGestureRecognizer:tapRecognizer];
+        [self.navigationController.tabBarController.view addSubview:mapInfoBar];
+        mapInfoBar.hidden = YES;
+        self.mapInfoBar = mapInfoBar;
+    }
+    
+    UserInfo *userInfo = (UserInfo* )customMKAnnotation.data;
+    [self.mapInfoBar displayUserInfo:userInfo];
+    
+    //动画显示roadConditionDetailListView
+    if (self.mapInfoBar.isHidden) {//未显示路况信息视图
+        self.mapInfoBar.hidden = NO;
+        self.mapInfoBar.layer.shadowOpacity = 0.6f;//设置透明度
+        
+        CATransition *transition = [CATransition animation];
+        transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+        transition.duration = 0.3f;
+        [transition setType:kCATransitionPush];
+        [transition setSubtype: kCATransitionFromTop];
+        [self.mapInfoBar.layer addAnimation:transition forKey:@"Animation_Push"];
+        [self.mapInfoBar setFrame:CGRectMake(0,
+                                             rc.size.height - kUserInfoDetailHeight,
+                                             rc.size.width,
+                                             kUserInfoDetailHeight)];
+    }
+    return NO;
+}
+
+#pragma mark -
+#pragma mark - NetWorkWaitingFinishDelegate
+- (void)gotoHomeViewController{
+    //返回到互动首界面
+    UIViewController *interactionController = [self.navigationController.viewControllers objectAtIndex:0];
+    [self.navigationController popToViewController:interactionController animated:YES];
+}
+
+- (void)userFinishNetWorkWaitingAndQuitTihsView{
+    [NSTimer scheduledTimerWithTimeInterval:1.5f target:self selector:@selector(gotoHomeViewController) userInfo:nil repeats:NO];
+}
+
+/*
+- (void)mapView:(MKMapView *)mapView regionDidChangeAnimated:(BOOL)animated{
+    CGRect rc = self.view.frame;
+    CGPoint touchPoint = CGPointMake(rc.size.width/2.0f,(rc.size.height - 78.0f)/2);
+    CLLocationCoordinate2D touchMapCoordinate = [self.mainMapView convertPoint:touchPoint toCoordinateFromView:self.mainMapView];
+    
+    ///若定位失败
+    if (touchMapCoordinate.longitude == 0 &&touchMapCoordinate.latitude == 0) {//如果经纬度为0
+        return;
+    }
+    
+    //若级别过低
+    if (mapView.region.span.latitudeDelta >= 0.09||mapView.region.span.longitudeDelta >= 0.07) {
+        
+        if (self.isMapPolymerizationLimit == NO) {
+            ShowAutoHideMBProgressHUD(kKeyWindow, @"地图视野过大，无法加载附近车友");
+            self.isMapPolymerizationLimit = YES;
+        }
+        return;
+    }
+    CGPoint startPoint = CGPointMake(0.0f, 0.0f);
+    CLLocationCoordinate2D startMapCoordinate = [self.mainMapView convertPoint:startPoint
+                                                      toCoordinateFromView:mapView];
+    CLLocationCoordinate2D finishMapCoodinate = [self.mainMapView convertPoint:CGPointMake(rc.size.width, rc.size.height)
+                                                      toCoordinateFromView:mapView];
+    self.isMapPolymerizationLimit = NO;
+    
+    if (self.leftLocationCoordinate.latitude >= startMapCoordinate.latitude         //上边界必须外层的较大
+        &&  self.rightLocationCoordinate.latitude <= finishMapCoodinate.latitude    //下边界必须里层的较大
+        && self.leftLocationCoordinate.longitude <= startMapCoordinate.longitude    //左边界必须外层的较大
+        && self.rightLocationCoordinate.longitude >= finishMapCoodinate.longitude   //右边界必须外层的较大
+        ) {
+        return;
+    }
+    self.leftLocationCoordinate = startMapCoordinate;
+    self.rightLocationCoordinate = finishMapCoodinate;
+    
+    
+    Log(@"\n\n可以请求数据了");
+    [self initWithFriendsInforForLeftCoordinate:self.leftLocationCoordinate withRightCoordinate:self.rightLocationCoordinate];
+}
+ 
+ */
+
+- (void)initWithFriendsInforForLeftCoordinate:(CLLocationCoordinate2D)leftCoor withRightCoordinate:(CLLocationCoordinate2D)rightCoor{
+
+    
+    //加载周边路况
+    [self.requestDataOperation cancel];
+    
+    __weak __typeof(&*self)weakSelf = self;
+    self.requestDataOperation = [FMHTTPClient getFriendsInforForDoubleLocationCoordinateWithLeftLocationCoordinate:leftCoor withRightLocationCoordinate:rightCoor withcompletion:^(WebAPIResponse *response) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+
+                    NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                    if ([dataList isKindOfClass:[NSArray class]]) {
+
+                    for (NSDictionary *dic in dataList)
+                    {
+                        RoadConditionInfo* roadConditionInfo = [RoadConditionInfo roadConditionWithUnserializedJSONDic:dic];
+                        if (roadConditionInfo) {
+                            
+                            ///若不存在，则将其加入到路况里面
+                            if (![self.nearbyFriendsInforDictionary objectForKey:roadConditionInfo.roadConditionID]) {
+                                ///加入到数组中
+                                //加入到字典中
+                                AddObjectForKeyIntoDictionary(roadConditionInfo, roadConditionInfo.roadConditionID, self.nearbyFriendsInforDictionary);
+                                UserInfo *userInfo = [UserInfo userWithUnserializedJSONDic:dic];
+                                CustomMKAnnotation *annotation = [[CustomMKAnnotation alloc] init];
+                                annotation.type = FMNearbyPeopleAnnotation;
+                                //annotation.title = userInfo.userName;
+                                annotation.coordinate = userInfo.userCoordinate;
+                                annotation.tag = [userInfo.userID intValue];
+                                annotation.data = userInfo;
+                                
+                                [weakSelf.nearbyUsersAnnotationsArray addObject:annotation];//将标注添加到数组;
+                            }
+                        }
+                    }
+                }
+                [weakSelf.mainMapView addAnnotations:weakSelf.nearbyUsersAnnotationsArray];
+            }else{
+            }
+        });
+        
+    }];
+    
+
+}
+
+@end

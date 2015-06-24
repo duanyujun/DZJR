@@ -1,0 +1,19 @@
+//
+//  ExpressView.h
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-22.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@protocol ExpressViewDelegate <NSObject>
+- (void)didExpressViewSelected:(NSInteger)tag isDelete:(BOOL)bDelete;
+@end
+
+@interface ExpressView : UIView
+
+@property (weak, nonatomic) id<ExpressViewDelegate> delegate;
+
+@end

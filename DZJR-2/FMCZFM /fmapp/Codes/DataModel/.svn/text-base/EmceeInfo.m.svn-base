@@ -1,0 +1,80 @@
+//
+//  EmceeInfo.m
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-13.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "EmceeInfo.h"
+
+@implementation EmceeInfo
+
+@synthesize idetity;
+@synthesize name;
+@synthesize nation;
+@synthesize pic;
+@synthesize college;
+@synthesize constellation;
+@synthesize program;
+@synthesize praisedTime;
+@synthesize hobby;
+@synthesize birthday;
+@synthesize sendWord;
+
++ (id)emceeWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    EmceeInfo* emceeInfo = [[EmceeInfo alloc] init];
+    
+    ////主持人ID
+    emceeInfo.idetity = StringForKeyInUnserializedJSONDic(dic, @"id");
+    
+    ////主持人名字
+    emceeInfo.name = StringForKeyInUnserializedJSONDic(dic, @"name");
+    
+    ////主持人民族
+
+    emceeInfo.nation = StringForKeyInUnserializedJSONDic(dic, @"volk");
+    
+    ////主持人照片
+//    emceeInfo.pic = StringForKeyInUnserializedJSONDic(dic, @"pic");
+    
+    
+    NSArray *imageArray = [[NSArray alloc]initWithArray:(NSArray *)ObjForKeyInUnserializedJSONDic(dic, @"pic")];
+    if (imageArray.count > 0) {
+        NSDictionary *imageDictionary = [[NSDictionary alloc]initWithDictionary:[imageArray objectAtIndex:0]];
+        if (imageDictionary.count >= 2) {
+            [emceeInfo setPic: StringForKeyInUnserializedJSONDic(imageDictionary, @"pic_url")];
+//            [myPrizeItemInfor setDataForItsImageURL:ObjForKeyInUnserializedJSONDic(imageDictionary, @"pic_url")];
+        }
+    }
+    
+    
+    ////主持人毕业院校
+    emceeInfo.college = StringForKeyInUnserializedJSONDic(dic, @"collage");
+    
+    ////星座
+    emceeInfo.constellation = StringForKeyInUnserializedJSONDic(dic, @"constellation");
+    if(IsStringEmptyOrNull(emceeInfo.constellation)){
+        [emceeInfo setConstellation:@"暂无"];
+    }
+    
+    ////主持人主持的节目
+    emceeInfo.program = StringForKeyInUnserializedJSONDic(dic, @"program");
+    
+    ////主持人被赞次数
+    emceeInfo.praisedTime = IntForKeyInUnserializedJSONDic(dic, @"favor");
+    
+    //主持人爱好
+    emceeInfo.hobby = StringForKeyInUnserializedJSONDic(dic, @"hobby");
+    
+    //主持人生日
+    emceeInfo.birthday = StringForKeyInUnserializedJSONDic(dic, @"birthday");
+
+    //主持人寄语
+    emceeInfo.sendWord = StringForKeyInUnserializedJSONDic(dic, @"content");
+
+    return emceeInfo;
+}
+
+@end

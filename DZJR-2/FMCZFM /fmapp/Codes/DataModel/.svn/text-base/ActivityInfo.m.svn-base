@@ -1,0 +1,13 @@
+//
+//  ActivityInfo.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-27.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "ActivityInfo.h"
+
+@implementation ActivityInfo
+
+@end

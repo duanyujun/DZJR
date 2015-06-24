@@ -1,0 +1,61 @@
+//
+//  MerchantInfo.h
+//  fmapp
+//
+//  Created by 张利广 on 14-6-16.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import <CoreLocation/CoreLocation.h>
+@interface MerchantInfo : NSObject
+///ID
+@property (nonatomic,retain) NSString *infoIdentity;
+///商家名称
+@property (nonatomic,retain) NSString *infoName;
+
+///图片地址
+@property (nonatomic,retain) NSString *infoSmallImageUrlStr;
+
+///距离
+@property (nonatomic,assign) CGFloat infoDistance;
+
+///地址
+@property (nonatomic,retain) NSString *infoAddress;
+
+///电话
+@property (nonatomic,retain) NSString *infoTel;
+
+///活动内容
+@property (nonatomic,retain) NSString *infoActivityContent;
+
+///主营业务
+@property (nonatomic,retain) NSString *infoMainBusiness;
+
+///大图片地址
+@property (nonatomic,retain) NSString *infoLargeImageUrlStr;
+
+///经纬度
+@property (nonatomic,assign) CLLocationCoordinate2D infoCoordinate;
+
+///商家类型
+@property (nonatomic,retain) NSString *infoType;
+
+///活动状态
+///@See 若为0，则表示没有活动； 若为1,则表示有活动
+@property (nonatomic,assign) NSInteger infoActivityState;
+
+///统计用户点击次数
+@property (nonatomic,assign) NSInteger  inforClickedNumberCount;
+
+
+/** 初始化单条列表数据内容**/
++(id)initMerchantInforWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+/** 初始化适用商家列表数据内容**/
++(id)initBusinessInforWithUnserializedJSONDic:(NSDictionary *)dicInfor;
+
+
+/** 序列号商家详情数据内容**/
++(id)initMerchantInforDetailWithUnserializedJSONDic:(NSDictionary *)dicInfor withInfor:(MerchantInfo *)merchantInfor;
+@end

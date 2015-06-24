@@ -1,0 +1,215 @@
+//
+//  MessageListCell.m
+//  fmapp
+//
+//  Created by SDYK on 14-10-18.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "MessageListCell.h"
+#import "FMImageView.h"
+#import "MessageCellData.h"
+#import "APAvatarImageView.h"
+#import "HTTPClient+Friends.h"
+#import "HTTPClient+Interaction.h"
+#import "RichTextLabel.h"
+#import "LocalDataManagement.h"
+
+#define kClearColor [UIColor clearColor]
+
+#define kUserIconWidthAndHeight     46.5
+
+@interface MessageListCell ()
+
+///用户头像
+@property (nonatomic, weak) APAvatarImageView       *userPersIcon;
+///用户未读消息个数
+@property (nonatomic ,weak) UILabel                 *userUnreadMsgCount;
+///用户个人名字或模块名字
+@property (nonatomic, weak) UILabel                 *userNameLabel;
+///消息发生事件
+@property (nonatomic, weak) UILabel                 *userCreateTimeLabel;
+///用户消息内容或模块信息内容
+@property (nonatomic, weak) RichTextLabel           *userMessageLabel;
+
+@end
+
+@implementation MessageListCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        // Initialization code
+        
+        self.backgroundColor = kClearColor;
+        self.selectionStyle = UITableViewCellSelectionStyleGray;
+        
+        // 1.用户头像
+        APAvatarImageView *m_userIcon = [[APAvatarImageView alloc]
+                                         initWithFrame:CGRectMake(10,
+                                                                  8.5,
+                                                                  kUserIconWidthAndHeight,
+                                                                  kUserIconWidthAndHeight)];
+        [self.contentView addSubview:m_userIcon];
+        self.userPersIcon = m_userIcon;
+        
+        // 2.用户昵称
+        UILabel *m_userNameLabel = [[UILabel alloc] init];
+        m_userNameLabel.backgroundColor = [UIColor clearColor];
+        m_userNameLabel.frame = CGRectMake(70,
+                                           6.5,
+                                           120,
+                                           28);
+        m_userNameLabel.textAlignment = NSTextAlignmentLeft;
+        m_userNameLabel.textColor = KDefaultOrNightTextColor;
+        m_userNameLabel.font = [UIFont systemFontOfSize:17.0f];
+        [self.contentView addSubview:m_userNameLabel];
+        self.userNameLabel = m_userNameLabel;
+        
+        
+        UILabel *unreadLabel = [[UILabel alloc]init];
+        [unreadLabel setBackgroundColor:[UIColor colorWithRed:251.0f/255.0f
+                                                        green:58.0f/255.0f
+                                                         blue:67.0f/255.0f
+                                                        alpha:1.0]];
+        [unreadLabel setTextAlignment:NSTextAlignmentCenter];
+        [unreadLabel setFont:[UIFont systemFontOfSize:12.0f]];
+        [unreadLabel setTextColor:[UIColor whiteColor]];
+        [unreadLabel.layer setCornerRadius:10.0f];
+        [unreadLabel.layer setMasksToBounds:YES];
+        self.userUnreadMsgCount = unreadLabel;
+        [self.contentView addSubview:self.userUnreadMsgCount];
+        
+        //富文本内容
+        RichTextLabel *_contentRichTextLabel = [[RichTextLabel alloc] init];
+        _contentRichTextLabel.highlightedTextColor = [UIColor whiteColor];
+        _contentRichTextLabel.frame = CGRectMake(70,40,
+                                                 KProjectScreenWidth-80,20);
+        _contentRichTextLabel.textColor=KSubTitleContentTextColor;
+        [_contentRichTextLabel setFont:[UIFont systemFontOfSize:14.0f]];
+        _contentRichTextLabel.opaque = NO; // 选中Opaque表示视图后面的任何内容都不应该绘制
+        _contentRichTextLabel.backgroundColor = [UIColor clearColor];
+        self.userMessageLabel = _contentRichTextLabel;
+        
+        self.userMessageLabel.alpha=1;
+        [self.contentView addSubview:self.userMessageLabel];
+        
+        
+        // 4.消息时间
+        UILabel *m_timeLabel = [[UILabel alloc] init];
+        m_timeLabel.backgroundColor = [UIColor clearColor];
+        m_timeLabel.frame = CGRectMake(KProjectScreenWidth-70,
+                                       3.5,
+                                       70,
+                                       28);
+        m_timeLabel.textAlignment = NSTextAlignmentCenter;
+        m_timeLabel.textColor = [UIColor grayColor];
+        m_timeLabel.font = [UIFont systemFontOfSize:10.0f];
+        [self.contentView addSubview:m_timeLabel];
+        self.userCreateTimeLabel = m_timeLabel;
+        
+        // 5.分割线
+        UIView *thridSectionSeperatorView = [[UIView alloc] init];
+        thridSectionSeperatorView.frame = CGRectMake(70,
+                                                     69-0.5,
+                                                     KProjectScreenWidth-70,
+                                                     0.5);
+        thridSectionSeperatorView.backgroundColor = KDefaultOrNightSepratorColor;
+        [self.contentView addSubview:thridSectionSeperatorView];
+        
+    }
+    return self;
+}
+
+- (void)setCellData:(MessageCellData *)cellData
+{
+    
+}
+
+- (void)initWithSetupMessageListCellDataWithMessageCellData:(MessageCellData *)itemData{
+    _cellData = itemData;
+    ///用户头像或消息模块Icon
+    
+    
+    
+    LocalDataManagement *dataManagement=[LocalDataManagement sharedLocalManager];
+    
+    [dataManagement writeUserDataToFileWithUserName:itemData.userName WithUserID:itemData.userId];
+    
+    if (!IsStringEmptyOrNull(itemData.userIconKey)) {
+        NSString *userIconString = [NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,itemData.userIconKey];
+        [self.userPersIcon setImageWithURL:[NSURL URLWithString:userIconString]
+                          placeholderImage:createImageWithColor(KUIImageViewDefaultColor)];
+    }
+
+    ///用户名或模块名字
+    [self.userNameLabel setText:itemData.userName];
+    if(itemData.cellType!=1)
+    {
+        self.userNameLabel.textColor=KContentTextCanEditColor;
+    }
+    
+    [self.userMessageLabel setAttString:itemData.msgLastAttributedContent];
+    
+    ///创建时间
+    [self.userCreateTimeLabel setText:itemData.msgCreateDateTime];
+    CGSize dateSize=[self.userCreateTimeLabel.text sizeWithFont:self.userCreateTimeLabel.font];
+    self.userCreateTimeLabel.frame= CGRectMake(KProjectScreenWidth-dateSize.width-5,
+                                               3.5,
+                                               dateSize.width,
+                                               28);
+    
+    [self.userUnreadMsgCount setText:[NSString stringWithFormat:@"%d",itemData.unreadMsgCount]];
+    
+    [self layoutIfNeeded];
+}
+
+- (void)layoutSubviews{
+    
+    if (self.cellData.unreadMsgCount >=1) {
+        
+        [self.userUnreadMsgCount setHidden:NO];
+        
+        [self.userUnreadMsgCount.layer setCornerRadius:10.0f];
+        if ([self.userUnreadMsgCount.text length] <= 1) {
+            [self.userUnreadMsgCount setFrame:CGRectMake(40, 5.0f,20, 20.0f)];
+        }else if ([self.userUnreadMsgCount.text length]==2){
+            [self.userUnreadMsgCount setFrame:CGRectMake(40, 5.0f,30, 20.0f)];
+        }
+        if ([self.userUnreadMsgCount.text length]>=3){
+            [self.userUnreadMsgCount setText:@"99+"];
+            [self.userUnreadMsgCount setFrame:CGRectMake(40, 5.0f,30, 20.0f)];
+        }
+        if(self.cellData.cellType == IMForCarFriendsPartyType ||
+           self.cellData.cellType == ImForFriendCircleType){
+            [self.userUnreadMsgCount  setText:@""];
+            [self.userUnreadMsgCount.layer setCornerRadius:5.0f];
+            [self.userUnreadMsgCount setFrame:CGRectMake(45, 5.0f,10.0, 10.0f)];
+        }
+        [self.userUnreadMsgCount.layer setMasksToBounds:YES];
+        
+    }else {
+        [self.userUnreadMsgCount setHidden:YES];
+    }
+//    GLfloat contentHeight = [self.cellData getContentHeight:KProjectScreenWidth-80];
+//    if (contentHeight >= 20.0f) {
+//        [self.userMessageLabel setFrame:CGRectMake(70.0f, 35.0f, (KProjectScreenWidth-80), contentHeight)];
+//    }else{
+    if (HUISystemVersionBelow(kHUISystemVersion_8_0)) {
+        [self.userMessageLabel setFrame:CGRectMake(70.0f, 40, (KProjectScreenWidth-80), 25.0f)];
+    }
+    else
+    {
+        [self.userMessageLabel setFrame:CGRectMake(70.0f, 40, (KProjectScreenWidth-80), 24.0f)];
+    }
+//    }
+}
+- (void)setUserHasReadMessage{
+    [self.cellData setUnreadMsgCount:0];
+    [self.cellData setUnReadFlag:0];
+    [self layoutIfNeeded];
+}
+
+
+@end

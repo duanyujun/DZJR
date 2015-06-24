@@ -1,0 +1,553 @@
+//
+//  FriendsViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-6-26.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FriendsViewController.h"
+#import "HMSegmentedControl.h"
+#import "HTTPClient+Friends.h"
+#import "HTTPClient+Interaction.h"
+#import "CurrentUserInformation.h"
+#import "FriendsMapController.h"
+#import "APAvatarImageView.h"
+#import "FriendDetailedInforViewController.h"
+#import "FontAwesome.h"
+
+#define KCellSexBGManColor [UIColor colorWithRed:129.0f/255.0f green:193.0f/255.0f blue:254.0f/255.0f alpha:1.0f]
+#define KCellSexBGWomanColor [UIColor colorWithRed:253.0f/255.0f green:170.0f/255.0f blue:172.0f/255.0f alpha:1.0f]
+#define kFriendsSegementHeight                      34.5
+#define kFriendsTableViewBaseTag                    1100
+#define kCellCarLogoImageViewTag                    10003
+#define kCellNameLabelTag                           10004
+#define kCellSexManVLabelTag                        10005
+#define KCellSexWomanLabelTag                       10009
+#define kCellDistanceLabelTag                       10006
+#define KCellSexBGViewTag                           10007
+#define KCellSignatureLableTag                      10008
+#define KCellSignaBGViewTag                         11011
+
+@interface FriendsViewController () <UITableViewDataSource, UITableViewDelegate,UIScrollViewDelegate>
+@property (nonatomic,strong)UIScrollView                        *contentScrollView;
+@property (readwrite, strong) DataPage                          *dataSource;            //列表的数据源
+@property (nonatomic, weak)   AFHTTPRequestOperation            *requestDataOperation;  //请求列表数据的操作
+@property (nonatomic, weak)HMSegmentedControl                   *segmentedControl;
+
+@property (nonatomic,assign) CGFloat        heightScale;
+
+@end
+
+@implementation FriendsViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+- (void)loadView
+{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = [[ThemeManager sharedThemeManager].skin backgroundColor];
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    self.heightScale=(CGFloat)KProjectScreenHeight/568;
+    
+    if(self.heightScale<1)
+    {
+        self.heightScale=1;
+    }
+    
+    // Do any additional setup after loading the view.
+    [self settingNavTitle:@"车友"];
+    //导航栏右侧按钮-地图
+    [self setRightNavButtonFA:FMIconMapFriend
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(rightItemClicked)];
+    
+    self.dataSource = [DataPage page];
+    [self setContentView];
+    [self refreshListData:0];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+- (void)setContentView
+{
+    CGRect frame = self.view.bounds;
+    
+    //创建SegmentedControl
+    HMSegmentedControl *segmentedControl = [[HMSegmentedControl alloc] initWithSectionTitles:@[@"我的", @"活跃", @"附近"]];
+    segmentedControl.frame = CGRectMake(0, 0 , frame.size.width, kFriendsSegementHeight*self.heightScale);
+    segmentedControl.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleWidth;
+    [segmentedControl addTarget:self action:@selector(segmentedControlChangedValue:) forControlEvents:UIControlEventValueChanged];
+    segmentedControl.selectionIndicatorLocation = HMSegmentedControlSelectionIndicatorLocationDown;
+    segmentedControl.textColor = KTitleTextColor;
+    segmentedControl.selectedTextColor = [[ThemeManager sharedThemeManager].skin baseTintColor];
+    segmentedControl.selectionIndicatorColor = [[ThemeManager sharedThemeManager].skin baseTintColor];
+    segmentedControl.font = kFontWithDefaultSize;
+    segmentedControl.selectionIndicatorHeight = 2.0;
+    segmentedControl.backgroundColor = KDefaultOrNightScrollViewColor;
+    self.segmentedControl = segmentedControl;
+    [self.view addSubview:segmentedControl];
+    
+    ///底部横线
+    UIImageView *lineImageView = [[UIImageView alloc]initWithFrame:CGRectMake(0.0f, kFriendsSegementHeight*self.heightScale, KProjectScreenWidth, 0.50f)];
+    [lineImageView setBackgroundColor:KDefaultOrNightBaseColor];
+    [lineImageView setUserInteractionEnabled:YES];
+    [self.view addSubview:lineImageView];
+    
+    //创建UIScrollView
+    _contentScrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0,
+                                                                        kFriendsSegementHeight*self.heightScale+0.5,
+                                                                        frame.size.width,
+                                                                        frame.size.height - kFriendsSegementHeight*self.heightScale-0.5)];
+    _contentScrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _contentScrollView.pagingEnabled = YES;
+    _contentScrollView.delegate = self;
+    _contentScrollView.showsHorizontalScrollIndicator = NO;
+    _contentScrollView.showsVerticalScrollIndicator = NO;
+    _contentScrollView.backgroundColor = [UIColor clearColor];
+    
+    for (int i = 0;i < 3;i++) {
+        CGRect rcTable = CGRectMake(i * frame.size.width,
+                                    0,
+                                    frame.size.width,
+                                    frame.size.height - kFriendsSegementHeight*self.heightScale);
+        UITableView* tbView = [[UITableView alloc] initWithFrame:rcTable style:UITableViewStylePlain];
+        tbView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        tbView.separatorStyle = UITableViewCellSeparatorStyleNone;
+        tbView.backgroundColor = [UIColor clearColor];
+        tbView.dataSource = self;
+        tbView.delegate = self;
+        
+        [tbView setTag:kFriendsTableViewBaseTag+i];
+        __weak __typeof(&*self)weakSelf = self;
+        [tbView addPullToRefreshWithActionHandler:^(void){
+            [weakSelf refreshListData:i];
+        }];
+        ConfiguratePullToRefreshViewAppearanceForScrollView(tbView);
+        [self.contentScrollView addSubview:tbView];
+    }
+    self.contentScrollView.contentSize = CGSizeMake(frame.size.width * 3, 0);
+    [self.view addSubview:_contentScrollView];
+    
+}
+- (void) rightItemClicked
+{
+    FriendsMapController*  friendMapController = [[FriendsMapController alloc] init];
+    [self.navigationController pushViewController:friendMapController animated:YES];
+}
+- (void)segmentedControlChangedValue:(HMSegmentedControl *)segmentedControl {
+    CGRect rc = self.view.bounds;
+    self.contentScrollView.contentOffset = CGPointMake(segmentedControl.selectedSegmentIndex * rc.size.width, 0);
+    UITableView* tbView = (UITableView* )[self.contentScrollView viewWithTag:kFriendsTableViewBaseTag+segmentedControl.selectedSegmentIndex];
+    [tbView triggerPullToRefresh];
+}
+#pragma mark --刷新数据
+- (void) refreshListData:(NSInteger)tbIndex
+{
+    UITableView* tbView = (UITableView* )[self.contentScrollView viewWithTag:kFriendsTableViewBaseTag+tbIndex];
+    if (tbView == nil) {
+        return;
+    }
+    //停掉当前未完成的请求操作
+    [self.requestDataOperation cancel];
+    //清空当前数据源中所有数据
+    [self.dataSource cleanAllData];
+    self.dataSource.pageCount = 1; //使loadmore可以自动加载数据
+    [tbView reloadData];
+    //[self getFriendList:tbIndex];
+}
+#pragma mark --获取车友信息
+- (void) getFriendList:(NSInteger)type
+{
+    __weak __typeof(&*self)weakSelf = self;
+    WebAPIRequestCompletionBlock requestBlock = ^(WebAPIResponse *response)
+    {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            UITableView* tbView = (UITableView* )[weakSelf.contentScrollView viewWithTag:kFriendsTableViewBaseTag+type];
+            //关掉PullToRefreshView
+            if (tbView.pullToRefreshView.state == SVPullToRefreshStateLoading)
+            {
+                UpdateLastRefreshDataForPullToRefreshViewOnView(tbView);
+                [tbView.pullToRefreshView stopAnimating];
+            }
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                //车友信息
+                NSArray* dataList = [response.responseObject objectForKey:kDataKeyData];
+                if ([dataList isKindOfClass:[NSArray class]]) {
+                    NSMutableArray* userList = [NSMutableArray array];
+                    for (NSDictionary* dic in dataList) {
+                        Log(@"\n---------------\n  %@",dic);
+                        UserInfo *userInfo = [UserInfo userWithUnserializedJSONDic:dic];
+                        [userList addObject:userInfo];
+                    }
+                    [weakSelf.dataSource appendPage:userList];
+                    //页数
+                    weakSelf.dataSource.pageCount = IntForKeyInUnserializedJSONDic(response.responseObject,kDataKeyPageCount);
+                    
+                    [tbView reloadData];
+                }
+                
+            }else{
+                
+            }
+        });
+    };
+    
+    [self.requestDataOperation cancel];
+    
+    switch (type) {
+            
+        case 0: //我的车友
+            self.requestDataOperation = [FMHTTPClient getMyFriends:[CurrentUserInformation sharedCurrentUserInfo].userID
+                                                         pageIndex:[self.dataSource nextPageIndex]
+                                                          pageSize:[self.dataSource pageSize]
+                                                        completion:requestBlock];
+            break;
+        case 1://活跃
+            self.requestDataOperation = [FMHTTPClient getActiveFriends:[CurrentUserInformation sharedCurrentUserInfo].userID
+                                                             pageIndex:[self.dataSource nextPageIndex]
+                                                              pageSize:[self.dataSource pageSize]
+                                                            completion:requestBlock];
+            break;
+        case 2://附近
+            self.requestDataOperation = [FMHTTPClient getAroundFriends:[CurrentUserInformation sharedCurrentUserInfo].userID
+                                                             longitude:[CurrentUserInformation sharedCurrentUserInfo].userCoordinate.longitude
+                                                              latitude:[CurrentUserInformation sharedCurrentUserInfo].userCoordinate.latitude
+                                                             pageIndex:[self.dataSource nextPageIndex]
+                                                              pageSize:[self.dataSource pageSize]
+                                                            completion:requestBlock];
+            break;
+        default:
+            break;
+    }
+}
+#pragma mark - UIScrollView Delegate
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    if (scrollView != self.contentScrollView) {
+        return;
+    }
+    CGFloat pageWidth = scrollView.frame.size.width;
+    NSInteger page = scrollView.contentOffset.x / pageWidth;
+    if (page == self.segmentedControl.selectedSegmentIndex) {
+        return;
+    }
+    [self.segmentedControl setSelectedSegmentIndex:page animated:YES];
+    [self refreshListData:page];
+}
+- (UITableViewCell *)createCellWithIdentifier:(NSString *)cellIdentifier withType:(NSInteger)type
+{
+    if ([cellIdentifier isEqualToString:kHUILoadMoreCellIdentifier])
+    {
+        return CreateLoadMoreCell();
+        
+    }
+    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellIdentifier];
+    cell.contentView.backgroundColor = KDefaultOrNightBackGroundColor;
+    cell.backgroundColor = KDefaultOrNightBackGroundColor;
+    
+    //设置选中Cell后的背景图
+    UIView *selectedView = [[UIView alloc] initWithFrame:cell.bounds];
+    [selectedView setBackgroundColor:[FMThemeManager.skin buttonHighlightColor]];
+    cell.selectedBackgroundView = selectedView;
+    
+    
+    //车Logo视图
+    UIImageView *carLogoImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(11, 13.5, 40, 40)
+                                                                 borderColor:[UIColor whiteColor]
+                                                                 borderWidth:1.0];
+    carLogoImageView.contentMode = UIViewContentModeScaleAspectFill;
+    carLogoImageView.tag = kCellCarLogoImageViewTag;
+    [cell.contentView addSubview:carLogoImageView];
+    
+    //用户名
+    UILabel *nameLabel = [[UILabel alloc] init];
+    
+    nameLabel.frame = CGRectMake(75, 15, KProjectScreenWidth/3, 22);
+    nameLabel.tag = kCellNameLabelTag;
+    nameLabel.font = [UIFont systemFontOfSize:17.0f];
+    nameLabel.textColor = [FMThemeManager.skin textColor];
+    nameLabel.backgroundColor = [UIColor clearColor];
+    [cell.contentView addSubview:nameLabel];
+    
+    
+    UIView  *sexBGView = [[UIView alloc]init];
+    [sexBGView setBackgroundColor:[UIColor clearColor]];
+    [sexBGView setTag:KCellSexBGViewTag];
+    [sexBGView.layer setCornerRadius:4.0f];
+    [sexBGView.layer setMasksToBounds:YES];
+    [cell.contentView addSubview:sexBGView];
+    
+    //性别
+    UILabel *sexImageView = [FontAwesome labelWithFAIcon:FMIconMale size:12.0f
+                                                   color:KCellSexBGManColor];
+    sexImageView.tag = kCellSexManVLabelTag;
+    [sexImageView setTextAlignment:NSTextAlignmentCenter];
+    [sexImageView setFrame:CGRectMake(3.0f, 0.0, 20.0f, 20.0f)];
+    [sexImageView setBackgroundColor:[UIColor clearColor]];
+    [cell.contentView addSubview:sexImageView];
+    
+    //性别
+    UILabel *sexWomanView = [FontAwesome labelWithFAIcon:FMIconFemale size:12.0f
+                                                   color:KCellSexBGWomanColor];
+    sexWomanView.tag = KCellSexWomanLabelTag;
+    [sexWomanView setTextAlignment:NSTextAlignmentCenter];
+    [sexWomanView setFrame:CGRectMake(3.0f, 0.0, 20.0f, 20.0f)];
+    [sexWomanView setBackgroundColor:[UIColor clearColor]];
+    [cell.contentView addSubview:sexWomanView];
+    
+    ///距离内容
+    UILabel *distanceLabel = [[UILabel alloc]init];
+    [distanceLabel setTag:kCellDistanceLabelTag];
+    [distanceLabel setTextColor:KSubTitleContentTextColor];
+    [distanceLabel setFont:[UIFont systemFontOfSize:13.0f]];
+    [distanceLabel setBackgroundColor:[UIColor clearColor]];
+    [sexBGView addSubview:distanceLabel];
+    
+    //    KCellSignaBGViewTag
+    UIView  *signatureBGView = [[UIView alloc]init];
+    [signatureBGView setFrame:CGRectMake((80+KProjectScreenWidth/3)+20, 10,
+                                         (KProjectScreenWidth - (80+KProjectScreenWidth/3) -10)-20,
+                                         42)];
+    [signatureBGView setBackgroundColor:[UIColor colorWithRed:245.0f/255.0f
+                                                        green:245.0f/255.0f
+                                                         blue:245.0f/255.0f
+                                                        alpha:1.0f]];
+    signatureBGView.tag=KCellSignaBGViewTag;
+    [cell.contentView addSubview:signatureBGView];
+    
+    //右侧Label
+    UILabel *signatureLabel = [[UILabel alloc] initWithFrame:CGRectMake(4.0f, 2.0f,
+                                                                        (signatureBGView.frame.size.width - 8),
+                                                                        38)];
+    signatureLabel.tag = KCellSignatureLableTag;
+    signatureLabel.numberOfLines = 2;
+    signatureLabel.backgroundColor=[UIColor clearColor];
+    signatureLabel.font = [UIFont systemFontOfSize:12.0f];
+    signatureLabel.textColor = KSubTitleContentTextColor;
+    [signatureBGView addSubview:signatureLabel];
+    
+    //添加分隔线
+    UIView *underLineSeparatorView = [[UIView alloc] initWithFrame:CGRectMake(75.0f-12, 62.0f,
+                                                                              (KProjectScreenWidth - 75.0f),
+                                                                              0.5f)];
+    underLineSeparatorView.backgroundColor = [FMThemeManager.skin sepratorColor];
+    [cell.contentView addSubview:underLineSeparatorView];
+    return cell;
+}
+#pragma mark -
+#pragma mark -UITableViewDataSource UITableViewDelegate
+- (UITableViewCell *) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *cellKeyString = nil;
+    if (indexPath.row < [self.dataSource count]) {
+        cellKeyString = @"Cell";
+    }else{
+        cellKeyString = kHUILoadMoreCellIdentifier;
+    }
+    NSInteger type = tableView.tag - kFriendsTableViewBaseTag;
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellKeyString];
+    
+    if (!cell) {
+        cell = [self createCellWithIdentifier:cellKeyString withType:type];
+    }
+    
+    if (indexPath.row >= [self.dataSource count]) {
+        if ([self.dataSource canLoadMore])
+        {
+            
+            __weak __typeof(&*self)weakSelf = self;
+            [(HUILoadMoreCell*)cell setLoadMoreOperationDidStartedBlock:^{
+                [weakSelf getFriendList:type];
+            }];
+            cell.textLabel.text = LOADMORE_LOADING;
+            [(HUILoadMoreCell*)cell startLoadMore];
+        }else{
+            if (tableView.pullToRefreshView.state == SVPullToRefreshStateLoading) {
+                cell.textLabel.text = LOADMORE_LOADING;
+            }else{
+                cell.textLabel.text = LOADMORE_LOADOVER;
+            }
+        }
+        
+    }else{
+        UserInfo *userInfo = [self.dataSource.data objectAtIndex:indexPath.row];
+        
+        
+        //车Logo
+        UIImageView *carLogoImageView = (UIImageView *)[cell.contentView viewWithTag:kCellCarLogoImageViewTag];
+        
+        //车Logo图片
+        NSString *imageUrl = [NSString stringWithFormat:@"%@%@thumb",KMediaServerImagesInforURL,userInfo.userAvatar];
+        
+        [carLogoImageView setImageWithURL:[NSURL URLWithString:imageUrl]
+                         placeholderImage:kImgDefaultCar];
+        
+        //用户名
+        UILabel *nameLabel = (UILabel *)[cell.contentView viewWithTag:kCellNameLabelTag];
+        nameLabel.text = userInfo.userName;
+        CGSize nameSize=[nameLabel.text sizeWithFont:nameLabel.font];
+        if (nameSize.width<=(KProjectScreenWidth/3-10)) {
+            nameLabel.frame=CGRectMake(75-12, 8, nameSize.width, 22);
+            
+        }
+        else
+        {
+            nameLabel.frame = CGRectMake(75-12, 8, KProjectScreenWidth/3, 22);
+            
+        }
+        
+        
+        UIView  *sexBGView = (UIView *)[cell.contentView viewWithTag:KCellSexBGViewTag];
+        //性别
+        UILabel *sexImageView = (UILabel *)[cell.contentView viewWithTag:kCellSexManVLabelTag];
+        //性别
+        UILabel *sexWomanLabel = (UILabel *)[cell.contentView viewWithTag:KCellSexWomanLabelTag];
+        
+        ///距离内容
+        UILabel *distanceLabel = (UILabel *)[cell.contentView viewWithTag:kCellDistanceLabelTag];
+        
+        if (userInfo.userSex == 1) {
+            [sexImageView setHidden:NO];
+            [sexImageView setFrame:CGRectMake(nameLabel.frame.origin.x+nameLabel.frame.size.width-1, nameLabel.frame.origin.y+1, 20.0f, 20.0f)];
+            [sexWomanLabel setHidden:YES];
+            [sexWomanLabel setFrame:CGRectMake(3.0f, 0.0, 0.0f, 0.0f)];
+            //            [sexBGView setBackgroundColor:KCellSexBGManColor];
+        }else {
+            [sexImageView setHidden:YES];
+            [sexImageView setFrame:CGRectMake(3.0f, 0.0, 0.0f, 0.0f)];
+            [sexWomanLabel setHidden:NO];
+            [sexWomanLabel setFrame:CGRectMake(nameLabel.frame.origin.x+nameLabel.frame.size.width-1, nameLabel.frame.origin.y+1, 20.0f, 20.0f)];
+            //            [sexBGView setBackgroundColor:KCellSexBGWomanColor];
+        }
+        
+        NSString *distanceStr = [NSString stringWithFormat:@"距离%@",userInfo.userDistance];
+                
+        [distanceLabel setText:distanceStr];
+        CGSize distanceSize = [distanceStr sizeWithFont:distanceLabel.font];
+        
+        [distanceLabel setFrame:CGRectMake(0.0f, 0.0, distanceSize.width, 20.0f)];
+        
+        [sexBGView setFrame:CGRectMake(75.0f-12, 45.0f-8, 30+distanceSize.width+5.0f, 20.0f)];
+        
+        
+        if (IsStringEmptyOrNull(userInfo.userDistance)) {
+            [sexBGView setHidden:YES];
+            [distanceLabel setHidden:YES];
+            
+            if (nameSize.width<=(KProjectScreenWidth/3-10)) {
+                nameLabel.frame=CGRectMake(75-12, 20, nameSize.width, nameLabel.frame.size.height);
+            }
+            else
+            {
+                nameLabel.frame = CGRectMake(75-12, 20, KProjectScreenWidth/3, 22);
+                
+            }
+            
+                if (userInfo.userSex == 1) {
+                    [sexImageView setHidden:NO];
+                    [sexImageView setFrame:CGRectMake(nameLabel.frame.origin.x+nameLabel.frame.size.width-1, nameLabel.frame.origin.y+1, 20.0f, 20.0f)];
+                    [sexWomanLabel setHidden:YES];
+                    [sexWomanLabel setFrame:CGRectMake(3.0f, 0.0, 0.0f, 0.0f)];
+                    [sexBGView setBackgroundColor:KCellSexBGManColor];
+                    
+                }else {
+                    [sexImageView setHidden:YES];
+                    [sexImageView setFrame:CGRectMake(3.0f, 0.0, 0.0f, 0.0f)];
+                    [sexWomanLabel setHidden:NO];
+                    [sexWomanLabel setFrame:CGRectMake(nameLabel.frame.origin.x+nameLabel.frame.size.width-1, nameLabel.frame.origin.y+1, 20.0f, 20.0f)];
+                    [sexBGView setBackgroundColor:KCellSexBGWomanColor];
+                }
+        }
+        
+        UIView  *signatureBGView = [cell.contentView viewWithTag:KCellSignaBGViewTag];
+        
+        if (ThemeCategory==5) {
+            signatureBGView.alpha=0.7;
+        }
+        
+        UILabel *signatureLabel = (UILabel *)[cell.contentView viewWithTag:KCellSignatureLableTag];
+        
+        if (IsStringEmptyOrNull(userInfo.userPersonalSignature)) {
+            [signatureLabel setHidden:YES];
+            [signatureBGView setHidden:YES];
+        }
+        else
+        {
+            [signatureLabel setHidden:NO];
+            [signatureBGView setHidden:NO];
+            
+            signatureLabel.frame =CGRectMake(4.0f, 2.0f,
+                                             (signatureBGView.frame.size.width - 8),
+                                             38);
+            
+            [signatureLabel setText:userInfo.userPersonalSignature];
+            
+            CGSize signatureSize=[signatureLabel.text sizeWithFont:signatureLabel.font];
+            
+            if (signatureSize.width<=(KProjectScreenWidth/3-10)) {
+                
+                signatureBGView.frame=CGRectMake(KProjectScreenWidth-signatureSize.width-10.0f-8, 10.0f, signatureSize.width+8.0f, 42.0f);
+                
+                signatureLabel.frame=CGRectMake(4.0f, 2.0f,
+                                                (signatureBGView.frame.size.width - 8),
+                                                38);
+            }
+            else
+            {
+                
+                [signatureBGView setFrame:CGRectMake((80+KProjectScreenWidth/3)+20-10, 10,
+                                                     (KProjectScreenWidth - (80+KProjectScreenWidth/3) -10)-10,
+                                                     42)];
+                
+                signatureLabel.frame=CGRectMake(4.0f, 2.0f,
+                                                (signatureBGView.frame.size.width - 8),
+                                                38);
+            }
+        }
+        
+    }
+    return cell;
+}
+
+- (NSInteger) tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return [self.dataSource count] + 1;
+}
+
+- (CGFloat) tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 62.5f;
+}
+
+- (void) tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    if (indexPath.row < [self.dataSource count]) {
+        UserInfo *userInfo = [self.dataSource.data objectAtIndex:indexPath.row];
+        
+        FriendDetailedInforViewController   *detailViewController = [[FriendDetailedInforViewController alloc] initWithUserInfo:userInfo];
+        [self.navigationController pushViewController:detailViewController animated:YES];
+    }
+    
+}
+
+@end

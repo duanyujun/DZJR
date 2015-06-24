@@ -1,0 +1,102 @@
+//
+//  RadioPlayer.m
+//  RadioPlayer
+//
+//  Created by mayiming on 14-2-26.
+//  Copyright (c) 2014年 mayiming. All rights reserved.
+//
+
+#import "RadioPlayer.h"
+#import <AVFoundation/AVFoundation.h>
+#import "CyberPlayerController.h"
+
+CyberPlayerController *cbPlayerController;//播放器控制器
+
+@implementation RadioPlayer
+static RadioPlayer *sharedInstance = nil ;
+
++ (RadioPlayer *) sharedInstance
+{
+    static dispatch_once_t onceToken;// 锁
+    dispatch_once (& onceToken, ^ {// 最多调用一次
+        sharedInstance = [[self  alloc] init];
+    });
+    return  sharedInstance;
+}
+
+// 当第一次使用这个单例时，会调用这个init方法。
+- (id) init
+{
+    self = [super init];
+    
+    if (self) {
+        //后台播放设置
+        AVAudioSession *session = [AVAudioSession sharedInstance];
+        [session setActive:YES error:nil];
+        [session setCategory:AVAudioSessionCategoryPlayback error:nil];
+        
+        //初始化播放器
+#if !TARGET_IPHONE_SIMULATOR
+        NSString *msAK = @"P00AaU19RtihPzNPU7DGETLH";
+        NSString *msSK = @"tA1mS2SNCPHAtU2hRHiOD97oMlnYX7Be";
+        [[CyberPlayerController class] setBAEAPIKey:msAK SecretKey:msSK];
+        cbPlayerController = [[CyberPlayerController alloc] init];
+#endif
+    }
+    
+    return self;
+}
+
+//设置播放地址
+- (void) setRadioUrlString:(NSString *) urlString{
+    
+     ////石家庄设置广播地址
+    // NSString *videoFullPath =  @"http://live.2300sjz.com/channels/sjztv/tran946_channel_02/m3u8:tran";
+    
+    
+//     NSString *videoFullPath = @"https://live1.av.jiaodong.net/channels/yttv/audio_jtgb/flv:64k";
+     //videoFullPath = @"mmsh://124.128.18.76/jiaotong";
+    
+    
+    NSURL *url = [NSURL URLWithString:urlString];
+    if (!url) {
+        url = [NSURL URLWithString:[urlString stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
+    }
+#if !TARGET_IPHONE_SIMULATOR
+    [cbPlayerController setContentURL:url];
+#endif
+}
+
+//开始播放
+- (void) play
+{
+#if !TARGET_IPHONE_SIMULATOR
+    switch (cbPlayerController.playbackState) {
+        case CBPMoviePlaybackStateStopped:
+        case CBPMoviePlaybackStateInterrupted:
+            //初始化完成后直接播放视频，不需要调用play方法
+            cbPlayerController.shouldAutoplay = YES;
+            //初始化视频文件
+            [cbPlayerController prepareToPlay];
+            
+            sharedInstance.isPlayed = YES;
+            break;
+        default:
+            [cbPlayerController prepareToPlay];
+            sharedInstance.isPlayed = YES;
+            break;
+    }
+#endif
+}
+
+//停止播放
+- (void) stop
+{
+#if !TARGET_IPHONE_SIMULATOR
+    [cbPlayerController stop];
+    sharedInstance.isPlayed = NO;
+#endif
+}
+
+
+@end

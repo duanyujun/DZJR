@@ -1,0 +1,138 @@
+//
+//  RoadConditionInfo.m
+//  FM_CheZhuFuWu
+//
+//  Created by Ma Yiming on 13-5-27.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "RoadConditionInfo.h"
+#import "AttributedStringHelper.h"
+#import "NSAttributedString+Height.h"
+
+@implementation RoadConditionInfo
+- (id) init{
+    self = [super init];
+    
+    if (self) {
+        UserInfo *_userInfo = [[UserInfo alloc] init];
+        self.reportUserInfo = _userInfo;
+    }
+    
+    return self;
+}
+
+//反序列化路况信息
++ (id)roadConditionWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    RoadConditionInfo *roadConditionInfo = [[RoadConditionInfo alloc] init];
+    //路况ID
+    roadConditionInfo.roadConditionID = StringForKeyInUnserializedJSONDic(dic, @"id");
+    //路况内容
+    roadConditionInfo.roadConditionContent = StringForKeyInUnserializedJSONDic(dic, @"content");;
+
+    //路况图片
+    NSArray* imageData = ObjForKeyInUnserializedJSONDic(dic,@"pic");
+    NSMutableArray* imageArray = [[NSMutableArray alloc] init];
+    if ([imageData isKindOfClass:[NSArray class]]) {
+        for (NSDictionary* imgDic in imageData) {
+            FMImage* im = [[FMImage alloc]init];
+            im.url = ObjForKeyInUnserializedJSONDic(imgDic,@"pic_url");
+            im.imageSize = CGSizeMake([ObjForKeyInUnserializedJSONDic(imgDic,@"pic_width") floatValue]/2.0,
+                                      [ObjForKeyInUnserializedJSONDic(imgDic,@"pic_height") floatValue]/2.0);
+            [imageArray addObject:im];
+        }
+    }
+    roadConditionInfo.images = [NSArray arrayWithArray:imageArray];
+    
+    //路况类型
+    roadConditionInfo.roadConditionType = IntForKeyInUnserializedJSONDic(dic, @"type");
+
+    //路况经纬度
+    double latitude = DoubleForKeyInUnserializedJSONDic(dic,@"latitude");   //纬度
+    double longitude = DoubleForKeyInUnserializedJSONDic(dic,@"longitude"); //经度
+    roadConditionInfo.roadConditionCoordinate = CLLocationCoordinate2DMake(latitude, longitude);
+    
+    //上报者ID
+    roadConditionInfo.reportUserInfo.userID = StringForKeyInUnserializedJSONDic(dic, @"userId");
+    
+    //上报者名称
+    roadConditionInfo.reportUserInfo.userName = StringForKeyInUnserializedJSONDic(dic, @"userName");;
+
+    //上报者性别
+    roadConditionInfo.reportUserInfo.userSex = IntForKeyInUnserializedJSONDic(dic, @"sex");
+    
+    //上报者角色 产品经理 主持人 普通用户
+    roadConditionInfo.reportUserInfo.userRole = StringForKeyInUnserializedJSONDic(dic, @"is_admin");
+
+    //上报者车logo
+    roadConditionInfo.reportUserInfo.userAvatar = StringForKeyInUnserializedJSONDic(dic,@"avatar");
+
+    //上报时间
+    roadConditionInfo.reportTime = StringForKeyInUnserializedJSONDic(dic,@"time");
+    if (!IsStringEmptyOrNull(roadConditionInfo.roadConditionContent)) {
+        AttributedStringHelper *attributedStringHelper = [[AttributedStringHelper alloc] init];
+        [roadConditionInfo setAttributedRoadConditionContent:[attributedStringHelper getAttributedStringWithNSString:roadConditionInfo.roadConditionContent textColor:KMessageTextColor]];
+    }
+    
+    if ([dic objectForKey:@"audio" ]) {
+        
+        
+        if ([[dic objectForKey:@"audio" ] isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *audioDictionary = [NSDictionary dictionaryWithDictionary:ObjForKeyInUnserializedJSONDic(dic, @"audio")];
+            if (audioDictionary.count > 0) {
+                [roadConditionInfo setRoadContentWithAudio:StringForKeyInUnserializedJSONDic(audioDictionary, @"voiceKey")];
+                if ([audioDictionary objectForKey:@"voiceLen"]) {
+                    [roadConditionInfo setAmrLength:IntForKeyInUnserializedJSONDic(audioDictionary, @"voiceLen")];
+                }
+            }
+        }
+    }
+
+
+    return roadConditionInfo;
+}
+
+- (NSDictionary *)generateRoadConditionJSONDic
+{
+    NSMutableDictionary* dic = [[NSMutableDictionary alloc] init];
+    AddObjectForKeyIntoDictionary(self.roadConditionContent, @"content", dic);
+    
+    AddObjectForKeyIntoDictionary(self.reportUserInfo.userID, @"userId", dic);
+    
+    AddObjectForKeyIntoDictionary([NSNumber numberWithDouble:self.roadConditionCoordinate.longitude], @"longitude", dic);
+    
+    AddObjectForKeyIntoDictionary([NSNumber numberWithDouble:self.roadConditionCoordinate.latitude], @"latitude", dic);
+    
+    AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:self.roadConditionType], @"type", dic);
+    
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInteger:self.roadDirectionStyle], @"direction", dic);
+    
+    AddObjectForKeyIntoDictionary(self.reportUserInfo.userCityName, @"cityCode", dic);
+    
+    AddObjectForKeyIntoDictionary(self.reportUserInfo.userStreet, @"street", dic);
+    
+    ///判断是否有语音内容，若有，则上报时加入语音内容
+    if (!IsStringEmptyOrNull(self.roadContentWithAudio)) {
+        AddObjectForKeyIntoDictionary(self.roadContentWithAudio, KDataKeyAudio, dic);
+    }
+    
+    if([self.images count] > 0) {
+        NSMutableArray* imgArray = [[NSMutableArray alloc]init];
+        for (FMImage* im in self.images) {
+            if (IsStringEmptyOrNull(im.url)) {
+                continue;
+            }
+            NSMutableDictionary* imgDic = [[NSMutableDictionary alloc] init];
+            [imgDic setObject:im.url forKey:@"pic_url"];
+            [imgDic setObject:[[NSNumber alloc] initWithFloat:im.imageSize.width] forKey:@"pic_width"];
+            [imgDic setObject:[[NSNumber alloc] initWithFloat:im.imageSize.height] forKey:@"pic_height"];
+            [imgArray addObject:imgDic];
+        }
+        NSString* jsonStr = [imgArray JSONString];
+        AddObjectForKeyIntoDictionary(jsonStr,@"pic",dic);
+        
+    }
+    return dic;
+}
+@end

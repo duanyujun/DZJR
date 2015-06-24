@@ -1,0 +1,38 @@
+//
+//  ActivityOrPrizeInformation.h
+//  fmapp
+//
+//  Created by 张利广 on 14-6-10.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+
+/** 奖品类别数据及活动召集令数据*/
+@interface ActivityOrPrizeInformation : NSObject
+/*!
+ *@breif 数据信息ID
+ */
+@property (nonatomic , strong)  NSString                *dataInforGUID;
+/*!
+ *@breif 数据信息标题内容
+ */
+@property (nonatomic , strong)  NSString                *dataInforTitleContent;
+/*!
+ *@breif 数据信息组织单位
+ */
+@property (nonatomic , strong)  NSString                *dataInforOrganizerUnit;
+/*!
+ *@breif 数据信息开始时间
+ */
+@property (nonatomic , strong)  NSString                *dataInforCreateDate;
+/*!
+ *@breif 数据信息参与人数
+ */
+@property (nonatomic , strong)  NSString                *dataInforJoinInUserNumber;
+/*!
+ *@breif 数据信息头部宣传图片地址
+ */
+@property (nonatomic , strong)  NSString                *dataInforHeaderImageURLString;
+@end

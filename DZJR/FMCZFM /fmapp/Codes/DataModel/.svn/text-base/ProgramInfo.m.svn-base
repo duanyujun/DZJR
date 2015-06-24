@@ -1,0 +1,55 @@
+//
+//  ProgramInfo.m
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-13.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "ProgramInfo.h"
+#import "EmceeInfo.h"
+
+@implementation ProgramInfo
+
+@synthesize identity;
+@synthesize name;
+@synthesize startTime;
+@synthesize endTime;
+@synthesize emceeArray;
+
+//JSON反序列化节目信息
++ (id)programWithUnserializedJSONDic:(NSDictionary *)dic
+{
+    ProgramInfo* programInfo = [[ProgramInfo alloc] init];
+    //节目ID
+    programInfo.identity = StringForKeyInUnserializedJSONDic(dic, @"id");
+    
+    //节目名称
+    NSString *programName = StringForKeyInUnserializedJSONDic(dic, @"name");
+    if (IsStringEmptyOrNull(programName)) {//节目名称为空
+        programName = @"当前暂无直播节目";
+    }
+    programInfo.name = programName;
+    
+    //节目开始时间
+    programInfo.startTime = StringForKeyInUnserializedJSONDic(dic, @"starttime");
+    
+    //节目结束时间
+    programInfo.endTime = StringForKeyInUnserializedJSONDic(dic, @"endtime");
+    
+    //主持人信息
+    NSArray* emceeArray = (NSArray* )ObjForKeyInUnserializedJSONDic(dic, @"emcee");
+    if ([emceeArray isKindOfClass:[NSArray class]]) {
+        NSMutableArray* dataArray = [NSMutableArray array];
+        for (NSDictionary* emceeDic in emceeArray) {
+            EmceeInfo *emceeInfo = [EmceeInfo emceeWithUnserializedJSONDic:emceeDic];
+            if (emceeInfo) {
+                [dataArray addObject:emceeInfo];
+            }
+        }
+        programInfo.emceeArray = dataArray;
+        
+    }
+    return programInfo;
+}
+@end

@@ -1,0 +1,20 @@
+//
+//  MessageListCell.h
+//  fmapp
+//
+//  Created by SDYK on 14-10-18.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+@class APAvatarImageView;
+@class MessageCellData;
+
+@interface MessageListCell : UITableViewCell
+
+@property (nonatomic, strong) MessageCellData   *cellData;
+- (void)initWithSetupMessageListCellDataWithMessageCellData:(MessageCellData *)itemData;
+/** 将该条数据设置为已读
+ **/
+- (void)setUserHasReadMessage;
+@end

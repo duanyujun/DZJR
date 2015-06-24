@@ -1,0 +1,389 @@
+//
+//  HTTPClient+Interaction.m
+//  FM_CZFW
+//
+//  Created by liyuhui on 14-4-14.
+//  Copyright (c) 2014年 ETelecom. All rights reserved.
+//
+
+#import "HTTPClient+Interaction.h"
+
+@implementation HTTPClient (Interaction)
+
+- (AFHTTPRequestOperation *)getQusetionList:(NSString *)lastQuestionId
+                               questionType:(NSUInteger)type
+                                  pageIndex:(NSUInteger)pageIndex
+                                   pageSize:(NSUInteger)pageSize
+                                 withUserId:(NSString *)userPersonalId
+                                 completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([lastQuestionId length] <= 0 )
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSMutableDictionary *parameters = [[NSMutableDictionary alloc]init];
+    
+    if(type==2){
+        
+        //互动关注列表
+        if ([userPersonalId intValue] > 0) {
+            AddObjectForKeyIntoDictionary(userPersonalId, KUserPersonalID, parameters);
+        }
+        AddObjectForKeyIntoDictionary(lastQuestionId, kDataKeyLastId, parameters);
+        //       AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:type], kDataKeyType, parameters);
+        AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:pageIndex], kDataKeyPageIndex, parameters);
+        AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:pageSize], kDataKeyPageSize, parameters);
+        
+        return [self postPath:KFriendsCircleListURL
+                   parameters:parameters
+                   completion:completion];
+
+    }
+    
+    else
+    {
+        if (type==3) {
+            type=2;
+        }
+        else if(type==4)
+        {
+            type=3;
+        }
+        
+        // 活动全部列表
+        if ([userPersonalId intValue] > 0) {
+            AddObjectForKeyIntoDictionary(userPersonalId, KUserPersonalID, parameters);
+        }
+        AddObjectForKeyIntoDictionary(lastQuestionId, kDataKeyLastId, parameters);
+        AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:type], kDataKeyType, parameters);
+        AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:pageIndex], kDataKeyPageIndex, parameters);
+        AddObjectForKeyIntoDictionary([NSNumber numberWithUnsignedInteger:pageSize], kDataKeyPageSize, parameters);
+        
+        
+        return [self postPath:kQuestionsListURL
+                   parameters:parameters
+                   completion:completion];
+}
+
+    }
+
+- (AFHTTPRequestOperation *)getQusetionAnswerList:(NSString *)questionId
+                                     lastAnswerId:(NSString *)lastId
+                                       withUserId:(NSString *)userId
+                                        pageIndex:(NSUInteger)pageIndex
+                                         pageSize:(NSUInteger)pageSize
+                                     withIsPublic:(NSInteger)isPbulic
+                                       completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([questionId length] <= 0 || [lastId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyId: questionId,
+                                 KUserPersonalID:userId,
+                                 kDataKeyPageIndex: [NSNumber numberWithUnsignedInteger:pageIndex],
+                                 kDataKeyPageSize: [NSNumber numberWithUnsignedInteger:pageSize],
+                                 kDataKeyLastId: lastId,
+                                 KDataKeyPublic:[NSNumber numberWithUnsignedInteger:isPbulic],
+                                 };
+    
+    return [self postPath:kAnswersListURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getQusetionInfo:(NSString *)questionId
+                                  pageIndex:(NSUInteger)pageIndex
+                                 withUserId:(NSString *)userId
+                                   pageSize:(NSUInteger)pageSize
+                                 withPublic:(NSInteger)m_isPublice
+                                 completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([questionId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyId: questionId,
+                                 KUserPersonalID:userId,
+                                 kDataKeyPageIndex: [NSNumber numberWithUnsignedInteger:pageIndex],
+                                 kDataKeyPageSize: [NSNumber numberWithUnsignedInteger:pageSize],
+                                 KDataKeyPublic:[NSNumber numberWithUnsignedInteger:m_isPublice],
+                                 };
+    
+    return [self postPath:kQuestionInfoURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)pulishNewQuesiton:(QuestionInfo *)questionInfo
+                                   completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = [questionInfo generateQuestionJSONDic];
+    if (parameters == nil) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    return [self postPath:kPublishQuestionURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)replyQuesiton:(QuestionInfo *)questionInfo withPublic:(NSInteger)m_isPublice
+                               completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = [questionInfo generateAnswerJSONDic];
+    if (parameters == nil) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    
+    NSMutableDictionary *paramMutableDic = [NSMutableDictionary dictionaryWithDictionary:parameters];
+    AddObjectForKeyIntoDictionary([NSNumber numberWithInt:m_isPublice], @"is_public", paramMutableDic);
+    return [self postPath:kPublishCommentURL
+               parameters:paramMutableDic
+               completion:completion];
+}
+- (AFHTTPRequestOperation *)AnswerPraiseQuesiton:(QuestionInfo *)questionInfo                                completion:(WebAPIRequestCompletionBlock)completion
+{
+    NSDictionary *parameters = [questionInfo generateAnswerPraiseJSONDic];
+    if (parameters == nil) {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+ 
+    return [self postPath:kAnswerPraiseURL
+               parameters:parameters
+               completion:completion];
+
+}
+
+//删除问题
+- (AFHTTPRequestOperation *)deleteQuesiton:(NSString *)questionId
+                                    userId:(NSString *)userId
+                                withPublic:(NSInteger)m_isPublice
+                                completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([questionId length] <= 0 || [userId length] <= 0 )
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId,
+                                 kDataKeyId: questionId,
+                                 KDataKeyPublic:[NSNumber numberWithInteger:m_isPublice]};
+    
+    return [self postPath:kDeleteQuestionURL
+               parameters:parameters
+               completion:completion];
+}
+//删除回复
+- (AFHTTPRequestOperation *)deleteReply:(NSString *)answerId
+                                 userId:(NSString *)userId
+                             withPublic:(NSInteger)m_isPublice
+                             completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([answerId length] <= 0 || [userId length] <= 0 )
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId,
+                                 kDataKeyId: answerId,
+                                 KDataKeyPublic:[NSNumber numberWithInteger:m_isPublice]};
+    
+    return [self postPath:kDeleteCommentURL
+               parameters:parameters
+               completion:completion];
+}
+//举报非法问题
+- (AFHTTPRequestOperation *)feedbackQuestion:(NSString *)questionId
+                                      userId:(NSString *)userId
+                             withPublicState:(NSInteger)publicState
+                                  completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([questionId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSDictionary *parameters = @{kDataKeyUserId: userId ? userId:@"0",
+                                 @"questionId": questionId,
+                                 KDataKeyPublic:[NSNumber numberWithInteger:publicState]};
+    
+    return [self postPath:KUserFeedbackQuestioinURL
+               parameters:parameters
+               completion:completion];
+}
+
+//举报非法回复
+- (AFHTTPRequestOperation *)feedbackAnswer:(NSString *)answerId
+                                    userId:(NSString *)userId
+                           withPublicState:(NSInteger)publicState
+                                completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([answerId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId ? userId:@"0",
+                                 @"questionId": answerId,
+                                 KDataKeyPublic:[NSNumber numberWithInteger:publicState]};
+    
+    return [self postPath:KUserFeedbackAnswerURL
+               parameters:parameters
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getUnreadMsgNumsWithUserID:(NSString *)m_UseId
+                                               complet:(WebAPIRequestCompletionBlock)completion
+{
+    
+    if ([m_UseId length] <= 0) {
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: m_UseId ? m_UseId:@"0"};
+    return [self postPath:kUnreadMsgCountURL
+               parameters:parameters
+               completion:completion];
+}
+- (AFHTTPRequestOperation *)getUnreadMsgList:(NSString *)userId
+                                   pageIndex:(NSUInteger)pageIndex
+                                    pageSize:(NSUInteger)pageSize
+                                  completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId,
+                                 kDataKeyPageIndex: [NSNumber numberWithUnsignedInteger:pageIndex],
+                                 kDataKeyPageSize: [NSNumber numberWithUnsignedInteger:pageSize]
+                                 };
+    
+    return [self postPath:kUnreadMsgURL
+               parameters:parameters
+               completion:completion];
+}
+//忽略所有未读消息
+- (AFHTTPRequestOperation *)ingoreUnreadMsg:(NSString *)userId
+                                 completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    
+    NSDictionary *parameters = @{kDataKeyUserId: userId};
+    
+    return [self postPath:kIgnoreMsgURL
+               parameters:parameters
+               completion:completion];
+}
+//标记消息已读
+- (AFHTTPRequestOperation *)markMsgRead:(NSString *)userId
+                             questionId:(NSString *)questionId
+                             completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([userId length] <= 0 || [questionId length] <= 0)
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSDictionary *parameters = @{kDataKeyUserId:userId,
+                                 @"questionId":questionId
+                                 };
+    
+    return [self postPath:kMarkMsgReadURL
+               parameters:parameters
+               completion:completion];
+}
+- (AFHTTPRequestOperation *)getEmceeList:(WebAPIRequestCompletionBlock)completion
+{
+    return [self postPath:kEmceeListURL
+               parameters:nil
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getCurrentEmcee:(WebAPIRequestCompletionBlock)completion
+{
+    return [self postPath:kCurrentEmceeURL
+               parameters:nil
+               completion:completion];
+}
+
+//赞主持人
+- (AFHTTPRequestOperation *)praiseEmcee:(NSString* ) emceeId
+                             completion:(WebAPIRequestCompletionBlock)completion
+{
+    if ([emceeId length] <= 0 )
+    {
+        if (completion) {
+            completion([WebAPIResponse invalidArgumentsResonse]);
+        }
+        return nil;
+    }
+    NSDictionary *parameters = @{kDataKeyId:emceeId};
+    
+    return [self postPath:kPraiseEmceeURL
+               parameters:parameters
+               completion:completion];
+}
+
+//获取节目信息
+- (AFHTTPRequestOperation *)getCurrentProgram:(WebAPIRequestCompletionBlock)completion
+{
+    return [self postPath:kProgramDataURL
+               parameters:nil
+               completion:completion];
+}
+
+- (AFHTTPRequestOperation *)getQusetionUserNameForKeyWord:(NSString *)userNameKey
+                                           withCompletion:(WebAPIRequestCompletionBlock)completion{
+     NSDictionary *parameters = @{@"keyword":userNameKey};
+    
+    return [self postPath:KGetUserNameInforURL
+               parameters:parameters
+               completion:completion];
+}
+@end

@@ -1,0 +1,221 @@
+//
+//  UserInfoCell.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-19.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "UserInfoCell.h"
+#import "UserGradeView.h"
+#import "APAvatarImageView.h"
+
+@interface UserInfoCell ()
+@property (nonatomic,weak) UIImageView      *carTypeImageView;       //车型图片
+@property (nonatomic,weak) UILabel          *userNameLabel;          //用户名
+@property (nonatomic,weak) UIImageView      *userSexImageView;       //性别指示图片
+@property (nonatomic,weak) UserGradeView    *userGradeView;          //用户等级
+@property (nonatomic,weak) UILabel          *carInfoLabel;           //车型
+@property (nonatomic,weak) UIImageView      *settingArrowImageView;  //指示箭头
+@property (nonatomic,weak) UIView           *separatorView;          //添加分隔线
+@property (nonatomic,weak) QuestionInfo     *currentQuestionInfo;    //当前用户信息
+@property (nonatomic,weak) UILabel          *SignatureLable;           //车型
+
+@end
+
+@implementation UserInfoCell
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        ///默认背景色
+        self.backgroundColor = KDefaultOrNightBackGroundColor;
+        self.contentView.backgroundColor = [UIColor clearColor];
+        
+        //车型图片
+        APAvatarImageView *carTypeImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(15, 16, 54, 54)
+                                                                           borderColor:[UIColor whiteColor] borderWidth:1.0f];
+        [self.contentView addSubview:carTypeImageView];
+        [carTypeImageView setContentMode:UIViewContentModeScaleAspectFill];
+        [carTypeImageView setClipsToBounds:YES];
+        self.carTypeImageView = carTypeImageView;
+        
+        
+        //用户名
+        UILabel *userNameLabel = [[UILabel alloc] init];
+        userNameLabel.backgroundColor = [UIColor clearColor];
+        UIFont *userNameLabelFont = [UIFont systemFontOfSize:18.0f];
+        userNameLabel.font = userNameLabelFont;
+        [userNameLabel setTextColor:[[FMThemeManager skin] textColor]];
+        [self.contentView addSubview:userNameLabel];
+        self.userNameLabel =userNameLabel;
+        
+        //性别指示图片
+        UIImageView *userSexImageView = [[UIImageView alloc] init];
+        [self.contentView addSubview:userSexImageView];
+        self.userSexImageView = userSexImageView;
+        
+        NSString *info=[NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] objectForKey:@"PersonalityThemeIndexInteger"]];
+        NSInteger m=[info integerValue];
+        
+        if(m==5)
+        {
+            userSexImageView.alpha=0.6;
+            userNameLabel.alpha=0.6;
+        }
+
+        //个性签名
+        UILabel *userPersonalSignatureLable = [[UILabel alloc]init];
+        [userPersonalSignatureLable setBackgroundColor:[UIColor clearColor]];
+        [userPersonalSignatureLable setTextColor:KSubTitleContentTextColor];
+        [userPersonalSignatureLable setFont:[UIFont systemFontOfSize:12]];
+        self.SignatureLable=userPersonalSignatureLable;
+        [self.contentView addSubview:userPersonalSignatureLable];
+
+ 
+        //用户等级
+        UserGradeView *userGradeView = [[UserGradeView alloc] initWithFrame:CGRectMake(115, 50, 200, 20)];
+        userGradeView.backgroundColor = [UIColor clearColor];
+        [self.contentView addSubview:userGradeView];
+        self.userGradeView = userGradeView;
+ /*
+        //车型
+        UILabel *carInfoLabel = [[UILabel alloc] init];
+        UIFont *carInfoLabelFont = [UIFont systemFontOfSize:12.0f];
+        carInfoLabel.font = carInfoLabelFont;
+        carInfoLabel.backgroundColor = [UIColor clearColor];
+        carInfoLabel.textColor = KSubTitleContentTextColor;
+        [self.contentView addSubview:carInfoLabel];
+        self.carInfoLabel = carInfoLabel;
+ 
+        //指示箭头
+        UIImageView *settingArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(KProjectScreenWidth-25, 46.25, 8.5f, 13.0f)];
+        [settingArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+        [self.contentView addSubview:settingArrowImageView];
+        self.settingArrowImageView =settingArrowImageView;
+        
+        //添加分隔线
+        UIView *separatorView = [[UIView alloc] initWithFrame:CGRectMake(0, 63.5 + 12 +  30 - 0.5, KProjectScreenWidth, 0.5)];
+        separatorView.backgroundColor = [[FMThemeManager skin] sepratorColor];
+        [self.contentView addSubview:separatorView];
+        self.separatorView = separatorView;
+        
+        ///默认背景色
+        //UIView  *whiteBackGroundView = [[UIView alloc]init];
+        //[whiteBackGroundView setBackgroundColor:KTableViewCellBackGroundColor];
+        //self.backgroundView = whiteBackGroundView;
+  */
+
+    }
+    return self;
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    [super setSelected:selected animated:animated];
+
+    // Configure the view for the selected state
+}
+- (void)layoutSubviews
+{
+    if (self.currentQuestionInfo == nil) {
+        return;
+    }
+    
+    //车型图片
+    self.carTypeImageView.frame = CGRectMake(18, 15, 54, 54);
+    [self.carTypeImageView setContentMode:UIViewContentModeScaleAspectFill];
+    self.carTypeImageView.clipsToBounds = YES ;
+    
+    //用户名
+    CGSize userNameLabelSize = [self.userNameLabel.text sizeWithFont:self.userNameLabel.font];
+    [self.userNameLabel setFrame:CGRectMake(self.carTypeImageView.frame.origin.x+54+15, 14, userNameLabelSize.width, userNameLabelSize.height)];
+    
+    //性别
+    [self.userSexImageView setFrame:CGRectMake(self.userNameLabel.frame.origin.x + userNameLabelSize.width + 5, self.userNameLabel.frame.origin.y+1, 16, 16)];
+    
+    if (!IsStringEmptyOrNull(self.currentQuestionInfo.publishUserInfo.userLevel)) {
+    NSString *grade =self.currentQuestionInfo.publishUserInfo.userLevel;
+    int crownCount = [grade characterAtIndex:0] - 48;   //皇冠个数
+    int sunCount = [grade characterAtIndex:1] - 48;     //太阳个数
+    int moonCount = [grade characterAtIndex:2] - 48;    //月亮个数
+    int starCount = [grade characterAtIndex:3] - 48;    //星星级别个数
+    CGFloat len = (crownCount + sunCount + moonCount + starCount)*20.0f;
+    
+    [self.userGradeView setFrame:CGRectMake(self.carTypeImageView.frame.origin.x+54+15,40, len, 20.0f)];
+    }
+    
+    //车型信息
+    self.carInfoLabel.frame = CGRectMake(115,77, 190.0f, 20.0f);
+    
+
+    
+}
+- (void) displayUserInfo:(QuestionInfo* )question
+{
+    self.currentQuestionInfo = question;
+    
+    //车型图片
+    [self.carTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@thumb",
+                                                                 KMediaServerImagesInforURL,
+                                                                 question.publishUserInfo.userCarImage]]
+                          placeholderImage:kImgDefaultCar];
+    [self.carTypeImageView setContentMode:UIViewContentModeScaleToFill];
+    [self.carTypeImageView setClipsToBounds:YES];
+    //用户名
+    self.userNameLabel.text = question.publishUserInfo.userName;
+    
+    //性别
+    if (question.publishUserInfo.userSex == 1) {//男
+        self.userSexImageView.image = kImgSexMan;
+    }else {//女
+        self.userSexImageView.image = kImgSexWomman;
+    }
+    //个性签名
+    if (!IsStringEmptyOrNull(question.publishUserInfo.userPersonalSignature))
+    {
+        [self.SignatureLable setText:question.publishUserInfo.userPersonalSignature];
+    }else{
+        [self.SignatureLable setText:@"未编辑"];
+    }
+    //    CGSize titleSize = [self.SignatureLable.text  sizeWithFont:self.SignatureLable.font
+    //                                        constrainedToSize:CGSizeMake(KProjectScreenWidth-84-10, MAXFLOAT)
+    //                                            lineBreakMode:NSLineBreakByCharWrapping];
+    //[self.SignatureLable setLineBreakMode:NSLineBreakByCharWrapping];
+    //    [self.SignatureLable setNumberOfLines:2];
+    //    self.SignatureLable.lineBreakMode=NSLineBreakByCharWrapping;
+    //[self.SignatureLable setTextAlignment:NSTextAlignmentLeft];
+    [self.SignatureLable setFrame:CGRectMake(87, 64, KProjectScreenWidth-87-15, 15)];
+    
+    //等级
+    [self.userGradeView setGrade:question.publishUserInfo.userLevel];
+    
+    //车型信息
+    NSString *carInfoStr = question.userPersonalSignatureContent;
+    if ([carInfoStr length]>0) {
+        if ([carInfoStr isEqualToString:@"未编辑"]) {
+            NSString *carInfoStrInfor = [NSString stringWithFormat:@"%@  %@",question.publishUserInfo.userCarSeriesName,
+                                         question.publishUserInfo.userCarTypeName?question.publishUserInfo.userCarTypeName:@""];
+            if ([question.publishUserInfo.userCarSeriesName length]>0) {
+                self.carInfoLabel.text = carInfoStrInfor;
+            }else{
+                self.carInfoLabel.text = @"未知车型";
+            }
+        }else{
+            self.carInfoLabel.text = carInfoStr;
+        }
+    }else{
+        NSString *carInfoStrInfor = [NSString stringWithFormat:@"%@  %@",question.publishUserInfo.userCarSeriesName,
+                                     question.publishUserInfo.userCarTypeName?question.publishUserInfo.userCarTypeName:@""];
+        if ([question.publishUserInfo.userCarSeriesName length]>0) {
+            self.carInfoLabel.text = carInfoStrInfor;
+        }else{
+            self.carInfoLabel.text = @"未知车型";
+        }
+    }
+    [self setNeedsLayout];
+
+}
+
+@end

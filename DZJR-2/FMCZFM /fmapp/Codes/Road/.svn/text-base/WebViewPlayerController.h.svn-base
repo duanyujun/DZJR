@@ -1,0 +1,30 @@
+//
+//  WebViewPlayerController.h
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-16.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@protocol RadioDelegate;
+
+@interface WebViewPlayerController : UIViewController<UIWebViewDelegate>
+
+@property (nonatomic,assign) BOOL isLoadedWebView;//已经加载WebView
+@property (nonatomic,weak) UIWebView *playerWebView;//播放器 网页
+@property (nonatomic,assign) id<RadioDelegate> delegate;//协议
+@property (nonatomic,assign) BOOL isPlayed;//是否已经播放
+
+
++ (WebViewPlayerController *) sharedWebViewPlayer;
+- (void) playOrStopPlay;//开始或停止播放
+
+@end
+
+@protocol RadioDelegate <NSObject>
+
+- (void) isReady;
+
+@end

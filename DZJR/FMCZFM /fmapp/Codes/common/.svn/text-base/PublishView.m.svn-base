@@ -1,0 +1,502 @@
+//
+//  PublishView.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-22.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "PublishView.h"
+#import "CurrentUserInformation.h"
+#import "FMSettings.h"
+#import "HTTPClient+Interaction.h"
+#import "LoginController.h"
+#import "FontAwesome.h"
+#import "MessageCellData.h"
+#import "NSString+FontAwesome.h"
+#import "HTTPClient+Friends.h"
+
+#define kPublishViewMargin              4
+#define kPublishViewButtonSize          35
+
+
+#define KPublishExpressHeight           216         //表情键盘高度
+#define kCancelButtonItemTag            100
+#define kPublishButtonItemTag           101
+#define kKeyboardButtonTag              102
+#define kExpressButtonTag               103
+
+@interface PublishView () <ExpressViewDelegate,UITextViewDelegate>
+
+@property (nonatomic,assign)NSInteger        lastRow;
+@property (nonatomic , strong)  NSMutableDictionary *contentExpressionDictionary;
+
+@end
+
+@implementation PublishView
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+        self.lastRow = 1;
+        ///默认背景色
+        self.backgroundColor = [[FMThemeManager skin] backgroundColor];
+        self.layer.shadowColor = [[UIColor blackColor] CGColor];
+        self.layer.shadowOpacity = 0.4f;
+        self.layer.shadowOffset = CGSizeZero;
+        self.layer.shadowRadius = 2.0f;
+        
+        //表情或键盘按钮
+        UIButton *keyboardOrExpressionButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        keyboardOrExpressionButton.tag = kExpressButtonTag;
+        keyboardOrExpressionButton.titleLabel.font = [UIFont systemFontOfSize:30.0];
+        [keyboardOrExpressionButton simpleButtonWithImageColor:[FMThemeManager.skin baseTintColor]];
+        [keyboardOrExpressionButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+        [keyboardOrExpressionButton setFrame:CGRectMake(kPublishViewMargin,
+                                                        8,
+                                                        kPublishViewButtonSize,
+                                                        kPublishViewButtonSize)];
+        [keyboardOrExpressionButton addAwesomeIcon:FMIconExpression beforeTitle:YES];
+        keyboardOrExpressionButton.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin;
+        [self addSubview:keyboardOrExpressionButton];
+        
+        //文本框
+        HYBTextView *commentTextView = [[HYBTextView alloc] initWithFrame:CGRectMake(CGRectGetMaxX(keyboardOrExpressionButton.frame) + kPublishViewMargin,
+                                                                                   kPublishViewMargin,
+                                                                                   frame.size.width - kPublishViewButtonSize * 2 - 4 * kPublishViewMargin ,
+                                                                                   frame.size.height - 2 * kPublishViewMargin)];
+        commentTextView.font = kFontWithDefaultSize;
+        [commentTextView setDelegate:self];
+        commentTextView.layer.borderWidth = 0.8;
+        commentTextView.layer.borderColor = [[[FMThemeManager skin] baseTintColor] CGColor];
+        commentTextView.backgroundColor = [UIColor clearColor];
+        commentTextView.textColor = [[FMThemeManager skin] textColor];
+        commentTextView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        commentTextView.returnKeyType = UIReturnKeySend;
+        self.commentView = commentTextView;
+        [self addSubview:commentTextView];
+        
+        //发布按钮
+        UIButton *publishButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        publishButton.tag = kPublishButtonItemTag;
+        publishButton.titleLabel.font = [UIFont systemFontOfSize:24.0];
+        [publishButton simpleButtonWithImageColor:[FMThemeManager.skin baseTintColor]];
+        [publishButton addTarget:self action:@selector(buttonClicked:) forControlEvents:UIControlEventTouchUpInside];
+        [publishButton setFrame:CGRectMake(frame.size.width - kPublishViewButtonSize - kPublishViewMargin,
+                                           8,
+                                           kPublishViewButtonSize,
+                                           kPublishViewButtonSize)];
+        publishButton.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
+        [publishButton addAwesomeIcon:FMIconRadio beforeTitle:YES];
+        [self addSubview:publishButton];
+        
+        self.contentExpressionDictionary = [[NSMutableDictionary alloc]init];
+        
+    }
+    return self;
+}
+
+
+
+-(void)setSelectComment:(QuestionInfo *)selectComment
+{
+    _selectComment = selectComment;
+    if (selectComment) {
+        NSString *atPersonName = [NSString stringWithFormat:@"@%@ ",selectComment.publishUserInfo.userName];
+        [self.commentView setText:atPersonName];
+    }else{
+        self.commentView.text = @"";
+    }
+}
+
+#pragma mark -按钮点击时
+- (void) buttonClicked:(id) sender
+{
+    UIButton *button = (UIButton *)sender;
+    
+    UIView* superView = [self superview];
+    CGRect rc = superView.bounds;
+    
+    if (button.tag == kPublishButtonItemTag) {//发布
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//未登录
+            
+            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"" message:@"请先登录" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+            [alertView show];
+            //内容文本框
+            [self.commentView resignFirstResponder];
+            
+        }else{
+            [self publishComment];//发布回复
+        }
+    }else if(button.tag == kCancelButtonItemTag){//取消
+        [self.commentView resignFirstResponder];
+    }else if(button.tag == kExpressButtonTag || button.tag == kKeyboardButtonTag){//表情或键盘按钮
+        
+        if (![self.commentView isFirstResponder]) {
+            [self.commentView becomeFirstResponder];
+            return;
+        }
+        
+        //获取键盘视图
+        UIView *keyboardView = GetKeyBoardView();
+        
+        CGFloat keyboardHeight = 0;//键盘高度
+        NSInteger buttonImageName;
+        if(button.tag == kExpressButtonTag){//显示表情
+            
+            //创建表情键盘
+            if (self.expressView == nil) {
+                ExpressView* expressView = [[ExpressView alloc] initWithFrame:CGRectMake(0,
+                                                                                         rc.size.height,
+                                                                                         rc.size.width,
+                                                                                         KPublishExpressHeight)];
+                expressView.delegate = self;
+                [superView addSubview:expressView];
+                self.expressView = expressView;
+            }
+            [superView bringSubviewToFront:self.expressView];
+            [UIView beginAnimations:@"HiddenKeyboard" context:nil];
+            [UIView setAnimationDuration:0.3f];
+            
+            //            //隐藏键盘
+            CGRect keyboardFrame = keyboardView.frame;
+            keyboardFrame.origin.y = [UIScreen mainScreen].bounds.size.height;
+            keyboardView.frame = keyboardFrame;
+            
+            //            [self.commentView resignFirstResponder];
+            
+            
+            //显示表情
+            self.expressView.frame = CGRectMake(0,
+                                                rc.size.height - KPublishExpressHeight,
+                                                rc.size.width,
+                                                KPublishExpressHeight);
+            [UIView commitAnimations];
+            
+            keyboardHeight = KPublishExpressHeight;
+            button.tag = kKeyboardButtonTag;
+            buttonImageName = FMIconKeyboard;
+            
+            if ([self.delegate respondsToSelector:@selector(didPublishViewLayoutChanged:withHeight:)]) {
+                [self.delegate didPublishViewLayoutChanged:keyboardHeight withHeight:self.frame.size.height];
+            }
+            
+        }else{//显示键盘
+            
+            
+            [UIView beginAnimations:@"ShowKeyboard" context:nil];
+            [UIView setAnimationDuration:0.3f];
+            //隐藏表情
+            if(self.expressView){
+                self.expressView.frame = CGRectMake(0, rc.size.height, rc.size.width, KPublishExpressHeight);
+            }
+            
+            //显示键盘
+            if (keyboardView) {
+                CGRect keyboardFrame = keyboardView.frame;
+                keyboardFrame.origin.y = [UIScreen mainScreen].bounds.size.height - keyboardView.frame.size.height;
+                keyboardView.frame = keyboardFrame;
+                keyboardHeight = keyboardFrame.size.height;
+                if (HUISystemVersionAboveOrIs(kHUISystemVersion_8_0)) {
+                    keyboardHeight = keyboardHeight > 400? 252: keyboardHeight;
+                }
+            }
+            
+            [UIView commitAnimations];
+            
+            if (keyboardView) {
+                if ([self.delegate respondsToSelector:@selector(didPublishViewLayoutChanged:withHeight:)]) {
+                    [self.delegate didPublishViewLayoutChanged:keyboardHeight withHeight:self.frame.size.height];
+                }
+            }
+            button.tag = kExpressButtonTag;
+            buttonImageName = FMIconExpression;
+            
+        }
+        [button setAwesomeIcon:buttonImageName];
+    }
+    
+}
+#pragma mark - ExpressViewDelegate
+- (void)didExpressViewSelected:(NSInteger)tag isDelete:(BOOL)bDelete
+{
+    if (!bDelete) {//不是删除按钮
+        
+        NSString *expressionName = [FMShareSetting.expressionNameArray objectAtIndex:tag-1];
+        NSString *contentText = [[NSString alloc] initWithFormat:@"%@[%@]",self.commentView.text,
+                                 expressionName];
+        self.commentView.text = contentText;
+        if (IsStringEmptyOrNull(self.replyQuestionId)&&!IsStringEmptyOrNull(self.replyPostId)){
+            
+            if (![self.contentExpressionDictionary.allKeys containsObject:expressionName]) {
+                AddObjectForKeyIntoDictionary([FMShareSetting.expressionNameCodeArray objectAtIndex:tag-1],expressionName,  self.contentExpressionDictionary);
+            }}
+        
+        [self textView:self.commentView shouldChangeTextInRange:NSMakeRange(0,0) replacementText:@""];
+        
+    }else{//是删除按钮
+        if (self.commentView.text.length > 0) {
+            if ([[self.commentView.text substringFromIndex:self.commentView.text.length - 1] isEqualToString:@"]"]) {
+                //正则表达式
+                NSRegularExpression *textRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\w*\\]" options:NSRegularExpressionCaseInsensitive error:nil];
+                ////符合正则表达式的结果
+                NSArray *textArrayOfAllMatches = [textRegex matchesInString:self.commentView.text options:0 range:NSMakeRange(0, [self.commentView.text length])];
+                
+                if (textArrayOfAllMatches.count > 0) {
+                    NSTextCheckingResult *checkingResult = textArrayOfAllMatches.lastObject;
+                    self.commentView.text = [self.commentView.text substringWithRange:NSMakeRange(0,checkingResult.range.location)];
+                }
+            }else{
+                self.commentView.text = [self.commentView.text substringWithRange:NSMakeRange(0, self.commentView.text.length - 1)];
+            }
+        }
+    }
+}
+- (void) resetComment
+{
+    self.commentView.text = nil;
+    self.selectComment = nil;
+    self.lastRow = 1;
+    if ([self.delegate respondsToSelector:@selector(didPublishViewLayoutChanged:withHeight:)]) {
+        [self.delegate didPublishViewLayoutChanged:self.superview.bounds.size.height - CGRectGetMaxY(self.frame) withHeight:45.0];
+    }
+}
+- (void) resetButton
+{
+    //隐藏表情
+    if(self.expressView){
+        
+        UIView *keyboardView = GetKeyBoardView();
+        CGFloat keyboardHeight = 0;//键盘高度
+        
+        if (keyboardView) {
+            CGRect keyboardFrame = keyboardView.frame;
+            keyboardFrame.origin.y = [UIScreen mainScreen].bounds.size.height - keyboardView.frame.size.height;
+            keyboardView.frame = keyboardFrame;
+            keyboardHeight = keyboardFrame.size.height;
+            if (HUISystemVersionAboveOrIs(kHUISystemVersion_8_0)) {
+                keyboardHeight = keyboardHeight > 400? 252: keyboardHeight;
+            }
+        }
+        
+        [UIView beginAnimations:@"HideExpressBorad" context:nil];
+        [UIView setAnimationDuration:0.3f];
+        UIView* superView = [self superview];
+        CGRect rc = superView.bounds;
+        self.expressView.frame = CGRectMake(0, rc.size.height, rc.size.width, KPublishExpressHeight);
+        [UIView commitAnimations];
+    }
+    
+    UIButton *keyboardOrExpressionButton  = (UIButton* )[self viewWithTag:kKeyboardButtonTag];
+    if (keyboardOrExpressionButton) {
+        keyboardOrExpressionButton.tag = kExpressButtonTag;
+        [keyboardOrExpressionButton setAwesomeIcon:FMIconExpression];
+    }
+}
+#pragma mark -发布评论
+- (void) publishComment
+{
+    
+    UITextView *commentTextView = self.commentView;
+    NSString *commentContentStr = [NSString stringWithFormat:@"%@",commentTextView.text];
+    if (!IsStringEmptyOrNull(self.replyQuestionId)) {
+        
+        BOOL isAtPerson = NO;//是否@车主
+        
+        if (self.selectComment) {//有@字典
+            NSString *atPersonName = [NSString stringWithFormat:@"@%@",self.selectComment.publishUserInfo.userName];
+            
+            if([commentContentStr hasPrefix:atPersonName]){//用户没有修改@
+                isAtPerson = YES;
+            }else{//修改@
+                isAtPerson = NO;
+            }
+        }else{//没有@
+            isAtPerson = NO;
+        }
+        
+        QuestionInfo* questionInfo = [[QuestionInfo alloc] init];
+        questionInfo.publishUserInfo.userID = [[CurrentUserInformation sharedCurrentUserInfo] userID];
+        questionInfo.publishUserInfo.userCityName = [[CurrentUserInformation sharedCurrentUserInfo] userCityCode];
+        questionInfo.questionID = self.replyQuestionId;
+        
+        if (isAtPerson) {
+            NSString *atPersonName = [NSString stringWithFormat:@"@%@",self.selectComment.publishUserInfo.userName];//@用户的名称
+            NSString *textContent = [commentContentStr substringFromIndex:atPersonName.length + 1];//文本框内容
+            if (IsStringEmptyOrNull(textContent)) {
+                UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"" message:@"请输入回复内容" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+                [alertView show];
+                return;
+            }
+            questionInfo.questionContent = textContent;
+            questionInfo.commentedUserInfo.userID = self.selectComment.publishUserInfo.userID;
+            if (self.selectComment.publishUserInfo.userRole) {
+                questionInfo.commentedUserInfo.userRole = self.selectComment.publishUserInfo.userRole;
+            }else{
+                questionInfo.commentedUserInfo.userRole = @"0";
+            }
+            questionInfo.commentAnswerId = self.selectComment.questionID;
+        }else{
+            if (IsStringEmptyOrNull(commentContentStr)) {
+                UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"" message:@"请输入回复内容" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+                [alertView show];
+                return;
+            }
+            questionInfo.questionContent = commentContentStr;
+            questionInfo.commentedUserInfo.userRole = @"0";
+            questionInfo.commentedUserInfo.userID = @"0";
+        }
+        
+        //位置
+        BOOL agreeOpenUserLocation = [[NSUserDefaults standardUserDefaults] boolForKey:@"AgreeOpenUserLocation"];//同意公开位置
+        if (agreeOpenUserLocation) {
+            NSString *locationInfo = [NSString stringWithFormat:@"%@",[[NSUserDefaults standardUserDefaults] valueForKey:@"FMUserLocationInfo"]];
+            questionInfo.publishUserInfo.userStreet = locationInfo;
+        }
+        WaittingMBProgressHUD(HUIKeyWindow,@"正在发布...");
+        //发布请求
+        __weak __typeof(&*self)weakSelf = self;
+        [FMHTTPClient replyQuesiton:questionInfo withPublic:self.is_publicInfor
+                         completion:^(WebAPIResponse* response){
+                             
+                             dispatch_async(dispatch_get_main_queue(), ^(void){
+                                 if (response.code == WebAPIResponseCodeSuccess) {
+                                     SuccessMBProgressHUD(HUIKeyWindow,@"发布成功");
+                                     
+                                     [[NSNotificationCenter defaultCenter] postNotificationName:FMPublishNewAnswerNotification object:nil];//触发删除问题通知
+                                     [weakSelf resetComment];
+                                     [weakSelf.commentView resignFirstResponder];
+                                 }else{
+                                     FailedMBProgressHUD(HUIKeyWindow,@"发布失败");
+                                 }
+                             });
+                         }];
+        
+    }
+    
+    
+    
+    else if (IsStringEmptyOrNull(self.replyQuestionId)&&!IsStringEmptyOrNull(self.replyPostId)){
+        //        Log("发布圈内帖子");
+        
+        
+        
+        
+        
+        if (IsStringEmptyOrNull(commentContentStr)) {
+            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"" message:@"请输入回复内容" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+            [alertView show];
+            return;
+        }
+        
+        if (!IsStringEmptyOrNull(self.replyPostNameStr)) {
+        commentContentStr = [NSString stringWithFormat:@"@%@ %@",self.replyPostNameStr,commentContentStr];
+        }
+        
+        for(NSString *name in self.contentExpressionDictionary.allKeys){
+            NSString *expreCode = [NSString stringWithFormat:@"%@",[self.contentExpressionDictionary objectForKey:name]];
+            commentContentStr = [commentContentStr stringByReplacingOccurrencesOfString:name withString:expreCode];
+        }
+        [self.contentExpressionDictionary removeAllObjects];
+        
+        FriendCirclePostsModel *model = [[FriendCirclePostsModel alloc]init];
+        [model setPostAtFriendCircleId:self.replyPostId];
+        [model setPostsContentString:commentContentStr];
+        [model.postUserInfor setUserID:[CurrentUserInformation sharedCurrentUserInfo].userID];
+        WaittingMBProgressHUD(HUIKeyWindow,@"正在发布...");
+        //发布请求
+        __weak __typeof(&*self)weakSelf = self;
+        [FMHTTPClient getFriendCircleSendPostWith:model withcompletion:^(WebAPIResponse *response) {
+            if (response.code == WebAPIResponseCodeSuccess) {
+                
+                Log(@"发布圈内帖子 返回的数据内容  %@",response.responseObject);
+                
+                SuccessMBProgressHUD(HUIKeyWindow,@"发布成功");
+                
+                [[NSNotificationCenter defaultCenter] postNotificationName:FMFriendCircleSendPostInforNotification object:nil];//触发删除问题通知
+                [weakSelf resetComment];
+                [weakSelf.commentView resignFirstResponder];
+                weakSelf.commentView.placeholder=nil;
+                ////发布的帖子产生的数据ID
+                NSString *pushLatestId = StringForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData);
+                if (!IsStringEmptyOrNull(pushLatestId)) {
+                    
+                    [FMShareSetting setAppUserFriendCirclePushLatesQuestionID:pushLatestId];
+                    [FMShareSetting setAppUserFriendCircleHasNORead:NO];
+                }
+                
+                Log(@"pushLatestId is %@",FMShareSetting.appUserFriendCirclePushLatestId);
+                
+                [weakSelf updateInforForMessageViewControlle:commentContentStr withPostName:weakSelf.replyPostNameStr];
+                
+                self.replyPostNameStr=nil;
+            }else{
+                FailedMBProgressHUD(HUIKeyWindow,@"发布失败");
+            }
+            
+        }];
+    }
+}
+
+-(BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString*)text
+{
+    if ([text isEqualToString:@"\n"]) {
+        [self publishComment];
+        return NO;
+    }
+    int rows = 1;
+    if (!IsStringEmptyOrNull(self.commentView.text)) {
+        CGSize size = [self.commentView.text sizeWithFont:[self.commentView font]];
+        rows  = self.commentView.contentSize.height/size.height;
+    }
+    if (rows != self.lastRow) {
+        CGFloat h;
+        if (rows == 1) {
+            h = 45.0;
+        }else if (rows == 2) {
+            h = 60.0;
+        }else {
+            h = 70.0;
+        }
+        if ([self.delegate respondsToSelector:@selector(didPublishViewLayoutChanged:withHeight:)]) {
+            [self.delegate didPublishViewLayoutChanged:self.superview.bounds.size.height - CGRectGetMaxY(self.frame) withHeight:h];
+        }
+    }
+    self.lastRow = rows;
+    return YES;
+}
+
+- (BOOL)textViewShouldEndEditing:(UITextView *)textView
+{
+    [self resetButton];
+    [self resetComment];
+    return YES;
+}
+
+
+- (void)updateInforForMessageViewControlle:(NSString *)lastContentString withPostName:(NSString *)nameStr{
+    
+    NSTimeInterval time = [[NSDate date] timeIntervalSince1970];
+    uint32_t date = (uint32_t)time;     // 发送到服务器的数据
+    
+    //保存本地db
+    MessageCellData *itemInfor = [[MessageCellData alloc]init];
+    [itemInfor setUserId:@"-5"];
+    [itemInfor setUserName:nameStr];
+    [itemInfor setUserSex:1];
+    [itemInfor setLastContent:lastContentString];
+    [itemInfor setCellType:ImForFriendCircleType];
+    [itemInfor setMsgTimeStamp:date];
+    [itemInfor makeAttributeContent];
+    [itemInfor setUnreadMsgCount:0];
+    [itemInfor setUnReadFlag:0];
+    [itemInfor setMsgCreateDateTime:timeShortDesc(date)];
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:FMCircleMessagePublishNotification object:itemInfor];
+    
+    
+    
+}
+@end

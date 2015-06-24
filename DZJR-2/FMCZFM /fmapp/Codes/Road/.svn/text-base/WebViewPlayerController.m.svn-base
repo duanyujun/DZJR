@@ -1,0 +1,126 @@
+//
+//  WebViewPlayerController.m
+//  FM_CZFW
+//
+//  Created by Ma Yiming on 13-10-16.
+//  Copyright (c) 2013年 Ma Yiming. All rights reserved.
+//
+
+#import "WebViewPlayerController.h"
+
+@interface WebViewPlayerController ()
+
+@end
+
+@implementation WebViewPlayerController
+
+static WebViewPlayerController *webViewPlayer = nil;
+
+- (id)init{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+	// Do any additional setup after loading the view.
+    [self createView];
+}
+-(void)createView
+{
+    
+    CALayer *_backLayer= [CALayer layer];
+    
+    _backLayer.frame= self.view.bounds;//设置layer的区域
+    
+    [self.view.layer addSublayer:_backLayer];
+    
+    if(ThemeCategory==5)
+    {
+        _backLayer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.3].CGColor;
+    }
+    else
+    {
+        _backLayer.backgroundColor = [UIColor colorWithRed:1 green:1 blue:1 alpha:0].CGColor;
+    }
+}
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
++ (WebViewPlayerController *) sharedWebViewPlayer{
+    @synchronized(self){
+        if  (webViewPlayer  ==  nil){
+            webViewPlayer = [[self alloc] init];
+        }
+    }
+    
+    return  webViewPlayer;
+}
+
++ (id)allocWithZone:(NSZone *)zone{
+    @synchronized(self){
+        if (webViewPlayer  ==  nil){
+            webViewPlayer  =  [super allocWithZone:zone];
+            [webViewPlayer loadPlayerWebView];
+            return  webViewPlayer;
+        }
+    }
+    return  nil;
+}
+
+- (void) playOrStopPlay{
+    if(webViewPlayer.isLoadedWebView){
+        [webViewPlayer.playerWebView stringByEvaluatingJavaScriptFromString:@"playOrStop();"];
+    }else{
+        [webViewPlayer loadPlayerWebView];//加载WebView
+    }
+}
+
+#pragma mark -加载网页播放器
+-(void) loadPlayerWebView{
+    //添加WebView
+    UIWebView *playerWebView = [[UIWebView alloc] init];
+    playerWebView.delegate = self;
+//    NSURLRequest *urlRequest = [[NSURLRequest alloc] initWithURL:[NSURL URLWithString:@"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm1074"]];
+    NSURLRequest *urlRequest = [[NSURLRequest alloc] initWithURL:[NSURL URLWithString:PlayerWebViewUrl]];
+//    NSURLRequest *urlRequest = [[NSURLRequest alloc] initWithURL:[NSURL URLWithString:@"http://m.weibo.cn/pubs/radio/play?channel=shandong_fm103"]];
+
+    [playerWebView loadRequest:urlRequest];
+
+    webViewPlayer.playerWebView = playerWebView;
+
+    [webViewPlayer.view addSubview:webViewPlayer.playerWebView];
+}
+
+- (void) webViewDidFinishLoad:(UIWebView *)webView
+{
+    UIActivityIndicatorView *activityIndicatorView = (UIActivityIndicatorView *) self.navigationItem.rightBarButtonItem.customView;
+    [activityIndicatorView stopAnimating];
+    
+    [webView stringByEvaluatingJavaScriptFromString:@"function playOrStop() {"
+     "var b=$(\"#playinfo\")[0]||$(\"#flash\")[0];"
+     "var d = document.getElementById('radio_play');"
+     "isPlay=!isPlay;"
+     "if(ua.indexOf(\"os\")>0)"
+     "{isPlay&&b.play()}"
+     "else{isPlay&&b.mplay()}"
+     "isPlay&&$(d).css({background:img_stop_str});"
+     "!isPlay&&$(d).css({background:img_play_str});"
+     "!isPlay&&b.pause();"
+     "}"];
+    
+    webViewPlayer.isLoadedWebView = YES;
+
+    [webViewPlayer.delegate isReady];
+
+}
+
+
+@end

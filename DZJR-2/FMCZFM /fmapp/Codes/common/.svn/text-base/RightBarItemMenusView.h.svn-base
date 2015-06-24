@@ -1,0 +1,44 @@
+//
+//  RightBarItemMenusView.h
+//  fmapp
+//
+//  Created by 张利广 on 14-10-11.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+/** 用户点击协议*/
+@protocol RightBarItemMenusDelegate <NSObject>
+
+/** 用户选中某个按键后，获取该按键的位置标示事件
+ 
+ *
+ *@param barItemIndex 用户选中的第barItemIndex个按键
+ *@See barItemIndex 根据已得到的菜单内容，从上到下一次计算，且 barItemIndex >= 1；
+ **/
+- (void)initWithUserOperationRightBarItemMenusItemButtonEvent:(NSInteger)barItemIndex;
+
+@end
+
+/** 右上角菜单视图*/
+@interface RightBarItemMenusView : UIButton
+
+///操作控制协议
+@property (nonatomic , assign)  id<RightBarItemMenusDelegate>   delegate;
+
+/** 初始化右上角菜单视图
+
+ *
+ *@param frame  视图的框架
+ *@param menusArray  菜单选Name数组
+ *@param titlIconBool  菜单按键是否存在icon图标
+ *@param menusIconArray 菜单头部Icon图片
+ *@See  titlIconBool = YES ,则表示，存在图标；titlIconBool = NO ,则表示，不存在图标；
+ *@Warning 若titlIconBool = YES ，则必须初始化menusIconArray的内容；若titlIconBool = NO ，menusIconArray 可为 nil
+ **/
+- (id)initWithFrame:(CGRect)frame withMenusArray:(NSArray *)menusArray
+      withTitleIcon:(BOOL)titlIconBool withMenusIconArray:(NSArray *)menusIconArray;
+
+
+@end

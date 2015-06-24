@@ -1,0 +1,25 @@
+//
+//  CreateFriendCircleController.h
+//  fmapp
+//
+//  Created by 张利广 on 14-11-1.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "FMViewController.h"
+#import "FriendCircleModel.h"
+
+
+/** 创建或者加入圈子方式
+ 
+ *@See CreateFriendCircleFirstStyle首次创建或者加入圈子类别
+ *@See CreateFriendCircleSecondStyle,再次创建或者加入圈子类别，需要先退出原先圈子，然后进入另一个圈子
+ **/
+typedef NS_ENUM(NSInteger, CreateFriendCircleStyle){
+    CreateFriendCircleFirstStyle = 1,   /**< 首次创建或者加入圈子类别*/
+    CreateFriendCircleSecondStyle,      /**< 再次创建或者加入圈子类别，需要先退出原先圈子，然后进入另一个圈子*/
+};
+@interface CreateFriendCircleController : FMViewController
+- (id)initWithCreateFriendCircleStyle:(CreateFriendCircleStyle) fcStyle withCurrFC:(FriendCircleModel *)currFCModel;
+- (id)initWithCreateCircleWithCircleName:(NSString *)circleName AndWithCircleId:(NSString *)circleId;
+@end

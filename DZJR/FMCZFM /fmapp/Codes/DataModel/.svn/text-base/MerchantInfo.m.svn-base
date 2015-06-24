@@ -1,0 +1,125 @@
+//
+//  MerchantInfo.m
+//  fmapp
+//
+//  Created by 张利广 on 14-6-16.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "MerchantInfo.h"
+
+@implementation MerchantInfo
+- (id)init{
+    self = [super init];
+    
+    if (self) {
+        
+    }
+    return self;
+}
+//适用商家
++(id)initBusinessInforWithUnserializedJSONDic:(NSDictionary *)dicInfor
+{
+    Log(@"%@",dicInfor);
+    MerchantInfo    *inforData = [[MerchantInfo alloc]init];
+    
+    if (inforData == nil) {
+        return inforData;
+    }
+    //商家ID
+    [inforData setInfoIdentity:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    //商家名称
+    [inforData setInfoName:ObjForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    //商家地址
+    [inforData setInfoAddress:ObjForKeyInUnserializedJSONDic(dicInfor, @"address")];
+    //商家小图片地址
+    NSArray *logoImageArray = [[NSArray alloc]initWithArray:(NSArray *)ObjForKeyInUnserializedJSONDic(dicInfor, @"logo")];
+    if (logoImageArray .count > 0) {
+        NSDictionary *imagesDictionary = [[NSDictionary alloc]initWithDictionary:(NSDictionary *)[logoImageArray objectAtIndex:0]];
+        if (imagesDictionary.count > 0) {
+            NSString    *imageURLKeyString = [[NSString alloc]initWithFormat:@"%@",StringForKeyInUnserializedJSONDic(imagesDictionary, @"pic_url")];
+            if (!IsStringEmptyOrNull(imageURLKeyString)) {
+                [inforData setInfoSmallImageUrlStr:imageURLKeyString];
+            }
+        }
+    }
+    ///设置用户点击次数
+    [inforData setInforClickedNumberCount:IntForKeyInUnserializedJSONDic(dicInfor, @"hits")];
+    //商家距离
+    [inforData setInfoDistance:[ObjForKeyInUnserializedJSONDic(dicInfor, @"distance") floatValue] ];
+    ///商家经纬度
+    NSDictionary *gpsDictionary = [[NSDictionary alloc]initWithDictionary:(NSDictionary *)ObjForKeyInUnserializedJSONDic(dicInfor, @"gps")];
+    if (gpsDictionary.count > 0) {
+        CLLocationCoordinate2D dataCoordinate = CLLocationCoordinate2DMake(FloatForKeyInUnserializedJSONDic(gpsDictionary, @"x"), FloatForKeyInUnserializedJSONDic(gpsDictionary, @"y"));
+        [inforData setInfoCoordinate:dataCoordinate];
+    }
+    //商家是否优惠
+    [inforData setInfoActivityState:IntForKeyInUnserializedJSONDic(dicInfor, @"Business_action")];
+    
+    return inforData;
+ 
+}
+
++ (id)initMerchantInforWithUnserializedJSONDic:(NSDictionary *)dicInfor{
+    
+    Log(@"%@",dicInfor);
+    MerchantInfo    *inforData = [[MerchantInfo alloc]init];
+    
+    if (inforData == nil) {
+        return inforData;
+    }
+    //商家ID
+    [inforData setInfoIdentity:StringForKeyInUnserializedJSONDic(dicInfor, @"id")];
+    //商家名称
+    [inforData setInfoName:ObjForKeyInUnserializedJSONDic(dicInfor, @"name")];
+    //商家地址
+    [inforData setInfoAddress:ObjForKeyInUnserializedJSONDic(dicInfor, @"address")];
+    //商家小图片地址
+    NSArray *logoImageArray = [[NSArray alloc]initWithArray:(NSArray *)ObjForKeyInUnserializedJSONDic(dicInfor, @"logo")];
+    if (logoImageArray .count > 0) {
+        NSDictionary *imagesDictionary = [[NSDictionary alloc]initWithDictionary:(NSDictionary *)[logoImageArray objectAtIndex:0]];
+        if (imagesDictionary.count > 0) {
+            NSString    *imageURLKeyString = [[NSString alloc]initWithFormat:@"%@",StringForKeyInUnserializedJSONDic(imagesDictionary, @"pic_url")];
+            if (!IsStringEmptyOrNull(imageURLKeyString)) {
+                [inforData setInfoSmallImageUrlStr:imageURLKeyString];
+            }
+        }
+    }
+    ///设置用户点击次数
+    [inforData setInforClickedNumberCount:IntForKeyInUnserializedJSONDic(dicInfor, @"hits")];
+    //商家距离
+    [inforData setInfoDistance:[ObjForKeyInUnserializedJSONDic(dicInfor, @"distance") floatValue] ];
+    ///商家经纬度
+    NSDictionary *gpsDictionary = [[NSDictionary alloc]initWithDictionary:(NSDictionary *)ObjForKeyInUnserializedJSONDic(dicInfor, @"gps")];
+    if (gpsDictionary.count > 0) {
+        CLLocationCoordinate2D dataCoordinate = CLLocationCoordinate2DMake(FloatForKeyInUnserializedJSONDic(gpsDictionary, @"x"), FloatForKeyInUnserializedJSONDic(gpsDictionary, @"y"));
+        [inforData setInfoCoordinate:dataCoordinate];
+    }
+    //商家是否优惠
+    [inforData setInfoActivityState:IntForKeyInUnserializedJSONDic(dicInfor, @"Business_action")];
+    
+    return inforData;
+}
+
++(id)initMerchantInforDetailWithUnserializedJSONDic:(NSDictionary *)dicInfor withInfor:(MerchantInfo *)merchantInfor{
+    
+    //商家名称
+    [merchantInfor setInfoName:ObjForKeyInUnserializedJSONDic(dicInfor, @"Business_app")];
+    //商家电话
+    [merchantInfor setInfoTel:ObjForKeyInUnserializedJSONDic(dicInfor, @"Business_tele")];
+    //商家活动内容
+    [merchantInfor setInfoActivityContent:ObjForKeyInUnserializedJSONDic(dicInfor, @"Business_activity_content")];
+    //商家主营业务
+    [merchantInfor setInfoMainBusiness:ObjForKeyInUnserializedJSONDic(dicInfor, @"Business_content")];
+
+    //商家活动经纬度
+    double latitude = [ObjForKeyInUnserializedJSONDic(dicInfor, @"Business_Latitude_new") doubleValue];
+    double longitude = [ObjForKeyInUnserializedJSONDic(dicInfor,@"Business_Longitude_new") doubleValue];
+    CLLocationCoordinate2D merchantCoordinate = CLLocationCoordinate2DMake(latitude, longitude);
+    [merchantInfor setInfoCoordinate:merchantCoordinate];
+    
+    return merchantInfor;
+}
+
+
+@end

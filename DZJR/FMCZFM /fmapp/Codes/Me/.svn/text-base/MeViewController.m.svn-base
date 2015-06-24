@@ -1,0 +1,1096 @@
+//
+//  MeViewController.m
+//  fmapp
+//
+//  Created by 李 喻辉 on 14-5-11.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "MeViewController.h"
+#import "FMImageView.h"
+#import "UserGradeView.h"
+#import "LoginController.h"
+#import "APAvatarImageView.h"
+#import "ShareWebViewController.h"
+#import "PrizeViewController.h"
+#import "WebTravelController.h"
+#import "UIScreen+HUIAddtion.h"
+#import "SettingViewController.h"
+#import "DetailTravelController.h"
+#import "AddCarNoViewController.h"
+#import "CurrentUserInformation.h"
+#import "MembershipCardController.h"
+#import "MembershipCardController.h"
+#import "UserInformationController.h"
+#import "AnnouncementViewController.h"
+#import "ScanQRCodeViewController.h"
+#import "FMSettings.h"
+#import "MainTabViewController.h"
+#import "FMTabBarController.h"
+#import "HTTPClient+MeModulesSetup.h"
+#import "HTTPClient.h"
+#import "AppDelegate.h"
+#import "CarFriendsTogetherController.h"
+#import "TransportInformationController.h"
+
+
+#define KContentLeftSizeWidth 60.0f
+
+#define kScrollViewTag 10001
+#define kHeaderImageViewTag 10002
+#define kTableViewBgImageViewTag 10003
+#define kGradeButtonTag 10004
+#define kMyCarButtonTag 10005
+#define kMyTrafficViolationsButtonTag 10006
+#define kAnnouncementButtonTag 10007
+#define kSettingButtonTag 10008
+#define kNameLabelTag 10010
+#define kSexImageViewTag 10011
+#define kMyTrafficViolationsIndicatorImageViewTag 10013
+#define KmyPersonalPrizeButtonTag 198712
+#define KMyMemberCardButtonTag 198711
+#define KUserShareButton 131087
+
+#define KUserQRCodeButtonTag 138401
+
+#define kHeaderImageHeight 350
+#define kDisplayHederImageHeight 200
+#define KScanQRCodeAlertViewTag 870113
+
+
+#define KRedHintPointImageViewTag 990111
+#define KRedHintPointViolationMsgInforImageViedTag 990113
+
+
+
+//分享
+#import <AGCommon/UINavigationBar+Common.h>
+#import <AGCommon/UIImage+Common.h>
+#import <AGCommon/UIDevice+Common.h>
+#import <ShareSDK/ShareSDK.h>
+#import <AGCommon/NSString+Common.h>
+
+@interface MeViewController ()
+///用户个人等级界面
+@property (nonatomic , weak)        UserGradeView           *userPersonalGradeView;
+@property (nonatomic , weak)        APAvatarImageView       *userCarTypeImageView;
+
+@property (nonatomic , assign)      NSInteger               animationIntegerNumber;
+@property (nonatomic , assign)      BOOL                    animationUpOrdown;
+@property (nonatomic , weak)        UIImageView             *animationUpOrdownImageView;
+@property (nonatomic , weak)        NSTimer                 *animationNStimer;
+///扫描结果内容
+@property (nonatomic , strong)      NSString                *scanQRCodeResultString;
+
+@property (nonatomic,strong)        UIView                  *backgroundView;
+@property (nonatomic,strong)        UILabel                 *recordernamelabel;
+/** 初始化按钮点击时事件
+ 
+ *@return void
+ **/
+
+- (void)initWithButtonClicked:(id) sender;
+
+- (void)initWithUserQRCodeButtonBtnEvent:(id)sender;
+
+- (void)initWithUserSetUpPhotoImageNotification:(NSNotification *) notification;
+
+/** 初始化界面信息框架内容
+ 
+ *@return void
+ **/
+- (void)initWithMeViewControllerFrame;
+
+/** 初始化相机内容_For_二维码扫描*/
+- (void)initWithUserSetupCameraWithScanQRCode;
+
+/** 初始化二维码扫描结果内容_For_二维码扫描*/
+- (void)initWithResultUserScanningWithQRCode:(NSString *)m_resultForQRCode;
+@end
+
+@implementation MeViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        self.enableCustomNavbarBackButton = TRUE;
+    }
+    return self;
+}
+- (id)init{
+    self = [super init];
+    if (self) {
+    }
+    return self;
+}
+- (void)loadView{
+    self.view = [[UIView alloc] initWithFrame:HUIApplicationFrame()];
+    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view.backgroundColor = KDefaultOrNightScrollViewColor;
+}
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    [self settingNavTitle:@"我"];
+    self.navButtonSize = KNavSize;
+    ///设置右侧二维码扫描设置
+    [self setRightNavButtonFA:FMIconQRCode
+                    withFrame:kNavButtonRect
+                 actionTarget:self
+                       action:@selector(initWithUserQRCodeButtonBtnEvent:)];
+    [self initWithMeViewControllerFrame];
+    
+    ///添加通知设置
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(initWithUserSetUpPhotoImageNotification:)
+                                                 name: FMUserAvatarModifyNotification
+                                               object: nil];
+    //主题通知
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(themeChangedNotification:)
+                                                 name: FMThemeChangedNotification
+                                               object: nil];
+}
+//夜间模式
+-(void)ThemeForNight
+{
+    UIImageView *im=(UIImageView *)[self.view viewWithTag:kHeaderImageViewTag];
+    if (ThemeCategory==5) {
+        im.alpha=1;
+        self.userCarTypeImageView.alpha=1;
+    }
+    else
+    {
+        im.alpha=1;
+        self.userCarTypeImageView.alpha=1;
+    }
+    for(UIView *sc in self.view.subviews)
+    {
+        if([sc isKindOfClass:[UIScrollView class]])
+        {
+            for(int i=0;i<sc.subviews.count;i++)
+            {
+                UIView *vc=[sc.subviews objectAtIndex:i];
+                if(i!=0)
+                {
+                    vc.backgroundColor=KDefaultOrNightBackGroundColor;
+                }
+                vc.layer.borderColor=[KDefaultOrNightSepratorColor CGColor];
+                for(UIButton *btn in vc.subviews)
+                {
+                    if([btn isKindOfClass:[UIButton class]])
+                    {
+                        [btn setBackgroundImage:createImageWithColor(KDefaultOrNightBackGroundColor)
+                                       forState:UIControlStateNormal];
+                        [btn setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                                       forState:UIControlStateHighlighted];
+                        btn.layer.borderColor=[KDefaultOrNightSepratorColor CGColor];
+                        for(UILabel *label in btn.subviews)
+                        {
+                            if ([label isKindOfClass:[UILabel class]]) {
+                                label.textColor=KDefaultOrNightTextColor;
+                            }
+                        }
+                        int i=0;
+                        for(UIImageView *image in btn.subviews)
+                        {
+                            if ([image isKindOfClass:[UIImageView class]]&&i==1) {
+                                if (ThemeCategory==5) {
+                                    image.alpha=0.5;
+                                    self.userPersonalGradeView.alpha=0.6;
+                                    self.recordernamelabel.alpha=0.7;
+                                }
+                                else
+                                {
+                                image.alpha=1;
+                                    self.userPersonalGradeView.alpha=1;
+                                    self.recordernamelabel.alpha=1;
+                                }
+                            }
+                            i++;
+                        }
+                    }
+                    for(int j=0;j<vc.subviews.count&&i!=0;j++)
+                    {
+                        UIView *v=[vc.subviews objectAtIndex:j];
+                        if([v isKindOfClass:[UIView class]]&&j>0)
+                        {
+                            v.backgroundColor=KDefaultOrNightSepratorColor;
+                        }
+                    }
+                }        }
+        }
+    }
+}
+- (void) viewWillAppear:(BOOL)animated
+{
+    if(ThemeCategory==5)
+    {
+        [self ThemeForNight];
+    }
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] != 0) {
+        [self modifyAutoTypeSucceed];//更改车型
+
+        if ([[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString length] == 4) {
+            NSString *grade = [CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString;
+            int crownCount = [grade characterAtIndex:0] - 48;   //皇冠个数
+            int sunCount = [grade characterAtIndex:1] - 48;     //太阳个数
+            int moonCount = [grade characterAtIndex:2] - 48;    //月亮个数
+            int starCount = [grade characterAtIndex:3] - 48;    //星星级别个数
+            CGFloat len = (crownCount + sunCount + moonCount + starCount)*20.0f;
+            [self.userPersonalGradeView setFrame:CGRectMake(100, 17.5, len, 20.0f)];
+            [self.userPersonalGradeView setGrade:[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString];
+        }
+        
+        ///用户个人信息
+        //用户名
+        UILabel *nameLabel = (UILabel *)[self.view viewWithTag:kNameLabelTag];
+        NSString    *userNameString = [[NSString alloc]initWithFormat:@"%@",[[CurrentUserInformation sharedCurrentUserInfo] userName]];
+        
+        if (!IsStringEmptyOrNull(userNameString)) {
+            nameLabel.text = userNameString;
+        }else{
+            nameLabel.text = @"未登录";
+        }
+        CGSize nameLabelSize = [nameLabel.text sizeWithFont:nameLabel.font];
+        nameLabel.frame = CGRectMake(100, 146, nameLabelSize.width, nameLabelSize.height);
+        
+        //用户性别
+        UIImageView *sexImageView = (UIImageView *)[self.view viewWithTag:kSexImageViewTag];
+        sexImageView.hidden = NO;
+        if (![nameLabel.text isEqualToString:@"未登录"]) {
+            if ([[CurrentUserInformation sharedCurrentUserInfo] userSex] == 1) {//男
+                sexImageView.image = kImgSexMan;
+            }else{//女
+                sexImageView.image = kImgSexWomman;
+            }
+        }
+        sexImageView.frame = CGRectMake(100 + nameLabelSize.width + 4, 146, 16, 16);
+    }
+
+    
+    UIButton    *myPrizeButton = (UIButton *)[self.view viewWithTag:KmyPersonalPrizeButtonTag];
+    UIImageView *hintPoint = (UIImageView *)[myPrizeButton viewWithTag:KRedHintPointImageViewTag];
+
+    ///设置小红点
+    if (FMShareSetting.appPushMyPrizeInforLatestIdentifier > 0) {
+        if (!hintPoint) {
+            hintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+            hintPoint.tag = KRedHintPointImageViewTag;
+            hintPoint.frame = CGRectMake(self.view.bounds.size.width-50.0f, 23.5, 7, 7);
+            [myPrizeButton addSubview:hintPoint];
+        }
+        
+    }else{
+        [hintPoint setHidden:YES];
+    }
+    
+//    KRedHintPointViolationMsgInforImageViedTag
+    
+    UIButton    *myViolationButton = (UIButton *)[self.view viewWithTag:kMyTrafficViolationsButtonTag];
+    UIImageView *violationHintPoint = (UIImageView *)[myPrizeButton viewWithTag:KRedHintPointViolationMsgInforImageViedTag];
+    ///设置我的违章小红点内容
+    if (FMShareSetting.appPushMePersonalViolationMsgInforBool) {
+        if (!violationHintPoint) {
+            violationHintPoint = [[UIImageView alloc] initWithImage:kImgHintPointImage];
+            violationHintPoint.tag = KRedHintPointViolationMsgInforImageViedTag;
+            violationHintPoint.frame = CGRectMake(self.view.bounds.size.width-50.0f, 23.5, 7, 7);
+            [myViolationButton addSubview:violationHintPoint];
+        }
+    }else{
+        [violationHintPoint setHidden:YES];
+    }
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+}
+
+- (void)initWithUserQRCodeButtonBtnEvent:(id)sender{
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+        LoginController *registerController = [[LoginController alloc] init];
+        FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+        [self presentModalViewController:navController animated:YES];
+    }else{
+        [self initWithUserSetupCameraWithScanQRCode];
+    }
+}
+
+#pragma mark -
+#pragma mark - 初始化按钮点击时事件
+- (void)initWithButtonClicked:(id)sender{
+    UIButton *button = (UIButton *)sender;
+    
+    ///二维码扫描设置
+    if (button.tag == KUserQRCodeButtonTag) {
+        
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+            [self initWithUserSetupCameraWithScanQRCode];
+        }
+    }
+    //我的爱车
+    else if(button.tag == kMyCarButtonTag){
+        
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+            
+            
+            //用户信息控制器
+            PersonalLoveCarController *loveCarView = [[PersonalLoveCarController alloc]initWithDelegate:self];
+            loveCarView.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:loveCarView animated:YES];
+        }
+    }
+    //我的违章
+    else if(button.tag == kMyTrafficViolationsButtonTag){
+        
+#if defined (JN) ||(WF)||(LY)||(YT)
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+            ///存在车牌
+            if (!IsStringEmptyOrNull([[CurrentUserInformation sharedCurrentUserInfo] userCarNo]) && [[CurrentUserInformation sharedCurrentUserInfo].userCarNo length] == 7) {
+                
+                UIButton    *myPrizeButton = (UIButton *)[self.view viewWithTag:kMyTrafficViolationsButtonTag];
+                UIImageView *hintPoint = (UIImageView *)[myPrizeButton viewWithTag:KRedHintPointViolationMsgInforImageViedTag];
+                [hintPoint setHidden:YES];
+                [FMShareSetting setAppPushMePersonalViolationMsgInforBool:NO];
+                DetailTravelController *travelViewControl = [[DetailTravelController alloc]init];
+                travelViewControl.hidesBottomBarWhenPushed = YES;
+                [self.navigationController pushViewController:travelViewControl animated:YES];
+            }
+            ///绑定车牌
+            else{
+                AddCarNoViewController  *addCarNumber = [[AddCarNoViewController alloc]initWithStyle:InitWithUserAddCarNumber];
+                addCarNumber.hidesBottomBarWhenPushed = YES;
+                [self.navigationController pushViewController:addCarNumber animated:YES];
+            }
+        }
+#else
+        WebTravelController *webController = [[WebTravelController alloc]init];
+        webController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:webController animated:YES];
+#endif
+    }
+    ///会员卡内容
+    else if (button.tag == KMyMemberCardButtonTag){
+        
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+//            MembershipCardController    *membershipCardView = [[MembershipCardController alloc]init];
+//            membershipCardView.hidesBottomBarWhenPushed = YES;
+//            [self.navigationController pushViewController:membershipCardView animated:YES];
+            
+            TransportInformationController *friendsViewController = [[TransportInformationController alloc] init];
+            friendsViewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:friendsViewController animated:YES];
+
+        }
+    }
+    //我的奖品
+    else if (button.tag == KmyPersonalPrizeButtonTag){
+        
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userLoginState] == 0) {//注册
+            LoginController *registerController = [[LoginController alloc] init];
+            FMNavigationController *navController = [[FMNavigationController alloc] initWithRootViewController:registerController];
+            [self presentModalViewController:navController animated:YES];
+        }else{
+            
+            if (FMShareSetting.appPushMyPrizeInforLatestIdentifier > 0) {
+                
+                UIButton    *myPrizeButton = (UIButton *)[self.view viewWithTag:KmyPersonalPrizeButtonTag];
+                UIImageView *hintPoint = (UIImageView *)[myPrizeButton viewWithTag:KRedHintPointImageViewTag];
+                [hintPoint setHidden:YES];
+                
+//                AppDelegate *appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
+//                FMTabBarController* tabControl = (FMTabBarController*)appDelegate.window.rootViewController;
+//                [tabControl showHintPoint:3 showOrHide:NO];
+//                
+//                
+                MainTabViewController *main = [[MainTabViewController alloc]init];
+                FMTabBarController *tabControl = main.tabController;
+                [tabControl showHintPoint:3 showOrHide:NO];
+                
+                [FMShareSetting setAppPushMyPrizeInforLatestIdentifier:0];
+                [FMHTTPClient getUserHasReadPersonalNewPrizeInforWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID completion:^(WebAPIResponse *response) {
+                    dispatch_async(dispatch_get_main_queue(), ^(void){
+                        Log(@"%@",response.responseObject);
+                        if(response.code == WebAPIResponseCodeSuccess){
+
+                        }
+                    });
+                }];
+            }
+            
+            //TODO: 进入奖品界面
+//            PrizeViewController *prizeViewController = [[PrizeViewController alloc] init];
+//            prizeViewController.hidesBottomBarWhenPushed = YES;
+//            [self.navigationController pushViewController:prizeViewController animated:YES];
+            
+            CarFriendsTogetherController *viewController = [[CarFriendsTogetherController alloc]init];
+            viewController.hidesBottomBarWhenPushed=YES;
+            //    [self presentModalViewController:navigationView animated:YES];
+            [self.navigationController pushViewController:viewController animated:YES];
+
+        }
+    }
+    //电台公告
+    else if(button.tag == kAnnouncementButtonTag){
+        
+//        AnnouncementViewController *announcementController = [[AnnouncementViewController alloc] init];
+//        announcementController.hidesBottomBarWhenPushed = YES;
+//        [self.navigationController pushViewController:announcementController animated:YES];
+        
+
+    }
+    ///用户分享给好友
+    else if (button.tag == KUserShareButton){
+        //TODO: 1.构造一个Container（iPhone可省略）
+        id<ISSContainer> container = [ShareSDK container];
+        [container setIPhoneContainerWithViewController:self];
+        
+        //TODO: 3.使用customShareList构造shareList，项目的顺序也会反映在菜单顺序之中
+        NSArray *shareList = [ShareSDK customShareListWithType:
+                              SHARE_TYPE_NUMBER(ShareTypeSinaWeibo),
+                              SHARE_TYPE_NUMBER(ShareTypeWeixiSession),
+                              SHARE_TYPE_NUMBER(ShareTypeWeixiTimeline),
+                              SHARE_TYPE_NUMBER(ShareTypeSMS),
+                              SHARE_TYPE_NUMBER(ShareTypeMail),
+                              SHARE_TYPE_NUMBER(ShareTypeCopy),
+                              nil];
+         NSString *contentString =  [NSString stringWithFormat:@"我在使用%@交通广播手机客户端，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectCityNameText];
+        NSString *titleString   = [NSString stringWithFormat:@"%@交通广播手机客户端，便捷查路况、查违章、还可参与节目互动",KProjectCityNameText];
+
+        NSString *urlString     = [NSString stringWithFormat: URLString1,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"];
+        /*
+         
+         #if defined (YT)
+         
+         #else
+         
+         #endif
+         */
+        NSString *description   = [NSString stringWithFormat:@"%@车主服务，便捷查路况、查违章、还可参与节目互动，与主持人零距离对话。",KProjectRadioFMNumber];
+
+        NSData *contentImageData = UIImagePNGRepresentation([UIImage imageNamed:FMCZFWLogoImage]);
+
+        NSString *fileName=[NSString stringWithFormat:@"%@.jpg",KProjectRadioFMNumber];
+        id<ISSCAttachment> attachment = [ShareSDK attachmentWithData:contentImageData mimeType:@"" fileName:fileName];
+
+        
+        id<ISSContent> publishContent = [ShareSDK content:contentString
+                                           defaultContent:@""
+                                                    image:attachment
+                                                    title:titleString
+                                                      url:urlString
+                                              description:description
+                                                mediaType:SSPublishContentMediaTypeNews];
+        [publishContent addSMSUnitWithContent:[NSString stringWithFormat:ContentString1,[CurrentUserInformation sharedCurrentUserInfo].userLoginState !=0 ?[CurrentUserInformation sharedCurrentUserInfo].userID:@"0"]];
+        id<ISSShareOptions> shareOptions =
+        [ShareSDK simpleShareOptionsWithTitle:@"分享内容"
+                            shareViewDelegate:nil];
+        
+        //TODO: 4.将container（iPhone上可为nil）和shareList传入 showShareActionSheet 方法
+        [ShareSDK showShareActionSheet:container
+                             shareList:shareList
+                               content:publishContent
+                         statusBarTips:NO
+                           authOptions:nil
+                          shareOptions:shareOptions
+                                result:nil];
+    }
+    //设置
+    else if(button.tag == kSettingButtonTag){
+        SettingViewController *settingController = [[SettingViewController alloc] init];
+        settingController.hidesBottomBarWhenPushed = YES;
+        [self.navigationController pushViewController:settingController animated:YES];
+    }
+}
+
+#pragma mark -
+#pragma mark - 初始化界面信息框架内容
+- (void)initWithMeViewControllerFrame{
+    
+    self.scanQRCodeResultString = [[NSString alloc]initWithFormat:@"%@",@""];
+    //头部视图
+    UIImageView *headerImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight)/ - 2.0f, self.view.bounds.size.width, kHeaderImageHeight)];
+    headerImageView.tag = kHeaderImageViewTag;
+    headerImageView.image = [UIImage imageNamed:@"Me_Header.jpg"];
+    [self.view addSubview:headerImageView];
+    
+    //背景视图
+    UIView *tableViewBgImageView = [[UIView alloc] initWithFrame:CGRectMake(0, kDisplayHederImageHeight, self.view.bounds.size.width, 1000)];
+    tableViewBgImageView.tag = kTableViewBgImageViewTag;
+    tableViewBgImageView.backgroundColor = KDefaultOrNightScrollViewColor;
+    self.backgroundView=tableViewBgImageView;
+    [self.view addSubview:self.backgroundView];
+    
+    //滚动视图
+    UIScrollView *mainScrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+    mainScrollView.tag = kScrollViewTag;
+    mainScrollView.delegate = self;
+    mainScrollView.backgroundColor = [UIColor clearColor];
+    mainScrollView.showsVerticalScrollIndicator = NO;
+    mainScrollView.contentSize = CGSizeMake(self.view.bounds.size.width, self.view.bounds.size.height+180);
+    
+    //1、第一部分视图
+    UIView *firstSectionView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 228)];
+    firstSectionView.backgroundColor = [UIColor clearColor];
+    ////名称
+    UILabel *nameLabel = [[UILabel alloc] initWithFrame:CGRectMake(100, 146, 200, 20)];
+    nameLabel.tag = kNameLabelTag;
+    nameLabel.font = [UIFont systemFontOfSize:20.0f];
+    nameLabel.text = @"未登录";
+    nameLabel.textColor = [UIColor whiteColor];
+    nameLabel.backgroundColor = [UIColor clearColor];
+    self.recordernamelabel=nameLabel;
+    [firstSectionView addSubview:self.recordernamelabel];
+    ////性别
+    UIImageView *sexImageView = [[UIImageView alloc] init];
+    
+    sexImageView.tag = kSexImageViewTag;
+    [firstSectionView addSubview:sexImageView];
+    ////等级按钮
+    
+    
+    UIButton *gradeButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    gradeButton.tag = kMyCarButtonTag;
+    [gradeButton setBackgroundImage:createImageWithColor([UIColor colorWithRed:246/255.0f green:246/255.0f blue:246/255.0f alpha:1.0f]) forState:UIControlStateNormal];
+    [gradeButton setBackgroundImage:createImageWithColor([UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1]) forState:UIControlStateHighlighted];
+    [gradeButton setFrame:CGRectMake(0, 173, self.view.bounds.size.width, 55)];
+    gradeButton.layer.borderWidth = 0.5f;
+    gradeButton.layer.borderColor = [KDefaultOrNightSepratorColor CGColor];
+    [gradeButton addTarget:self action:@selector(initWithButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    
+    ////等级信息视图
+    UserGradeView *gradeView = [[UserGradeView alloc] initWithFrame:CGRectMake(112, 17.5, 0.0f, 20)];
+    self.userPersonalGradeView = gradeView;
+    [gradeButton addSubview:self.userPersonalGradeView];
+    
+    UIImageView *editImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width - 50.0f,  21.0f, 11, 13.5)];
+    [editImageView setImage:[UIImage imageNamed:@"Me_UserEditInfor.png"]];
+    [gradeButton addSubview:editImageView];
+    
+
+    ////箭头
+    UIImageView *gradeArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width - 25.0f, 21.0f, 8.5f, 13.0f)];
+    [gradeArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [gradeButton addSubview:gradeArrowImageView];
+    [firstSectionView addSubview:gradeButton];
+    
+    ////车型图片
+    APAvatarImageView *carTypeImageView = [[APAvatarImageView alloc] initWithFrame:CGRectMake(14, 150, 70, 70)borderColor:[UIColor whiteColor] borderWidth:0.5];
+    [carTypeImageView setClipsToBounds:YES];
+    [carTypeImageView setContentMode:UIViewContentModeScaleAspectFill];
+    carTypeImageView.image = kImgDefaultCar;
+    self.userCarTypeImageView = carTypeImageView;
+    [firstSectionView addSubview:self.userCarTypeImageView];
+    [mainScrollView addSubview:firstSectionView];
+    
+    //2、第二部分视图
+    UIView *secondSectionView = [[UIView alloc] initWithFrame:CGRectMake(0, 238, self.view.bounds.size.width, 163.0f)];
+    secondSectionView.backgroundColor = [UIColor whiteColor];
+    secondSectionView.layer.borderWidth = 0.5f;
+    secondSectionView.layer.borderColor = [KDefaultOrNightSepratorColor CGColor];
+    
+    ////第二行 我的违章
+    UIButton *myTrafficViolationsButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    myTrafficViolationsButton.tag = kMyTrafficViolationsButtonTag;
+    [myTrafficViolationsButton setBackgroundImage:createImageWithColor([UIColor whiteColor])
+                                         forState:UIControlStateNormal];
+    [myTrafficViolationsButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                                         forState:UIControlStateHighlighted];
+    [myTrafficViolationsButton setFrame:CGRectMake(0, 0.0f, self.view.bounds.size.width, 54)];
+    [myTrafficViolationsButton addTarget:self action:@selector(initWithButtonClicked:)
+                        forControlEvents:UIControlEventTouchUpInside];
+    ////第二行 指示图片
+    UIImageView *myTrafficViolationsImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 12.5f, 29, 29)];
+    myTrafficViolationsImageView.image = [UIImage imageNamed:@"Me_BreakRules.png"];
+    [myTrafficViolationsButton addSubview:myTrafficViolationsImageView];
+    ////第二行 名称
+    UILabel *myTrafficViolationsLabel = [[UILabel alloc] initWithFrame:CGRectMake(KContentLeftSizeWidth, 12, 100, 30)];
+    myTrafficViolationsLabel.font = KContentLeftTitleFontOfSize;
+    myTrafficViolationsLabel.textColor = KDefaultOrNightTextColor;
+    myTrafficViolationsLabel.text = @"我的违章";
+    myTrafficViolationsLabel.backgroundColor = [UIColor clearColor];
+    [myTrafficViolationsButton addSubview:myTrafficViolationsLabel];
+    //new
+    UIImageView *myTrafficViolationsIndicatorImageView = [[UIImageView alloc] initWithFrame:CGRectMake(260, 20, 26, 14)];
+    myTrafficViolationsIndicatorImageView.tag = kMyTrafficViolationsIndicatorImageViewTag;
+    myTrafficViolationsIndicatorImageView.image = [UIImage imageNamed:@"Me_MyTrafficViolations_New.png"];
+    myTrafficViolationsIndicatorImageView.hidden = YES;
+    [myTrafficViolationsButton addSubview:myTrafficViolationsIndicatorImageView];
+    
+    ////第二行 指示箭头
+    UIImageView *myTrafficViolationsArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width-25.0f, 20.5f, 8.5f, 13.0f)];
+    [myTrafficViolationsArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [myTrafficViolationsButton addSubview:myTrafficViolationsArrowImageView];
+    [secondSectionView addSubview:myTrafficViolationsButton];
+    
+    ////分割线
+    UIView *thridSectionSeperatorView = [[UIView alloc] initWithFrame:CGRectMake(60, 54.0f, self.view.bounds.size.width - 60.0f, 0.5f)];
+    thridSectionSeperatorView.backgroundColor = KDefaultOrNightSepratorColor;
+    [secondSectionView addSubview:thridSectionSeperatorView];
+    
+    ////第二行 我的会员卡
+    UIButton *myMemberCardButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    myMemberCardButton.tag = KMyMemberCardButtonTag;
+    [myMemberCardButton setBackgroundImage:createImageWithColor([UIColor whiteColor]) forState:UIControlStateNormal];
+    [myMemberCardButton setBackgroundImage:createImageWithColor([UIColor colorWithRed:240/255.0f green:239/255.0f blue:240/255.0f alpha:1]) forState:UIControlStateHighlighted];
+    [myMemberCardButton setFrame:CGRectMake(0,54.5, self.view.bounds.size.width, 54)];
+    [myMemberCardButton addTarget:self action:@selector(initWithButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    ////第二行 指示图片
+    UIImageView *myMemberCardImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 12.5f, 29, 29)];
+    myMemberCardImageView.image = [UIImage imageNamed:@"Me_FavorableCard.png"];
+    [myMemberCardButton addSubview:myMemberCardImageView];
+    ////第二行 名称
+    UILabel *myMemberCardLabel = [[UILabel alloc] initWithFrame:CGRectMake(KContentLeftSizeWidth, 12, 100, 30)];
+    myMemberCardLabel.font = KContentLeftTitleFontOfSize;
+    myMemberCardLabel.textColor = KDefaultOrNightTextColor;
+//    myMemberCardLabel.text = @"我的优享卡";
+//#if defined (WH)
+//    myMemberCardLabel.text = @"896会员卡";
+//#endif
+    myMemberCardLabel.text = @"交通资讯";
+    
+    myMemberCardLabel.backgroundColor = [UIColor clearColor];
+    [myMemberCardButton addSubview:myMemberCardLabel];
+    ////第二行 指示箭头
+    UIImageView *myMemberCardArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width - 25.0f, 20.5f, 8.5f, 13.0f)];
+    [myMemberCardArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [myMemberCardButton addSubview:myMemberCardArrowImageView];
+    
+    [secondSectionView addSubview:myMemberCardButton];
+    
+    ////我的奖品设置
+    ////分割线
+    UIView *fourthSectionSeperatorView = [[UIView alloc] initWithFrame:CGRectMake(60,108.5, self.view.bounds.size.width-60.0f , 0.5f)];
+    fourthSectionSeperatorView.backgroundColor = KDefaultOrNightSepratorColor;
+    [secondSectionView addSubview:fourthSectionSeperatorView];
+    
+    UIButton    *myPersonalPrizeButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    myPersonalPrizeButton.tag = KmyPersonalPrizeButtonTag;
+    [myPersonalPrizeButton setBackgroundImage:createImageWithColor([UIColor whiteColor])
+                                     forState:UIControlStateNormal];
+    [myPersonalPrizeButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                                     forState:UIControlStateHighlighted];
+    [myPersonalPrizeButton setFrame:CGRectMake(0,109, self.view.bounds.size.width, 54)];
+    [myPersonalPrizeButton addTarget:self
+                              action:@selector(initWithButtonClicked:)
+                    forControlEvents:UIControlEventTouchUpInside];
+    ////第二行 指示图片
+    UIImageView *myPersonalPrizeImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 12.5f, 29, 29)];
+    myPersonalPrizeImageView.image = [UIImage imageNamed:@"Me_MyPrizeImage.png"];
+    [myPersonalPrizeButton addSubview:myPersonalPrizeImageView];
+    ////第二行 名称
+    UILabel *myPersonalPrizeLabel = [[UILabel alloc] initWithFrame:CGRectMake(KContentLeftSizeWidth, 12, 100, 30)];
+    myPersonalPrizeLabel.font = KContentLeftTitleFontOfSize;
+    myPersonalPrizeLabel.textColor = KDefaultOrNightTextColor;
+    myPersonalPrizeLabel.text = @"车友活动";
+    myPersonalPrizeLabel.backgroundColor = [UIColor clearColor];
+    [myPersonalPrizeButton addSubview:myPersonalPrizeLabel];
+    ////第二行 指示箭头
+    UIImageView *myPersonalPrizeArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width-25.0f, 20.5f, 8.5f, 13.0f)];
+    [myPersonalPrizeArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [myPersonalPrizeButton addSubview:myPersonalPrizeArrowImageView];
+    
+    [secondSectionView addSubview:myPersonalPrizeButton];
+    [mainScrollView addSubview:secondSectionView];
+    
+    //2、第二部分视图
+    UIView *thridSectionView = [[UIView alloc] initWithFrame:CGRectMake(0,426, self.view.bounds.size.width, 108.5)];
+    thridSectionView.backgroundColor = [UIColor whiteColor];
+    thridSectionView.layer.borderWidth = 0.5f;
+    thridSectionView.layer.borderColor = [KDefaultOrNightSepratorColor CGColor];
+    //1.第一分视图 --分享
+    UIButton *shareButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    shareButton.tag = KUserShareButton;
+    [shareButton setBackgroundImage:createImageWithColor([UIColor whiteColor])
+                           forState:UIControlStateNormal];
+    [shareButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                           forState:UIControlStateHighlighted];
+    [shareButton setFrame:CGRectMake(0,0.0f, self.view.bounds.size.width, 54)];
+    [shareButton addTarget:self action:@selector(initWithButtonClicked:)
+          forControlEvents:UIControlEventTouchUpInside];
+    ////指示图片
+    UIImageView *shareImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 12.5f, 29, 29)];
+    shareImageView.image = [UIImage imageNamed:@"Me_ShareInfor.png"];
+    [shareButton addSubview:shareImageView];
+    ////名称
+    UILabel *shareLabel = [[UILabel alloc] initWithFrame:CGRectMake(KContentLeftSizeWidth, 12, 150, 30)];
+    shareLabel.font = KContentLeftTitleFontOfSize;
+    shareLabel.textColor = KDefaultOrNightBaseColor;
+    shareLabel.text = @"邀请好友赚金币";
+    shareLabel.backgroundColor = [UIColor clearColor];
+    [shareButton addSubview:shareLabel];
+    ////指示箭头
+    UIImageView *shareArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width-25.0f, 20.5f, 8.5f, 13.0f)];
+    [shareArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [shareButton addSubview:shareArrowImageView];
+    [thridSectionView addSubview:shareButton];
+    
+    
+    ////分割线
+    UIView *shareSeperatorView = [[UIView alloc] initWithFrame:CGRectMake(60, 54, self.view.bounds.size.width-60.0f, 0.5f)];
+    shareSeperatorView.backgroundColor = KDefaultOrNightSepratorColor;
+    [thridSectionView addSubview:shareSeperatorView];
+    
+    //4、第四部分视图
+    UIButton *settingButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    settingButton.tag = kSettingButtonTag;
+    [settingButton setBackgroundImage:createImageWithColor([UIColor whiteColor])
+                             forState:UIControlStateNormal];
+    [settingButton setBackgroundImage:createImageWithColor(KDefaultOrNightButtonHighlightColor)
+                             forState:UIControlStateHighlighted];
+    [settingButton setFrame:CGRectMake(0,54.5, self.view.bounds.size.width, 54)];
+    [settingButton addTarget:self action:@selector(initWithButtonClicked:)
+            forControlEvents:UIControlEventTouchUpInside];
+    ////指示图片
+    UIImageView *settingImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 12.5f, 29, 29)];
+    settingImageView.image = [UIImage imageNamed:@"Me_Setting.png"];
+    [settingButton addSubview:settingImageView];
+    ////名称
+    UILabel *settingLabel = [[UILabel alloc] initWithFrame:CGRectMake(KContentLeftSizeWidth, 12, 100, 30)];
+    settingLabel.font = KContentLeftTitleFontOfSize;
+    settingLabel.textColor = KDefaultOrNightTextColor;
+    settingLabel.text = @"设置";
+    settingLabel.backgroundColor = [UIColor clearColor];
+    [settingButton addSubview:settingLabel];
+    ////指示箭头
+    UIImageView *settingArrowImageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.view.bounds.size.width-25.0f, 20.5f, 8.5f, 13.0f)];
+    [settingArrowImageView setImage:[UIImage imageNamed:@"More_CellArrow.png"]];
+    [settingButton addSubview:settingArrowImageView];
+    [thridSectionView addSubview:settingButton];
+    
+    [mainScrollView addSubview:thridSectionView];
+    [self.view addSubview:mainScrollView];
+}
+
+#pragma mark -
+#pragma mark -UIScrollViewDelegate
+- (void) scrollViewDidScroll:(UIScrollView *)scrollView{
+    CGFloat contentOffsetY = scrollView.contentOffset.y;
+    UIImageView *headerImageView = (UIImageView *)[self.view viewWithTag:kHeaderImageViewTag];
+    UIImageView *tableViewBgImageView = (UIImageView *)[self.view viewWithTag:kTableViewBgImageViewTag];
+    if (contentOffsetY <= 0) {
+        headerImageView.frame = CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight + contentOffsetY)/-2, self.view.bounds.size.width, kHeaderImageHeight);
+        
+        if (contentOffsetY < (kDisplayHederImageHeight - kHeaderImageHeight)) {
+            headerImageView.frame = CGRectMake(0, (kDisplayHederImageHeight - kHeaderImageHeight) - contentOffsetY, self.view.bounds.size.width, kHeaderImageHeight);
+        }
+    }else{
+        headerImageView.frame = CGRectMake(0, (kHeaderImageHeight - kDisplayHederImageHeight)/-2 - contentOffsetY, self.view.bounds.size.width, kHeaderImageHeight);
+    }
+    
+    tableViewBgImageView.frame = CGRectMake(0, kDisplayHederImageHeight - contentOffsetY, self.view.bounds.size.width, 1000);
+}
+
+- (void)modifyAutoTypeSucceed{
+    
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)) {
+        [self.userCarTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                                         [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                                  placeholderImage:kImgDefaultCar];
+    }
+}
+
+#pragma mark -登录通知
+- (void) loginNotification:(NSNotification *) notification{
+    
+    if (!IsStringEmptyOrNull([CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl)) {
+            [self.userCarTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                                             [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                                      placeholderImage:kImgDefaultCar];
+    }
+    //用户名
+    UILabel *nameLabel = (UILabel *)[self.view viewWithTag:kNameLabelTag];
+    NSString    *userNameString = [[NSString alloc]initWithFormat:@"%@",[[CurrentUserInformation sharedCurrentUserInfo] userName]];
+    
+    if (!IsStringEmptyOrNull(userNameString)) {
+        nameLabel.text = userNameString;
+    }else{
+        nameLabel.text = @"未登录";
+    }    
+    CGSize nameLabelSize = [nameLabel.text sizeWithFont:nameLabel.font];
+    nameLabel.frame = CGRectMake(100, 146, nameLabelSize.width, nameLabelSize.height);
+    
+    //用户性别
+    UIImageView *sexImageView = (UIImageView *)[self.view viewWithTag:kSexImageViewTag];
+    sexImageView.hidden = NO;
+    
+    if (![nameLabel.text isEqualToString:@"未登录"]) {
+        if ([[CurrentUserInformation sharedCurrentUserInfo] userSex] == 1) {//男
+            sexImageView.image = kImgSexMan;
+        }else{//女
+            sexImageView.image = kImgSexWomman;
+        }
+        
+    }
+    sexImageView.frame = CGRectMake(100 + nameLabelSize.width + 4, 146, 16, 16);
+    
+    //获取用户等级信息
+//    [self.userPersonalGradeView setGrade:[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString];
+    
+    if ([[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString length] == 4) {
+        NSString *grade = [CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString;
+        int crownCount = [grade characterAtIndex:0] - 48;   //皇冠个数
+        int sunCount = [grade characterAtIndex:1] - 48;     //太阳个数
+        int moonCount = [grade characterAtIndex:2] - 48;    //月亮个数
+        int starCount = [grade characterAtIndex:3] - 48;    //星星级别个数
+        CGFloat len = (crownCount + sunCount + moonCount + starCount)*20.0f;
+        [self.userPersonalGradeView setFrame:CGRectMake(100, 17.5, len, 20.0f)];
+        [self.userPersonalGradeView setGrade:[CurrentUserInformation sharedCurrentUserInfo].userPersonalGradeString];
+    }
+}
+
+#pragma mark -退出登录通知
+- (void) loginOutNotification:(NSNotification *) notification{
+    //默认图片
+    self.userCarTypeImageView.image = kImgDefaultCar;
+    
+    //用户名
+    UILabel *nameLabel = (UILabel *)[self.view viewWithTag:kNameLabelTag];
+    nameLabel.text = @"未登录";
+    CGSize nameLabelSize = [nameLabel.text sizeWithFont:nameLabel.font];
+    nameLabel.frame = CGRectMake(100, 146, nameLabelSize.width, nameLabelSize.height);
+    
+    //用户性别
+    UIImageView *sexImageView = (UIImageView *)[self.view viewWithTag:kSexImageViewTag];
+    sexImageView.hidden = YES;
+    
+    //用户等级视图
+    [self.userPersonalGradeView setFrame:CGRectMake(0.0, 17.5, 0.0, 20.0f)];
+    [self.userPersonalGradeView setGrade:@"0000"];
+}
+
+#pragma mark -主题通知
+- (void) themeChangedNotification:(NSNotification *)notification
+{
+    
+    
+    Log(@"设置内容信息，主要是是设置头部和底部导航");
+    [self updateNaviTheme];
+    [self ThemeForNight];
+    self.backgroundView.backgroundColor=KDefaultOrNightScrollViewColor;
+}
+
+- (void)initWithUserSetUpPhotoImageNotification:(NSNotification *)notification{
+    
+    [FMHTTPClient getUserPersonalInformationWithUserId:[CurrentUserInformation sharedCurrentUserInfo].userID completion:^(WebAPIResponse *response) {
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            
+            if(response.code == WebAPIResponseCodeSuccess){
+                
+                NSDictionary    *userPersonalInformationDictionary = [NSDictionary dictionaryWithDictionary:(NSDictionary *)ObjForKeyInUnserializedJSONDic(response.responseObject, kDataKeyData)];
+                
+                if ([userPersonalInformationDictionary count] > 2) {
+                    ///积分
+                    [[CurrentUserInformation sharedCurrentUserInfo] setUserPersonalScoreString:StringForKeyInUnserializedJSONDic(userPersonalInformationDictionary, @"score")];
+                    
+                    ///金币内容
+                    [[CurrentUserInformation sharedCurrentUserInfo] setUserPersonalGoldCoinCount:StringForKeyInUnserializedJSONDic(userPersonalInformationDictionary, @"coin")];
+                    
+                    ///个人头像
+                    NSString    *photoImageURL = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(userPersonalInformationDictionary, KDataKeyAvatar)];
+                    NSString    *carBrandImageUrl = [NSString stringWithFormat:@"%@",StringForKeyInUnserializedJSONDic(userPersonalInformationDictionary, @"Brand_logo_name")];
+                    
+                    if (!IsStringEmptyOrNull(carBrandImageUrl)) {
+                        [[CurrentUserInformation sharedCurrentUserInfo] setUserCarBrandImageUrl:carBrandImageUrl];
+                        [[CurrentUserInformation sharedCurrentUserInfo] setUserAvatar:photoImageURL];
+                        
+                        [self.userCarTypeImageView setImageWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@",KMediaServerImagesInforURL,
+                                                                                         [CurrentUserInformation sharedCurrentUserInfo].userCarBrandImageUrl]]
+                                                  placeholderImage:kImgDefaultCar];
+                        
+//                        kImgDefaultCar
+                    }
+                }
+            }
+        });
+    }];
+}
+
+//TODO: 1.开启二维码扫描相机设置
+#pragma mark - 初始化相机内容_For_二维码扫描
+- (void)initWithUserSetupCameraWithScanQRCode{
+    
+#if !TARGET_IPHONE_SIMULATOR
+    ///IOS一下使用扫描设置
+        self.animationIntegerNumber = 0;
+        self.animationUpOrdown = NO;
+        
+        //初始话ZBar
+        ZBarReaderViewController * reader = [ZBarReaderViewController new];
+        //设置代理
+        reader.readerDelegate = self;
+        //支持界面旋转
+        reader.supportedOrientationsMask = ZBarOrientationMask(UIInterfaceOrientationPortrait);
+        reader.showsHelpOnFail = YES;
+        reader.scanCrop = CGRectMake(0.1, 0.2, 0.8, 0.8);//扫描的感应框
+        ZBarImageScanner * scanner = reader.scanner;
+        [scanner setSymbology:ZBAR_I25
+                       config:ZBAR_CFG_ENABLE
+                           to:0];
+        UIView * view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 420)];
+        view.backgroundColor = [UIColor clearColor];
+        reader.cameraOverlayView = view;
+        
+        
+        UILabel * label = [[UILabel alloc] initWithFrame:CGRectMake(20, 20, 280, 40)];
+        label.text = @"请将扫描的二维码至于下面的框内！";
+        label.textColor = [UIColor whiteColor];
+        label.textAlignment = 1;
+        label.lineBreakMode = 0;
+        label.numberOfLines = 2;
+        label.backgroundColor = [UIColor clearColor];
+        [view addSubview:label];
+        
+        UIImageView * image = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"pick_bg.png"]];
+        image.frame = CGRectMake(50, 120, 220, 220);
+        [view addSubview:image];
+        
+        
+        UIImageView  *animationLineView = [[UIImageView alloc] initWithFrame:CGRectMake(10, 10, 200, 2)];
+        animationLineView.image = [UIImage imageNamed:@"line.png"];
+        self.animationUpOrdownImageView = animationLineView;
+        [image addSubview:self.animationUpOrdownImageView];
+        //定时器，设定时间过1.5秒，
+        self.animationNStimer = [NSTimer scheduledTimerWithTimeInterval:.02 target:self selector:@selector(initWithSetUpCameraWithAnimation) userInfo:nil repeats:YES];
+        
+        [self presentViewController:reader animated:YES completion:^{
+            
+        }];
+#endif
+}
+
+
+//TODO: 2.设置相机扫描动画
+- (void)initWithSetUpCameraWithAnimation{
+    if (self.animationUpOrdown == NO) {
+        self.animationIntegerNumber ++;
+        self.animationUpOrdownImageView.frame = CGRectMake(10, 10+2*self.animationIntegerNumber, 200, 2);
+        if (2*self.animationIntegerNumber == 200) {
+            self.animationUpOrdown = YES;
+        }
+    }
+    else {
+        self.animationIntegerNumber --;
+        self.animationUpOrdownImageView.frame = CGRectMake(10, 10+2*self.animationIntegerNumber, 200, 2);
+        if (self.animationIntegerNumber == 0) {
+            self.animationUpOrdown = NO;
+        }
+    }
+}
+//TODO: 3.取消扫描设置
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker{
+    [self.animationNStimer invalidate];
+     self.animationUpOrdownImageView.frame = CGRectMake(60, 10, 220, 2);
+    self.animationIntegerNumber = 0;
+    self.animationUpOrdown = NO;
+    [picker dismissViewControllerAnimated:YES completion:^{
+        [picker removeFromParentViewController];
+    }];
+}
+
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info{
+    #if !TARGET_IPHONE_SIMULATOR
+
+    [self.animationNStimer invalidate];
+    self.animationUpOrdownImageView.frame = CGRectMake(60, 10, 220, 2);
+    self.animationIntegerNumber = 0;
+    self.animationUpOrdown = NO;
+     __weak __typeof(&*self)weakSelf = self;
+    
+
+    ShowAutoHideMBProgressHUD(HUIKeyWindow, @"正在解码...");
+    [picker dismissViewControllerAnimated:YES completion:^{
+        [picker removeFromParentViewController];
+        UIImage * image = [info objectForKey:UIImagePickerControllerOriginalImage];
+        //初始化
+        ZBarReaderController * read = [ZBarReaderController new];
+        //设置代理
+        read.readerDelegate = self;
+        CGImageRef cgImageRef = image.CGImage;
+        ZBarSymbol * symbol = nil;
+        id <NSFastEnumeration> results = [read scanImage:cgImageRef];
+        for (symbol in results)
+        {
+            break;
+        }
+        
+        NSString * result;
+        if ([symbol.data canBeConvertedToEncoding:NSShiftJISStringEncoding])
+            
+        {
+            result = [NSString stringWithCString:[symbol.data cStringUsingEncoding: NSShiftJISStringEncoding] encoding:NSUTF8StringEncoding];
+        }
+        else
+        {
+            result = symbol.data;
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+        
+            [weakSelf initWithResultUserScanningWithQRCode:result];
+        });
+
+    }];
+#endif
+}
+
+
+- (void)initWithResultUserScanningWithQRCode:(NSString *)m_resultForQRCode{
+    
+    if (self.scanQRCodeResultString) {
+        self.scanQRCodeResultString = nil;
+    }
+    
+    self.scanQRCodeResultString = [[NSString alloc]initWithFormat:@"%@",m_resultForQRCode];
+    
+    if (IsStringEmptyOrNull(self.scanQRCodeResultString )) {
+        return;
+    }
+    if ([self.scanQRCodeResultString hasPrefix:@"{"]) {
+        NSDictionary *codeResultDictionary = [[NSDictionary alloc]initWithDictionary:(NSDictionary *)[self.scanQRCodeResultString objectFromJSONString]];
+        
+        if (codeResultDictionary.count > 0 ) {
+            NSString *webURLString = [NSString stringWithFormat:@"%@ShakePrize/ActivityConfirm?id=%@&source=%@&userId=%@&code=1",kBaseAPIURL,StringForKeyInUnserializedJSONDic(codeResultDictionary, @"ID"),KProjectCityCodeString,[CurrentUserInformation sharedCurrentUserInfo].userID];
+            
+            ShareWebViewController *webViewController = [[ShareWebViewController alloc]initWithWebURLString:webURLString withTitle:@"扫描签到" withStyle:InitNavigationWebStyle withImageInfor:nil withShareWebDataStyle:WebDataForDescriptionDataStyle withDataInforID:@""];
+            [webViewController setIsNeedShareWebInfor:NO];
+            webViewController.hidesBottomBarWhenPushed = YES;
+            [self.navigationController pushViewController:webViewController animated:YES];
+        }
+        return;
+    }
+    UIAlertView *alertView = [[UIAlertView alloc]initWithTitle:@"" message:m_resultForQRCode delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"打开", nil];
+    [alertView setTag:KScanQRCodeAlertViewTag];
+    [alertView show];
+    
+}
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if (alertView.tag == KScanQRCodeAlertViewTag) {
+        if (buttonIndex != 0) {
+            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:self.scanQRCodeResultString]];
+        }
+    }
+}
+
+@end

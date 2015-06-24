@@ -1,0 +1,29 @@
+//
+//  PushInformaionSetting.m
+//  fmapp
+//
+//  Created by 张利广 on 14-7-10.
+//  Copyright (c) 2014年 yk. All rights reserved.
+//
+
+#import "PushInformaionSetting.h"
+#import "HTTPClient+UserLoginOrRegister.h"
+#import "CurrentUserInformation.h"
+#import "HTTPClient.h"
+
+@implementation PushInformaionSetting
+
++ (void)initWithProgramPushInformaionWithFromAPI{
+//    [FMHTTPClient getProgramRedHintPointInformationWithCompletion:^(WebAPIResponse *response) {
+//        dispatch_async(dispatch_get_main_queue(), ^(void){
+//            
+//            Log(@" 小红点儿内容来了 \n %@\n===========red point hint end\n",response.responseObject);
+//            if (response.code == WebAPIResponseCodeSuccess) {
+//                dispatch_async(dispatch_get_main_queue(), ^{
+//
+//                });
+//            }
+//        });
+//    }];
+}
+@end
